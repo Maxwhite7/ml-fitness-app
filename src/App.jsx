@@ -1229,6 +1229,8 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 
   const [generating, setGenerating] = useState(false);
   const [genFeedback, setGenFeedback] = useState("");
+  const [calView, setCalView] = useState("month"); // "day" | "week" | "month" | "year"
+  const [viewDate, setViewDate] = useState(today); // anchor date for day/week views
 
   const generateNextWeek = async () => {
     setGenerating(true);
@@ -1285,11 +1287,181 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const totalSessions = sessions.length;
   const totalClients = sessions.reduce((a,s)=>a+s.clientIds.length,0);
 
+  // ── View helpers ──
+  const getWeekStart = (d) => {
+    const s = new Date(d);
+    const day = s.getDay();
+    s.setDate(s.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+    s.setHours(0,0,0,0);
+    return s;
+  };
+
+  const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
+
+  const navigateCal = (dir) => {
+    if (calView === "day") setViewDate(d => addDays(d, dir));
+    else if (calView === "week") setViewDate(d => addDays(d, dir*7));
+    else if (calView === "month") {
+      setViewDate(d => { const n = new Date(d); n.setMonth(n.getMonth()+dir); return n; });
+      if (dir === 1) nextMonth(); else prevMonth();
+    }
+    else if (calView === "year") {
+      setViewDate(d => { const n = new Date(d); n.setFullYear(n.getFullYear()+dir); return n; });
+      setViewYear(y => y + dir);
+    }
+    setSelectedDate(null);
+  };
+
+  const calLabel = () => {
+    if (calView === "day") return `${DAY_NAMES[viewDate.getDay()]} ${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getDate()}, ${viewDate.getFullYear()}`;
+    if (calView === "week") {
+      const ws = getWeekStart(viewDate);
+      const we = addDays(ws, 6);
+      return `${MONTH_NAMES[ws.getMonth()]} ${ws.getDate()} – ${we.getDate()}, ${ws.getFullYear()}`;
+    }
+    if (calView === "month") return `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    return String(viewDate.getFullYear());
+  };
+
+  const SessionCard = ({s, onClick}) => {
+    const names = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : id; });
+    return (
+      <div className="session-card" style={{cursor:"pointer"}} onClick={onClick}>
+        <div className="session-time bebas">{s.time}</div>
+        <div className="session-info">
+          <div style={{fontWeight:500,marginBottom:4}}>{s.clientIds.length} client{s.clientIds.length!==1?"s":""}</div>
+          <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>{names.join(" · ") || "No clients assigned"}</div>
+          {s.notes && <div className="session-note">📝 {s.notes}</div>}
+        </div>
+        <span className={`badge ${s.clientIds.length>0?"badge-accent":"badge-muted"}`}>{s.clientIds.length}/7</span>
+      </div>
+    );
+  };
+
+  // Day view
+  const DayView = () => {
+    const daySessions = sessionsForDate(viewDate);
+    return (
+      <div className="section">
+        <div className="section-header">
+          <span className="bebas" style={{fontSize:18,color:"var(--text)"}}>{DAY_NAMES[viewDate.getDay()]} {MONTH_NAMES[viewDate.getMonth()]} {viewDate.getDate()}</span>
+          <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={()=>openAdd(viewDate)}>+ Add Session</button>
+        </div>
+        <div className="section-body">
+          {daySessions.length === 0
+            ? <div className="empty-state" style={{padding:"30px 20px"}}><div className="empty-icon">🗓</div><div className="empty-text">No sessions today.</div></div>
+            : daySessions.map(s => <SessionCard key={s.id} s={s} onClick={()=>openEdit(s)} />)
+          }
+        </div>
+      </div>
+    );
+  };
+
+  // Week view
+  const WeekView = () => {
+    const ws = getWeekStart(viewDate);
+    const weekDays = Array.from({length:7}, (_,i) => addDays(ws, i));
+    return (
+      <div className="section">
+        <div className="section-body" style={{padding:0}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+            {weekDays.map((d,i) => {
+              const daySessions = sessionsForDate(d);
+              const tod = isToday(d);
+              const sel = isSelected(d);
+              return (
+                <div key={i} style={{borderRight:"1px solid var(--border)",minHeight:400}}>
+                  <div style={{
+                    padding:"10px 8px",borderBottom:"1px solid var(--border)",
+                    background: tod ? "#3ec9c915" : "transparent",
+                    textAlign:"center"
+                  }}>
+                    <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_NAMES[d.getDay()]}</div>
+                    <div style={{
+                      width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                      margin:"4px auto 0",fontSize:14,fontWeight:600,
+                      background: tod ? "var(--accent)" : "transparent",
+                      color: tod ? "var(--black)" : "var(--text)"
+                    }}>{d.getDate()}</div>
+                  </div>
+                  <div style={{padding:"6px 4px",display:"flex",flexDirection:"column",gap:4}}>
+                    {daySessions.map(s => {
+                      const names = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : ""; }).filter(Boolean);
+                      return (
+                        <div key={s.id} onClick={()=>openEdit(s)} style={{
+                          padding:"6px 8px",borderRadius:2,cursor:"pointer",
+                          background: s.clientIds.length>0 ? "#3ec9c920" : "#ffffff08",
+                          borderLeft: `2px solid ${s.clientIds.length>0?"var(--accent)":"var(--border)"}`,
+                          fontSize:11
+                        }}>
+                          <div style={{fontWeight:600,color:"var(--text)"}}>{s.time}</div>
+                          <div style={{color:"var(--muted)",fontSize:10,marginTop:2}}>{s.clientIds.length>0?names.slice(0,2).join(", ")+(s.clientIds.length>2?` +${s.clientIds.length-2}`:""):"Empty"}</div>
+                        </div>
+                      );
+                    })}
+                    <div onClick={()=>openAdd(d)} style={{
+                      padding:"4px 8px",borderRadius:2,cursor:"pointer",
+                      border:"1px dashed var(--border)",fontSize:10,color:"var(--muted)",
+                      textAlign:"center",marginTop:2
+                    }}>+ Add</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Year view
+  const YearView = () => {
+    const year = viewDate.getFullYear();
+    return (
+      <div className="section">
+        <div className="section-body">
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
+            {MONTH_NAMES.map((mn,mi) => {
+              const monthSessions = sessions.filter(s => {
+                if (!s.date) return false;
+                const d = new Date(s.date+"T12:00:00");
+                return d.getFullYear()===year && d.getMonth()===mi;
+              });
+              const filled = monthSessions.filter(s=>s.clientIds.length>0).length;
+              return (
+                <div key={mi}
+                  onClick={()=>{ setCalView("month"); setViewMonth(mi); setViewYear(year); setViewDate(new Date(year,mi,1)); }}
+                  style={{
+                    padding:"16px",borderRadius:4,cursor:"pointer",
+                    border:"1px solid var(--border)",
+                    background: viewMonth===mi && year===viewYear ? "#3ec9c915" : "var(--panel)",
+                    transition:"all 0.15s"
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent)"}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}
+                >
+                  <div className="bebas" style={{fontSize:18,color:"var(--text)",marginBottom:8}}>{mn}</div>
+                  <div style={{fontSize:12,color:"var(--muted)"}}>{monthSessions.length} sessions</div>
+                  <div style={{fontSize:12,color:"var(--accent)"}}>{filled} with clients</div>
+                  {monthSessions.length > 0 && (
+                    <div style={{marginTop:8,height:4,background:"var(--border)",borderRadius:2}}>
+                      <div style={{height:4,borderRadius:2,background:"var(--accent)",width:`${Math.min(100,(filled/monthSessions.length)*100)}%`}} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="page-header">
-        <div className="bebas page-title">MONTHLY SCHEDULE</div>
-        <div className="page-subtitle">Click any day to view or add sessions</div>
+        <div className="bebas page-title">SCHEDULE</div>
+        <div className="page-subtitle">Manage your training sessions</div>
       </div>
 
       <div className="stats-grid">
@@ -1299,107 +1471,104 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
         <StatCard label="Month" value={MONTH_NAMES[viewMonth].slice(0,3).toUpperCase()} sub={String(viewYear)} />
       </div>
 
-      {/* Calendar */}
+      {/* View switcher + nav */}
       <div className="section">
         <div className="section-header">
-          <div style={{display:"flex",alignItems:"center",gap:16}}>
-            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={prevMonth}>‹</button>
-            <span className="bebas" style={{fontSize:22,color:"var(--text)",letterSpacing:2}}>{MONTH_NAMES[viewMonth]} {viewYear}</span>
-            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={nextMonth}>›</button>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>navigateCal(-1)}>‹</button>
+            <span className="bebas" style={{fontSize:20,color:"var(--text)",letterSpacing:1,minWidth:200,textAlign:"center"}}>{calLabel()}</span>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>navigateCal(1)}>›</button>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {["day","week","month","year"].map(v=>(
+              <button key={v} onClick={()=>setCalView(v)} style={{
+                padding:"6px 14px",fontSize:12,borderRadius:2,cursor:"pointer",
+                border:`1px solid ${calView===v?"var(--accent)":"var(--border)"}`,
+                background:calView===v?"var(--accent)":"transparent",
+                color:calView===v?"var(--black)":"var(--muted)",
+                textTransform:"capitalize",transition:"all 0.15s"
+              }}>{v}</button>
+            ))}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             {genFeedback && <span style={{fontSize:12,color:"var(--accent)"}}>{genFeedback}</span>}
             <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={generateNextWeek} disabled={generating}>
-              {generating ? "Generating..." : "＋ Generate Next Week"}
+              {generating ? "Generating..." : "＋ Next Week"}
             </button>
           </div>
         </div>
-        <div className="section-body" style={{padding:0}}>
-          {/* Day headers */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--border)"}}>
-            {DAY_NAMES.map(d=>(
-              <div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{d}</div>
-            ))}
-          </div>
-          {/* Calendar cells */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-            {cells.map((d,i) => {
-              if (!d) return <div key={i} style={{minHeight:90,borderRight:"1px solid var(--border)",borderBottom:"1px solid var(--border)",background:"var(--black)"}} />;
-              const daySessions = sessionsForDate(d);
-              const filled = daySessions.filter(s=>s.clientIds.length>0).length;
-              const sel = isSelected(d);
-              const tod = isToday(d);
-              return (
-                <div key={i} onClick={()=>setSelectedDate(d)}
-                  style={{
-                    minHeight:90, padding:"8px 6px", cursor:"pointer",
-                    borderRight:"1px solid var(--border)", borderBottom:"1px solid var(--border)",
-                    background: sel ? "#3ec9c915" : "transparent",
-                    transition:"background 0.15s",
-                  }}
-                  onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background="#ffffff05"; }}
-                  onMouseLeave={e=>{ if(!sel) e.currentTarget.style.background="transparent"; }}
-                >
-                  <div style={{
-                    width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
-                    fontSize:13,fontWeight:500,marginBottom:4,
-                    background: tod ? "var(--accent)" : "transparent",
-                    color: tod ? "var(--black)" : sel ? "var(--accent)" : "var(--text)",
-                    border: sel && !tod ? "1px solid var(--accent)" : "none",
-                  }}>{d.getDate()}</div>
-                  {daySessions.length > 0 && (
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      {daySessions.slice(0,3).map(s=>(
-                        <div key={s.id} style={{
-                          fontSize:9,padding:"2px 5px",borderRadius:2,
-                          background: s.clientIds.length>0 ? "#3ec9c925" : "#ffffff08",
-                          color: s.clientIds.length>0 ? "var(--accent)" : "var(--muted)",
-                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
-                        }}>{s.time}</div>
-                      ))}
-                      {daySessions.length > 3 && <div style={{fontSize:9,color:"var(--muted)",paddingLeft:4}}>+{daySessions.length-3} more</div>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
 
-      {/* Day detail panel */}
-      {selectedDate && (
-        <div className="section" style={{animation:"fadeUp 0.3s ease"}}>
-          <div className="section-header">
-            <span className="bebas" style={{fontSize:20,color:"var(--text)"}}>
-              {DAY_NAMES[selectedDate.getDay()]} {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
-            </span>
-            <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={()=>openAdd(selectedDate)}>+ Add Session</button>
-          </div>
-          <div className="section-body">
-            {sessionsForDate(selectedDate).length === 0
-              ? <div className="empty-state" style={{padding:"30px 20px"}}><div className="empty-icon">🗓</div><div className="empty-text">No sessions. Click + Add Session to schedule one.</div></div>
-              : sessionsForDate(selectedDate).map(s => {
-                  const names = s.clientIds.map(id => {
-                    const c = clients.find(x=>x.id===id);
-                    return c ? c.name.split(" ")[0] : id;
-                  });
+        {calView === "day" && <DayView />}
+        {calView === "week" && <WeekView />}
+        {calView === "year" && <YearView />}
+
+        {calView === "month" && (
+          <>
+            <div className="section-body" style={{padding:0}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--border)"}}>
+                {DAY_NAMES.map(d=>(
+                  <div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{d}</div>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+                {cells.map((d,i) => {
+                  if (!d) return <div key={i} style={{minHeight:90,borderRight:"1px solid var(--border)",borderBottom:"1px solid var(--border)",background:"var(--black)"}} />;
+                  const daySessions = sessionsForDate(d);
+                  const sel = isSelected(d);
+                  const tod = isToday(d);
                   return (
-                    <div key={s.id} className="session-card" style={{cursor:"pointer"}} onClick={()=>openEdit(s)}>
-                      <div className="session-time bebas">{s.time}</div>
-                      <div className="session-info">
-                        <div style={{fontWeight:500,marginBottom:4}}>{s.clientIds.length} client{s.clientIds.length!==1?"s":""}</div>
-                        <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>{names.join(" · ") || "No clients assigned"}</div>
-                        {s.notes && <div className="session-note">📝 {s.notes}</div>}
-                      </div>
-                      <span className={`badge ${s.clientIds.length>0?"badge-accent":"badge-muted"}`}>{s.clientIds.length}/7</span>
+                    <div key={i} onClick={()=>{ setSelectedDate(d); setViewDate(d); }}
+                      style={{
+                        minHeight:90, padding:"8px 6px", cursor:"pointer",
+                        borderRight:"1px solid var(--border)", borderBottom:"1px solid var(--border)",
+                        background: sel ? "#3ec9c915" : "transparent",
+                        transition:"background 0.15s",
+                      }}
+                      onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background="#ffffff05"; }}
+                      onMouseLeave={e=>{ if(!sel) e.currentTarget.style.background="transparent"; }}
+                    >
+                      <div style={{
+                        width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:13,fontWeight:500,marginBottom:4,
+                        background: tod ? "var(--accent)" : "transparent",
+                        color: tod ? "var(--black)" : sel ? "var(--accent)" : "var(--text)",
+                        border: sel && !tod ? "1px solid var(--accent)" : "none",
+                      }}>{d.getDate()}</div>
+                      {daySessions.length > 0 && (
+                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                          {daySessions.slice(0,3).map(s=>(
+                            <div key={s.id} style={{
+                              fontSize:9,padding:"2px 5px",borderRadius:2,
+                              background: s.clientIds.length>0 ? "#3ec9c925" : "#ffffff08",
+                              color: s.clientIds.length>0 ? "var(--accent)" : "var(--muted)",
+                              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
+                            }}>{s.time}</div>
+                          ))}
+                          {daySessions.length > 3 && <div style={{fontSize:9,color:"var(--muted)",paddingLeft:4}}>+{daySessions.length-3} more</div>}
+                        </div>
+                      )}
                     </div>
                   );
-                })
-            }
-          </div>
-        </div>
-      )}
+                })}
+              </div>
+            </div>
+            {selectedDate && (
+              <div style={{borderTop:"1px solid var(--border)",padding:"16px 20px",animation:"fadeUp 0.3s ease"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <span className="bebas" style={{fontSize:18,color:"var(--text)"}}>
+                    {DAY_NAMES[selectedDate.getDay()]} {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}
+                  </span>
+                  <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={()=>openAdd(selectedDate)}>+ Add Session</button>
+                </div>
+                {sessionsForDate(selectedDate).length === 0
+                  ? <div className="empty-state" style={{padding:"20px"}}><div className="empty-icon">🗓</div><div className="empty-text">No sessions. Click + Add Session.</div></div>
+                  : sessionsForDate(selectedDate).map(s => <SessionCard key={s.id} s={s} onClick={()=>openEdit(s)} />)
+                }
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Session modal */}
       {modal && (
