@@ -644,7 +644,7 @@ const store = {
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","5:00 PM","6:00 PM","7:00 PM"];
+const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM","5:00 PM","6:00 PM","7:00 PM","8:00 PM"];
 
 const seedClients = () => [
   { id:"c1",   name:"Abdel",            email:"abdel@gym.com",            password:"abdel123", sessionsTotal:28, sessionsUsed:8, active:true },
@@ -1227,6 +1227,61 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const isToday = (d) => d && dateKey(d) === dateKey(today);
   const isSelected = (d) => d && selectedDate && dateKey(d) === dateKey(selectedDate);
 
+  const [generating, setGenerating] = useState(false);
+  const [genFeedback, setGenFeedback] = useState("");
+
+  const generateNextWeek = async () => {
+    setGenerating(true);
+    // Find next Monday from today
+    const d = new Date(today);
+    const day = d.getDay(); // 0=Sun
+    const daysUntilMon = day === 0 ? 1 : 8 - day;
+    d.setDate(d.getDate() + daysUntilMon);
+
+    const newSessions = [];
+    for (let i = 0; i < 7; i++) {
+      const cur = new Date(d);
+      cur.setDate(d.getDate() + i);
+      const weekday = cur.getDay(); // 0=Sun,1=Mon...6=Sat
+      const dateStr = dateKey(cur);
+
+      // Mon-Fri morning: 7,8,9,10,11 AM
+      if (weekday >= 1 && weekday <= 5) {
+        ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM"].forEach(time => {
+          const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
+          if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
+        });
+      }
+      // Mon-Thu evening: 5,6,7,8 PM
+      if (weekday >= 1 && weekday <= 4) {
+        ["5:00 PM","6:00 PM","7:00 PM","8:00 PM"].forEach(time => {
+          const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
+          if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
+        });
+      }
+      // Saturday: 8,9,10,11 AM, 12 PM
+      if (weekday === 6) {
+        ["8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM"].forEach(time => {
+          const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
+          if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
+        });
+      }
+    }
+
+    if (newSessions.length === 0) {
+      setGenFeedback("Next week already has sessions!");
+    } else {
+      const allSessions = [...sessions, ...newSessions];
+      await saveSessions(allSessions);
+      // Navigate to next week's month
+      setViewMonth(d.getMonth());
+      setViewYear(d.getFullYear());
+      setGenFeedback(`✓ Added ${newSessions.length} sessions for next week`);
+    }
+    setGenerating(false);
+    setTimeout(() => setGenFeedback(""), 3000);
+  };
+
   const totalSessions = sessions.length;
   const totalClients = sessions.reduce((a,s)=>a+s.clientIds.length,0);
 
@@ -1251,6 +1306,12 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
             <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={prevMonth}>‹</button>
             <span className="bebas" style={{fontSize:22,color:"var(--text)",letterSpacing:2}}>{MONTH_NAMES[viewMonth]} {viewYear}</span>
             <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={nextMonth}>›</button>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            {genFeedback && <span style={{fontSize:12,color:"var(--accent)"}}>{genFeedback}</span>}
+            <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={generateNextWeek} disabled={generating}>
+              {generating ? "Generating..." : "＋ Generate Next Week"}
+            </button>
           </div>
         </div>
         <div className="section-body" style={{padding:0}}>
