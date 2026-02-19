@@ -571,22 +571,22 @@ const SUPABASE_URL = "https://otehgmiuswzarejcknfs.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90ZWhnbWl1c3d6YXJlamNrbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTYxMDcsImV4cCI6MjA4NzA5MjEwN30.aVG7GJeRPR91Bj2ggMdnpnlcvGI9l-yBTJjSqrfJXdM";
 const TABLE_MAP = { gym_clients:"clients", gym_sessions:"sessions", gym_availability:"availability" };
 
-const sbFetch = async (path, method="GET", body=null) => {
+const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
   const opts = {
     method,
     headers: {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates",
+      ...extraHeaders
     }
   };
-  if (body) opts.body = JSON.stringify(body);
+  if (body !== null) opts.body = JSON.stringify(body);
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
-  if (res.status === 204 || res.status === 201) return [];
-  const data = await res.json();
-  if (data && data.code) { console.error("Supabase error:", data); return null; }
-  return data;
+  if (res.status === 204 || res.status === 200 || res.status === 201) {
+    try { return await res.json(); } catch { return []; }
+  }
+  return [];
 };
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
@@ -597,11 +597,11 @@ const store = {
       if (!table) return null;
       const rows = await sbFetch(`${table}?select=*`);
       if (!rows || rows.length === 0) return null;
-      // Parse clientIds from jsonb if it came back as string
       if (key === "gym_sessions") {
         return rows.map(r => ({
           ...r,
-          clientIds: Array.isArray(r.clientIds) ? r.clientIds : (typeof r.clientIds === "string" ? JSON.parse(r.clientIds) : [])
+          clientIds: Array.isArray(r.clientIds) ? r.clientIds : 
+            (typeof r.clientIds === "string" ? JSON.parse(r.clientIds) : [])
         }));
       }
       return rows;
@@ -611,8 +611,20 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table || !val || val.length === 0) return;
-      await sbFetch(table, "POST", val);
+      // Upsert all rows — inserts new, updates existing
+      await sbFetch(table, "POST", val, { 
+        Prefer: "resolution=merge-duplicates,return=minimal" 
+      });
     } catch(e) { console.error("store.set error:", e); }
+  },
+  async upsertOne(key, row) {
+    try {
+      const table = TABLE_MAP[key];
+      if (!table) return;
+      await sbFetch(table, "POST", [row], { 
+        Prefer: "resolution=merge-duplicates,return=minimal" 
+      });
+    } catch(e) { console.error("store.upsertOne error:", e); }
   },
   async remove(key, id) {
     try {
@@ -924,13 +936,21 @@ export default function App() {
     })();
   }, []);
 
-  const saveClients = async (updated) => {
+  const saveClients = async (updated, changedRow=null) => {
     setClients(updated);
-    await store.set("gym_clients", updated);
+    if (changedRow) {
+      await store.upsertOne("gym_clients", changedRow);
+    } else {
+      await store.set("gym_clients", updated);
+    }
   };
-  const saveSessions = async (updated) => {
+  const saveSessions = async (updated, changedRow=null) => {
     setSessions(updated);
-    await store.set("gym_sessions", updated);
+    if (changedRow) {
+      await store.upsertOne("gym_sessions", changedRow);
+    } else {
+      await store.set("gym_sessions", updated);
+    }
   };
 
   if (!loaded) return (
@@ -1125,9 +1145,11 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 
   const save = async () => {
     if (modal === "add") {
-      await saveSessions([...sessions, { ...form, id:"s"+Date.now() }]);
+      const newSession = { ...form, id:"s"+Date.now() };
+      await saveSessions([...sessions, newSession], newSession);
     } else {
-      await saveSessions(sessions.map(s=>s.id===modal.id?{...s,...form}:s));
+      const updatedSession = {...modal,...form};
+      await saveSessions(sessions.map(s=>s.id===modal.id?updatedSession:s), updatedSession);
     }
     setModal(null);
   };
@@ -1351,9 +1373,11 @@ function TrainerClients({ clients, sessions, saveClients }) {
 
   const save = async () => {
     if (modal === "add") {
-      await saveClients([...clients, { ...form, id:"c"+Date.now() }]);
+      const newClient = { ...form, id:"c"+Date.now() };
+      await saveClients([...clients, newClient], newClient);
     } else {
-      await saveClients(clients.map(c=>c.id===modal.id?{...c,...form}:c));
+      const updatedClient = {...modal,...form};
+      await saveClients(clients.map(c=>c.id===modal.id?updatedClient:c), updatedClient);
     }
     setModal(null);
   };
@@ -1531,7 +1555,8 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
         ? {...s, clientIds: [...s.clientIds, selectedClient.id]}
         : s);
     }
-    await saveSessions(updated);
+    const changedSession = updated.find(s=>s.id===session.id);
+    await saveSessions(updated, changedSession);
     setAssignFeedback(alreadyIn ? "" : session.date + " " + session.time);
     setTimeout(() => setAssignFeedback(""), 2000);
   };
