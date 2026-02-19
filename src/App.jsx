@@ -987,17 +987,33 @@ export default function App() {
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function LoginScreen({ clients, onLogin, saveClients }) {
-  const [mode, setMode] = useState("login"); // "login" | "setup"
+  // Check for ?signup=cXXX in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const signupId = urlParams.get("signup");
+
+  const [mode, setMode] = useState(signupId ? "setup" : "login");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
 
   // Setup state
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(signupId || "");
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
   const [newPass2, setNewPass2] = useState("");
   const [setupErr, setSetupErr] = useState("");
+
+  const [freshClients, setFreshClients] = useState([]);
+  const [loadingClients, setLoadingClients] = useState(true);
+  useEffect(() => {
+    store.get("gym_clients").then(c => {
+      setFreshClients(c || clients);
+      setLoadingClients(false);
+    });
+  }, []);
+
+  const signupClient = freshClients.find(c => c.id === signupId);
+  const unclaimedClients = freshClients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
 
   const submit = () => {
     setErr("");
@@ -1006,7 +1022,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
       return;
     }
     if (!email || !pass) { setErr("Please enter your email and password."); return; }
-    const c = clients.find(x => x.email && x.email === email && x.password && x.password === pass);
+    const c = freshClients.find(x => x.email && x.email === email && x.password && x.password === pass);
     if (c) { onLogin({ role:"client", ...c }); return; }
     setErr("Invalid email or password.");
   };
@@ -1017,24 +1033,13 @@ function LoginScreen({ clients, onLogin, saveClients }) {
     if (!newEmail.includes("@")) return setSetupErr("Enter a valid email address.");
     if (newPass.length < 6) return setSetupErr("Password must be at least 6 characters.");
     if (newPass !== newPass2) return setSetupErr("Passwords don't match.");
-    if (clients.find(x => x.email === newEmail && x.id !== selectedId)) return setSetupErr("That email is already taken.");
-    const client = clients.find(c => c.id === selectedId);
-    const updated = clients.map(c => c.id === selectedId ? {...c, email: newEmail, password: newPass} : c);
-    await saveClients(updated);
-    onLogin({ role:"client", ...client, email: newEmail, password: newPass });
+    if (freshClients.find(x => x.email === newEmail && x.id !== selectedId)) return setSetupErr("That email is already taken.");
+    const client = freshClients.find(c => c.id === selectedId);
+    const updatedClient = {...client, email: newEmail, password: newPass};
+    const updated = freshClients.map(c => c.id === selectedId ? updatedClient : c);
+    await saveClients(updated, updatedClient);
+    onLogin({ role:"client", ...updatedClient });
   };
-
-  const [freshClients, setFreshClients] = useState([]);
-  const [loadingClients, setLoadingClients] = useState(true);
-  useEffect(() => {
-    // Always fetch directly from Supabase — never use cached list
-    setLoadingClients(true);
-    store.get("gym_clients").then(c => {
-      setFreshClients(c || clients);
-      setLoadingClients(false);
-    });
-  }, []);
-  const unclaimedClients = freshClients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
 
   if (mode === "setup") return (
     <div className="login-wrap">
@@ -1042,11 +1047,36 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <div className="bebas login-logo">ML FITNESS</div>
         <div className="login-sub">Create Your Account</div>
         {setupErr && <div className="error-msg">{setupErr}</div>}
-        <div className="field-label">Who are you?</div>
-        <select className="field-input" value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
-          <option value="">{loadingClients ? "Loading..." : "— Select your name —"}</option>
-          {unclaimedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        {signupId ? (
+          // Personal signup link — show just their name, no dropdown
+          loadingClients ? (
+            <div style={{textAlign:"center",color:"var(--muted)",padding:"20px 0"}}>Loading...</div>
+          ) : signupClient ? (
+            <div style={{
+              background:"var(--charcoal)",border:"1px solid var(--accent)",
+              borderRadius:4,padding:"14px 18px",marginBottom:16,
+              display:"flex",alignItems:"center",gap:12
+            }}>
+              <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13,flexShrink:0}}>
+                {signupClient.name.split(" ").map(x=>x[0]).join("")}
+              </div>
+              <div>
+                <div style={{fontWeight:600,color:"var(--text)"}}>{signupClient.name}</div>
+                <div style={{fontSize:11,color:"var(--muted)"}}>Your personal signup link</div>
+              </div>
+            </div>
+          ) : (
+            <div style={{color:"var(--red)",marginBottom:16}}>Invalid signup link.</div>
+          )
+        ) : (
+          <>
+            <div className="field-label">Who are you?</div>
+            <select className="field-input" value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
+              <option value="">{loadingClients ? "Loading..." : "— Select your name —"}</option>
+              {unclaimedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </>
+        )}
         <div className="field-label">Your Email</div>
         <input className="field-input" type="email" placeholder="you@email.com" value={newEmail} onChange={e=>setNewEmail(e.target.value)} />
         <div className="field-label">Choose a Password</div>
@@ -1054,7 +1084,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <div className="field-label">Confirm Password</div>
         <input className="field-input" type="password" placeholder="Repeat password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitSetup()} />
         <button className="btn-primary" onClick={submitSetup}>CREATE ACCOUNT</button>
-        <div className="switch-link"><span onClick={()=>setMode("login")}>← Back to sign in</span></div>
+        <div className="switch-link"><span onClick={()=>{ setMode("login"); window.history.replaceState({},"",window.location.pathname); }}>← Back to sign in</span></div>
       </div>
     </div>
   );
@@ -1457,7 +1487,7 @@ function TrainerClients({ clients, sessions, saveClients }) {
                     </div>
                   </td>
                   <td style={{color:"var(--accent)"}}>{clientSessions(c.id)} sessions</td>
-                  <td onClick={e=>e.stopPropagation()}>
+                  <td onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,alignItems:"center"}}>
                     <span
                       className={`badge ${c.active?"badge-green":"badge-muted"}`}
                       style={{cursor:"pointer",userSelect:"none"}}
@@ -1466,6 +1496,18 @@ function TrainerClients({ clients, sessions, saveClients }) {
                     >
                       {c.active?"Active":"Inactive"}
                     </span>
+                    {!c.email && (
+                      <span
+                        className="badge badge-muted"
+                        style={{cursor:"pointer",userSelect:"none",fontSize:11}}
+                        title="Copy signup link"
+                        onClick={()=>{
+                          const link = `${window.location.origin}?signup=${c.id}`;
+                          navigator.clipboard.writeText(link);
+                          alert(`Signup link copied!\n\n${link}`);
+                        }}
+                      >🔗 Copy Link</span>
+                    )}
                   </td>
                 </tr>
               );
