@@ -1657,17 +1657,23 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
 
   const clientAvail = (clientId) => avails.find(a=>a.clientId===clientId);
 
-  // Parse "Mon 7:00 AM" -> find matching sessions in the next 7 days
+  // Parse "YYYY-MM-DD HH:MM AM/PM" slot -> find matching session
   const sessionsForSlot = (slotStr) => {
+    const parts = slotStr.split(" ");
+    const dateStr = parts[0];
+    const time = parts.slice(1).join(" ");
+    // New format: date-based
+    if (dateStr.includes("-")) {
+      return sessions.filter(s => s.date === dateStr && s.time === time);
+    }
+    // Legacy format: day-based fallback
     const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    const [dayAbbr, ...timeParts] = slotStr.split(" ");
-    const time = timeParts.join(" ");
     const now = new Date(); now.setHours(0,0,0,0);
-    const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
+    const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 14);
     return sessions.filter(s => {
       if (!s.date) return false;
       const d = new Date(s.date + "T12:00:00");
-      return DAY_ABBREVS[d.getDay()] === dayAbbr && s.time === time && d >= now && d <= weekEnd;
+      return DAY_ABBREVS[d.getDay()] === dateStr && s.time === time && d >= now && d <= weekEnd;
     }).sort((a,b) => a.date < b.date ? -1 : 1);
   };
 
@@ -1745,7 +1751,18 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                     </div>
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>
-                    {a ? a.slots.slice(0,4).join(", ") + (a.slots.length>4?` +${a.slots.length-4} more`:"") : <span style={{color:"var(--border)"}}>—</span>}
+                    {a ? (() => {
+                      const formatted = a.slots.slice(0,3).map(s => {
+                        const parts = s.split(" ");
+                        if (parts[0].includes("-")) {
+                          const d = new Date(parts[0]+"T12:00:00");
+                          const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+                          return `${days[d.getDay()]} ${d.getDate()} ${parts.slice(1).join(" ")}`;
+                        }
+                        return s;
+                      });
+                      return formatted.join(", ") + (a.slots.length>3?` +${a.slots.length-3} more`:"");
+                    })() : <span style={{color:"var(--border)"}}>—</span>}
                   </td>
                   <td>
                     {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
@@ -1798,7 +1815,11 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                           const time = slot.split(" ").slice(1).join(" ");
                           return (
                             <div key={slot}>
-                              <div style={{fontSize:12,color:"var(--text)",marginBottom:4,fontWeight:500}}>{time}</div>
+                              <div style={{fontSize:12,color:"var(--text)",marginBottom:4,fontWeight:500}}>
+                        {slot.includes("-") ? 
+                          (() => { const parts = slot.split(" "); const d = new Date(parts[0]+"T12:00:00"); return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]} ${d.getDate()} — ${parts.slice(1).join(" ")}`; })()
+                          : time}
+                      </div>
                               {matchingSessions.length === 0 ? (
                                 <div style={{fontSize:11,color:"var(--border)",paddingLeft:8}}>No sessions scheduled for this slot</div>
                               ) : (
@@ -2019,38 +2040,75 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
 
 function ClientAvailability({ client }) {
   const [saved, setSaved] = useState(false);
-  const [slots, setSlots] = useState({});
+  const [slots, setSlots] = useState({}); // key: "YYYY-MM-DD", value: { "7:00 AM": true, ... }
+
+  // Get next week's dates (Mon-Sat)
+  const getNextWeekDates = () => {
+    const today = new Date();
+    const day = today.getDay(); // 0=Sun
+    const daysUntilMon = day === 0 ? 1 : 8 - day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + daysUntilMon);
+    const dates = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      if (d.getDay() !== 0) dates.push(d); // skip Sunday
+    }
+    return dates;
+  };
+
+  const weekDates = getNextWeekDates();
+  const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const MONTH_ABBREVS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const timesForDate = (d) => {
+    const weekday = d.getDay();
+    const morning = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM"];
+    const evening = ["5:00 PM","6:00 PM","7:00 PM","8:00 PM"];
+    const saturday = ["8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM"];
+    if (weekday === 6) return saturday;
+    if (weekday >= 1 && weekday <= 4) return [...morning, ...evening];
+    return morning; // Friday
+  };
 
   useEffect(() => {
     store.get("gym_availability").then(all => {
       const mine = (all||[]).find(a=>a.clientId===client.id);
       if (mine) {
         const rebuilt = {};
-        mine.slots.forEach(s => {
-          const [day,...rest] = s.split(" ");
-          const time = rest.join(" ");
-          if (!rebuilt[day]) rebuilt[day]={};
-          rebuilt[day][time]=true;
+        (Array.isArray(mine.slots) ? mine.slots : JSON.parse(mine.slots||"[]")).forEach(s => {
+          // slots stored as "YYYY-MM-DD HH:MM AM/PM"
+          const parts = s.split(" ");
+          if (parts.length >= 3) {
+            const dateKey = parts[0];
+            const time = parts.slice(1).join(" ");
+            if (!rebuilt[dateKey]) rebuilt[dateKey] = {};
+            rebuilt[dateKey][time] = true;
+          }
         });
         setSlots(rebuilt);
       }
     });
   }, [client.id]);
 
-  const toggle = (day, time) => {
+  const toggle = (dateKey, time) => {
     setSlots(prev => {
-      const d = {...(prev[day]||{})};
-      d[time] ? delete d[time] : (d[time]=true);
-      return {...prev,[day]:d};
+      const d = {...(prev[dateKey]||{})};
+      d[time] ? delete d[time] : (d[time] = true);
+      return {...prev, [dateKey]: d};
     });
   };
 
+  const dateKey = (d) => d.toISOString().split("T")[0];
+
   const submit = async () => {
     const flatSlots = [];
-    DAYS.forEach(d => Object.keys(slots[d]||{}).forEach(t => flatSlots.push(`${d} ${t}`)));
+    Object.entries(slots).forEach(([dk, times]) => {
+      Object.keys(times).forEach(t => flatSlots.push(`${dk} ${t}`));
+    });
     const date = new Date().toLocaleDateString();
     const row = { clientId: client.id, slots: flatSlots, date };
-    // Upsert directly using clientId as the key
     await sbFetch("availability", "POST", [row], {
       Prefer: "resolution=merge-duplicates,return=minimal"
     });
@@ -2058,28 +2116,45 @@ function ClientAvailability({ client }) {
     setTimeout(()=>setSaved(false),2500);
   };
 
+  const totalSelected = Object.values(slots).reduce((a,v)=>a+Object.keys(v).length,0);
+
   return (
     <>
       <div className="page-header">
         <div className="bebas page-title">MY AVAILABILITY</div>
-        <div className="page-subtitle">Tell your trainer when you're free this week</div>
+        <div className="page-subtitle">Select the times you're available next week</div>
       </div>
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Select Your Available Times</span>
-          {saved && <span style={{color:"var(--green)",fontSize:12}}>✓ Saved!</span>}
+          <span className="section-title">Next Week</span>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            {saved && <span style={{color:"var(--green)",fontSize:12}}>✓ Saved!</span>}
+            {totalSelected > 0 && <span style={{fontSize:12,color:"var(--muted)"}}>{totalSelected} slot{totalSelected!==1?"s":""} selected</span>}
+          </div>
         </div>
         <div className="section-body">
-          {DAYS.map(day => (
-            <div key={day} className="day-avail-row">
-              <div className="day-avail-label" style={{fontWeight:600}}>{day}</div>
-              <div className="time-chips">
-                {TIMES.map(t => (
-                  <div key={t} className={`time-chip${slots[day]?.[t]?" selected":""}`} onClick={()=>toggle(day,t)}>{t}</div>
-                ))}
+          {weekDates.map(d => {
+            const dk = dateKey(d);
+            const times = timesForDate(d);
+            const dayName = DAY_ABBREVS[d.getDay()];
+            const monthName = MONTH_ABBREVS[d.getMonth()];
+            return (
+              <div key={dk} className="day-avail-row" style={{marginBottom:16}}>
+                <div className="day-avail-label" style={{minWidth:70}}>
+                  <div style={{fontWeight:600,color:"var(--text)"}}>{dayName}</div>
+                  <div style={{fontSize:11,color:"var(--muted)"}}>{monthName} {d.getDate()}</div>
+                </div>
+                <div className="time-chips">
+                  {times.map(t => (
+                    <div key={t}
+                      className={`time-chip${slots[dk]?.[t]?" selected":""}`}
+                      onClick={()=>toggle(dk,t)}
+                    >{t}</div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div style={{marginTop:20}}>
             <button className="btn-primary" style={{width:"auto",padding:"12px 32px",fontSize:15}} onClick={submit}>SUBMIT AVAILABILITY</button>
           </div>
