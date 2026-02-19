@@ -572,21 +572,27 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const TABLE_MAP = { gym_clients:"clients", gym_sessions:"sessions", gym_availability:"availability" };
 
 const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
-  const opts = {
-    method,
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-      ...extraHeaders
-    }
-  };
-  if (body !== null) opts.body = JSON.stringify(body);
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
-  if (res.status === 204 || res.status === 200 || res.status === 201) {
-    try { return await res.json(); } catch { return []; }
+  try {
+    const opts = {
+      method,
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        ...extraHeaders
+      }
+    };
+    if (body !== null) opts.body = JSON.stringify(body);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
+    const text = await res.text();
+    if (!text) return [];
+    const data = JSON.parse(text);
+    if (data && data.code) { console.error("Supabase error:", data.message); return null; }
+    return data;
+  } catch(e) {
+    console.error("sbFetch error:", e);
+    return null;
   }
-  return [];
 };
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
