@@ -1047,36 +1047,45 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <div className="bebas login-logo">ML FITNESS</div>
         <div className="login-sub">Create Your Account</div>
         {setupErr && <div className="error-msg">{setupErr}</div>}
-        {signupId ? (
-          // Personal signup link — show just their name, no dropdown
-          loadingClients ? (
-            <div style={{textAlign:"center",color:"var(--muted)",padding:"20px 0"}}>Loading...</div>
-          ) : signupClient ? (
-            <div style={{
-              background:"var(--charcoal)",border:"1px solid var(--accent)",
-              borderRadius:4,padding:"14px 18px",marginBottom:16,
-              display:"flex",alignItems:"center",gap:12
-            }}>
-              <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13,flexShrink:0}}>
-                {signupClient.name.split(" ").map(x=>x[0]).join("")}
-              </div>
-              <div>
-                <div style={{fontWeight:600,color:"var(--text)"}}>{signupClient.name}</div>
-                <div style={{fontSize:11,color:"var(--muted)"}}>Your personal signup link</div>
-              </div>
-            </div>
-          ) : (
-            <div style={{color:"var(--red)",marginBottom:16}}>Invalid signup link.</div>
-          )
+        {loadingClients ? (
+          <div style={{textAlign:"center",color:"var(--muted)",padding:"20px 0"}}>Loading...</div>
+        ) : !signupId ? (
+          // No personal link — block signup
+          <div style={{
+            background:"var(--charcoal)",border:"1px solid var(--border)",
+            borderRadius:4,padding:"20px",marginBottom:16,textAlign:"center"
+          }}>
+            <div style={{fontSize:28,marginBottom:8}}>🔒</div>
+            <div style={{fontWeight:600,color:"var(--text)",marginBottom:6}}>Personal Link Required</div>
+            <div style={{fontSize:12,color:"var(--muted)"}}>Please use the personal signup link your trainer sent you.</div>
+          </div>
+        ) : !signupClient ? (
+          <div style={{color:"var(--red)",marginBottom:16,textAlign:"center"}}>Invalid or expired signup link.</div>
+        ) : signupClient.email ? (
+          <div style={{
+            background:"var(--charcoal)",border:"1px solid var(--border)",
+            borderRadius:4,padding:"20px",marginBottom:16,textAlign:"center"
+          }}>
+            <div style={{fontSize:28,marginBottom:8}}>✅</div>
+            <div style={{fontWeight:600,color:"var(--text)",marginBottom:6}}>Account already created</div>
+            <div style={{fontSize:12,color:"var(--muted)"}}>Please sign in instead.</div>
+          </div>
         ) : (
-          <>
-            <div className="field-label">Who are you?</div>
-            <select className="field-input" value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
-              <option value="">{loadingClients ? "Loading..." : "— Select your name —"}</option>
-              {unclaimedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </>
+          <div style={{
+            background:"var(--charcoal)",border:"1px solid var(--accent)",
+            borderRadius:4,padding:"14px 18px",marginBottom:16,
+            display:"flex",alignItems:"center",gap:12
+          }}>
+            <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13,flexShrink:0}}>
+              {signupClient.name.split(" ").map(x=>x[0]).join("")}
+            </div>
+            <div>
+              <div style={{fontWeight:600,color:"var(--text)"}}>{signupClient.name}</div>
+              <div style={{fontSize:11,color:"var(--muted)"}}>Your personal signup link ✓</div>
+            </div>
+          </div>
         )}
+        {signupId && signupClient && !signupClient.email && !loadingClients && (<>
         <div className="field-label">Your Email</div>
         <input className="field-input" type="email" placeholder="you@email.com" value={newEmail} onChange={e=>setNewEmail(e.target.value)} />
         <div className="field-label">Choose a Password</div>
@@ -1084,6 +1093,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <div className="field-label">Confirm Password</div>
         <input className="field-input" type="password" placeholder="Repeat password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitSetup()} />
         <button className="btn-primary" onClick={submitSetup}>CREATE ACCOUNT</button>
+        </>)}
         <div className="switch-link"><span onClick={()=>{ setMode("login"); window.history.replaceState({},"",window.location.pathname); }}>← Back to sign in</span></div>
       </div>
     </div>
@@ -1100,8 +1110,8 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <div className="field-label">Password</div>
         <input className="field-input" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} />
         <button className="btn-primary" onClick={submit}>SIGN IN</button>
-        <div className="switch-link" style={{marginTop:16}}>
-          First time here? <span onClick={()=>setMode("setup")}>Create your account</span>
+        <div className="switch-link" style={{marginTop:16,color:"var(--muted)",fontSize:12}}>
+          New? Use the personal link your trainer sent you.
         </div>
       </div>
     </div>
