@@ -567,8 +567,8 @@ const GlobalStyle = () => (
 );
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
-const SUPABASE_URL = "https://otehgmiuswzarejcknfs.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90ZWhnbWl1c3d6YXJlamNrbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTYxMDcsImV4cCI6MjA4NzA5MjEwN30.aVG7GJeRPR91Bj2ggMdnpnlcvGI9l-yBTJjSqrfJXdM";
+const SUPABASE_URL = "https://rdklpaqlkbpmmxvmzppj.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJka2xwYXFsa2JwbW14dm16cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjM2MDUsImV4cCI6MjA4NzA5OTYwNX0.6Hwgvz4CHANbYXciRp_T7aQwXhOIB2KAVwjsdxUn_d0";
 const TABLE_MAP = { gym_clients:"clients", gym_sessions:"sessions", gym_availability:"availability" };
 
 const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
