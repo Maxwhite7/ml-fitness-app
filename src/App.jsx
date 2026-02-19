@@ -1016,7 +1016,17 @@ function LoginScreen({ clients, onLogin, saveClients }) {
     onLogin({ role:"client", ...client, email: newEmail, password: newPass });
   };
 
-  const unclaimedClients = clients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
+  const [freshClients, setFreshClients] = useState([]);
+  const [loadingClients, setLoadingClients] = useState(true);
+  useEffect(() => {
+    // Always fetch directly from Supabase — never use cached list
+    setLoadingClients(true);
+    store.get("gym_clients").then(c => {
+      setFreshClients(c || clients);
+      setLoadingClients(false);
+    });
+  }, []);
+  const unclaimedClients = freshClients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
 
   if (mode === "setup") return (
     <div className="login-wrap">
@@ -1026,7 +1036,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         {setupErr && <div className="error-msg">{setupErr}</div>}
         <div className="field-label">Who are you?</div>
         <select className="field-input" value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
-          <option value="">— Select your name —</option>
+          <option value="">{loadingClients ? "Loading..." : "— Select your name —"}</option>
           {unclaimedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <div className="field-label">Your Email</div>
