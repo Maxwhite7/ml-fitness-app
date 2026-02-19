@@ -1647,13 +1647,27 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
   const [assignFeedback, setAssignFeedback] = useState(""); // "Day Time" of last assigned
 
   useEffect(() => {
-    store.get("gym_availability").then(a => {
-      if (a) setAvails(a.map(r => ({
-        ...r,
-        slots: Array.isArray(r.slots) ? r.slots : (typeof r.slots === "string" ? JSON.parse(r.slots) : [])
-      })));
+    // Fetch directly from Supabase availability table
+    sbFetch("availability?select=*").then(a => {
+      if (a && Array.isArray(a)) {
+        setAvails(a.map(r => ({
+          ...r,
+          slots: Array.isArray(r.slots) ? r.slots : (typeof r.slots === "string" ? JSON.parse(r.slots) : [])
+        })));
+      }
     });
   }, []);
+
+  const refresh = () => {
+    sbFetch("availability?select=*").then(a => {
+      if (a && Array.isArray(a)) {
+        setAvails(a.map(r => ({
+          ...r,
+          slots: Array.isArray(r.slots) ? r.slots : (typeof r.slots === "string" ? JSON.parse(r.slots) : [])
+        })));
+      }
+    });
+  };
 
   const clientAvail = (clientId) => avails.find(a=>a.clientId===clientId);
 
@@ -1726,7 +1740,10 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
       <div className="section">
         <div className="section-header">
           <span className="section-title">Client Availability</span>
-          <span style={{fontSize:12,color:"var(--muted)"}}>{avails.length} / {clients.length} submitted</span>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:12,color:"var(--muted)"}}>{avails.length} submitted</span>
+            <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={refresh}>↻ Refresh</button>
+          </div>
         </div>
         <table className="table">
           <thead>
