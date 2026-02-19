@@ -1,0 +1,1999 @@
+import { useState, useEffect } from "react";
+
+// ─── Embedded Google Font via @import in style ───────────────────────────────
+const GlobalStyle = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0a0a0a;
+      --charcoal: #141414;
+      --panel: #1c1c1c;
+      --border: #2a2a2a;
+      --accent: #3ec9c9;
+      --accent2: #2aa8a8;
+      --text: #f0f0f0;
+      --muted: #666;
+      --green: #4cff91;
+      --red: #ff4c6b;
+    }
+
+    body {
+      background: var(--black);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    .bebas { font-family: 'Bebas Neue', sans-serif; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--charcoal); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .fade-up { animation: fadeUp 0.4s ease forwards; }
+
+    /* Login */
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at 20% 50%, #001a1a 0%, var(--black) 60%);
+    }
+    .login-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 48px 40px;
+      width: 380px;
+      animation: fadeUp 0.5s ease;
+    }
+    .login-logo {
+      font-size: 52px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 36px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field-input {
+      width: 100%;
+      background: var(--charcoal);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 11px 14px;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field-input:focus { border-color: var(--accent); }
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 2px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+      padding: 13px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--text); }
+    .error-msg {
+      background: #ff4c6b22;
+      border: 1px solid var(--red);
+      border-radius: 2px;
+      color: var(--red);
+      font-size: 12px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .switch-link {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .switch-link span {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Layout */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 220px;
+      background: var(--charcoal);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo-text {
+      font-size: 30px;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+    .sidebar-role {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 0;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 20px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .nav-item:hover { color: var(--text); background: #ffffff08; }
+    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: #3ec9c910; }
+    .nav-icon { font-size: 16px; }
+    .sidebar-bottom {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .user-name { font-size: 12px; font-weight: 500; flex: 1; }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+    .logout-btn:hover { color: var(--red); }
+
+    /* Main content */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 36px;
+    }
+    .page-header {
+      margin-bottom: 28px;
+    }
+    .page-title {
+      font-size: 42px;
+      color: var(--text);
+      line-height: 1;
+    }
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    /* Stat cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 20px;
+      animation: fadeUp 0.4s ease;
+    }
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 36px;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* Section */
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.45s ease;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+    }
+    .section-body { padding: 20px; }
+
+    /* Table */
+    .table { width: 100%; border-collapse: collapse; }
+    .table th {
+      text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .table td {
+      padding: 12px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid #1f1f1f;
+      vertical-align: middle;
+    }
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: #ffffff04; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge-green { background: #4cff9120; color: var(--green); }
+    .badge-red { background: #ff4c6b20; color: var(--red); }
+    .badge-accent { background: #e8ff4720; color: var(--accent); }
+    .badge-muted { background: #ffffff10; color: var(--muted); }
+
+    /* Week grid */
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+    .day-col {
+      background: var(--charcoal);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      min-height: 160px;
+      padding: 10px;
+    }
+    .day-col.today { border-color: var(--accent); }
+    .day-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .day-date {
+      text-align: center;
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .session-block {
+      background: var(--accent);
+      color: var(--black);
+      border-radius: 2px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .session-block:hover { opacity: 0.8; }
+    .session-block.secondary {
+      background: #3ec9c930;
+      color: var(--accent);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: #00000099;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      width: 520px;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: fadeUp 0.3s ease;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 28px; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 24px; }
+    .form-row { margin-bottom: 16px; }
+    .form-row label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%;
+      background: var(--charcoal);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--accent); }
+    .form-row textarea { resize: vertical; min-height: 80px; }
+    .form-row select option { background: var(--charcoal); }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    /* Availability chips */
+    .avail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .avail-chip {
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      text-align: center;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--muted);
+    }
+    .avail-chip.selected {
+      border-color: var(--accent);
+      background: #3ec9c918;
+      color: var(--accent);
+    }
+
+    /* Client schedule view */
+    .session-card {
+      background: var(--charcoal);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color 0.2s;
+      animation: fadeUp 0.35s ease;
+    }
+    .session-card:hover { border-color: var(--accent); }
+    .session-time {
+      font-size: 28px;
+      color: var(--accent);
+      min-width: 80px;
+    }
+    .session-info { flex: 1; }
+    .session-day { font-size: 13px; color: var(--muted); }
+    .session-note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Progress bar */
+    .progress-wrap { background: var(--border); border-radius: 2px; height: 6px; }
+    .progress-fill {
+      height: 6px;
+      border-radius: 2px;
+      background: var(--accent);
+      transition: width 0.5s ease;
+    }
+
+    /* Availability form grid */
+    .day-avail-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .day-avail-row:last-child { border-bottom: none; }
+    .day-avail-label { min-width: 80px; font-size: 13px; color: var(--text); }
+    .time-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .time-chip {
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .time-chip.selected { border-color: var(--accent); color: var(--accent); background: #3ec9c915; }
+
+    /* Notification dot */
+    .notif-dot {
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 14px; }
+
+    /* Search input */
+    .search-input {
+      background: var(--charcoal);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      padding: 8px 14px;
+      outline: none;
+      width: 220px;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+
+    /* Two-col grid */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    @media (max-width: 900px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .week-grid { grid-template-columns: repeat(3, 1fr); }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  `}</style>
+);
+
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://otehgmiuswzarejcknfs.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90ZWhnbWl1c3d6YXJlamNrbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTYxMDcsImV4cCI6MjA4NzA5MjEwN30.aVG7GJeRPR91Bj2ggMdnpnlcvGI9l-yBTJjSqrfJXdM";
+const TABLE_MAP = { gym_clients:"clients", gym_sessions:"sessions", gym_availability:"availability" };
+
+const sbFetch = async (path, method="GET", body=null) => {
+  const opts = {
+    method,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates",
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
+  if (res.status === 204 || res.status === 201) return [];
+  const data = await res.json();
+  if (data && data.code) { console.error("Supabase error:", data); return null; }
+  return data;
+};
+
+// ─── Storage helpers ──────────────────────────────────────────────────────────
+const store = {
+  async get(key) {
+    try {
+      const table = TABLE_MAP[key];
+      if (!table) return null;
+      const rows = await sbFetch(`${table}?select=*`);
+      if (!rows || rows.length === 0) return null;
+      // Parse clientIds from jsonb if it came back as string
+      if (key === "gym_sessions") {
+        return rows.map(r => ({
+          ...r,
+          clientIds: Array.isArray(r.clientIds) ? r.clientIds : (typeof r.clientIds === "string" ? JSON.parse(r.clientIds) : [])
+        }));
+      }
+      return rows;
+    } catch(e) { console.error("store.get error:", e); return null; }
+  },
+  async set(key, val) {
+    try {
+      const table = TABLE_MAP[key];
+      if (!table || !val || val.length === 0) return;
+      await sbFetch(table, "POST", val);
+    } catch(e) { console.error("store.set error:", e); }
+  },
+  async remove(key, id) {
+    try {
+      const table = TABLE_MAP[key];
+      if (!table) return;
+      await sbFetch(`${table}?id=eq.${encodeURIComponent(id)}`, "DELETE");
+    } catch(e) { console.error("store.remove error:", e); }
+  }
+};
+
+// ─── Seed data ────────────────────────────────────────────────────────────────
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","5:00 PM","6:00 PM","7:00 PM"];
+
+const seedClients = () => [
+  { id:"c1",   name:"Abdel",            email:"abdel@gym.com",            password:"abdel123", sessionsTotal:28, sessionsUsed:8, active:true },
+  { id:"c2",   name:"Adil",             email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
+  { id:"c3",   name:"Amelie",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c4",   name:"Anna",             email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
+  { id:"c5",   name:"Anika",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c6",   name:"Anthony",          email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c7",   name:"Ashley",           email:"", password:"", sessionsTotal:28, sessionsUsed:6, active:true },
+  { id:"c8",   name:"Asma",             email:"", password:"", sessionsTotal:30, sessionsUsed:29, active:true },
+  { id:"c9",   name:"Aurelien",         email:"", password:"", sessionsTotal:48, sessionsUsed:40, active:true },
+  { id:"c10",  name:"Melissa",          email:"", password:"", sessionsTotal:48, sessionsUsed:41, active:true },
+  { id:"c11",  name:"Beer",             email:"", password:"", sessionsTotal:28, sessionsUsed:25, active:true },
+  { id:"c12",  name:"Caitlin",          email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
+  { id:"c13",  name:"Carla",            email:"", password:"", sessionsTotal:28, sessionsUsed:9, active:true },
+  { id:"c14",  name:"Carole M",         email:"", password:"", sessionsTotal:28, sessionsUsed:24, active:true },
+  { id:"c15",  name:"Celine",           email:"", password:"", sessionsTotal:28, sessionsUsed:17, active:true },
+  { id:"c16",  name:"Clara",            email:"", password:"", sessionsTotal:30, sessionsUsed:8, active:true },
+  { id:"c17",  name:"Claudio",          email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
+  { id:"c18",  name:"Chantal",          email:"", password:"", sessionsTotal:24, sessionsUsed:10, active:true },
+  { id:"c19",  name:"Cheryl",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c20",  name:"Chris",            email:"", password:"", sessionsTotal:24, sessionsUsed:24, active:true },
+  { id:"c21",  name:"Daniel",           email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
+  { id:"c22",  name:"Genevieve",        email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c23",  name:"Dave",             email:"", password:"", sessionsTotal:28, sessionsUsed:5, active:true },
+  { id:"c24",  name:"Dmytro",           email:"", password:"", sessionsTotal:24, sessionsUsed:10, active:true },
+  { id:"c25",  name:"Elaine",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c26",  name:"Elise",            email:"", password:"", sessionsTotal:24, sessionsUsed:18, active:true },
+  { id:"c27",  name:"Elyse CH",         email:"", password:"", sessionsTotal:10, sessionsUsed:6, active:true },
+  { id:"c28",  name:"Elyse CO",         email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c29",  name:"Erin",             email:"", password:"", sessionsTotal:24, sessionsUsed:18, active:true },
+  { id:"c30",  name:"Fabio",            email:"", password:"", sessionsTotal:24, sessionsUsed:24, active:true },
+  { id:"c31",  name:"Farah",            email:"", password:"", sessionsTotal:45, sessionsUsed:45, active:true },
+  { id:"c32",  name:"Foujane",          email:"", password:"", sessionsTotal:28, sessionsUsed:19, active:true },
+  { id:"c33",  name:"Gabby",            email:"", password:"", sessionsTotal:30, sessionsUsed:11, active:true },
+  { id:"c34",  name:"Gen",              email:"", password:"", sessionsTotal:28, sessionsUsed:5, active:true },
+  { id:"c35",  name:"Georges",          email:"", password:"", sessionsTotal:56, sessionsUsed:24, active:true },
+  { id:"c36",  name:"Hughes",           email:"", password:"", sessionsTotal:8, sessionsUsed:1, active:true },
+  { id:"c37",  name:"Isabelle",         email:"", password:"", sessionsTotal:28, sessionsUsed:16, active:true },
+  { id:"c38",  name:"Luc",              email:"", password:"", sessionsTotal:28, sessionsUsed:16, active:true },
+  { id:"c39",  name:"Isabelle2",        email:"", password:"", sessionsTotal:10, sessionsUsed:10, active:true },
+  { id:"c40",  name:"Lea",              email:"", password:"", sessionsTotal:10, sessionsUsed:7, active:true },
+  { id:"c41",  name:"Janine",           email:"", password:"", sessionsTotal:24, sessionsUsed:13, active:true },
+  { id:"c42",  name:"Pierre",           email:"", password:"", sessionsTotal:24, sessionsUsed:12, active:true },
+  { id:"c43",  name:"Jean",             email:"", password:"", sessionsTotal:60, sessionsUsed:59, active:true },
+  { id:"c44",  name:"Jose",             email:"", password:"", sessionsTotal:60, sessionsUsed:60, active:true },
+  { id:"c45",  name:"Jeremie",          email:"", password:"", sessionsTotal:24, sessionsUsed:11, active:true },
+  { id:"c46",  name:"Jess",             email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
+  { id:"c47",  name:"Joe",              email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c48",  name:"Filo",             email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c49",  name:"JohanneM",         email:"", password:"", sessionsTotal:10, sessionsUsed:10, active:true },
+  { id:"c50",  name:"John V",           email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
+  { id:"c51",  name:"John Scott",       email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c52",  name:"Julie B",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c53",  name:"Julien",           email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c54",  name:"JP Grilli",        email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c55",  name:"Karine",           email:"", password:"", sessionsTotal:30, sessionsUsed:10, active:true },
+  { id:"c56",  name:"Keiths",           email:"", password:"", sessionsTotal:24, sessionsUsed:24, active:true },
+  { id:"c57",  name:"Kevin",            email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c58",  name:"Kim",              email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
+  { id:"c59",  name:"Louise",           email:"", password:"", sessionsTotal:24, sessionsUsed:17, active:true },
+  { id:"c60",  name:"Lizon",            email:"", password:"", sessionsTotal:24, sessionsUsed:23, active:true },
+  { id:"c61",  name:"Lynn",             email:"", password:"", sessionsTotal:28, sessionsUsed:21, active:true },
+  { id:"c62",  name:"Malina",           email:"", password:"", sessionsTotal:24, sessionsUsed:21, active:true },
+  { id:"c63",  name:"Malika",           email:"", password:"", sessionsTotal:6, sessionsUsed:6, active:true },
+  { id:"c64",  name:"Marc P",           email:"", password:"", sessionsTotal:28, sessionsUsed:10, active:true },
+  { id:"c65",  name:"Marco",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c66",  name:"Marie",            email:"", password:"", sessionsTotal:24, sessionsUsed:17, active:true },
+  { id:"c67",  name:"Marianne",         email:"", password:"", sessionsTotal:24, sessionsUsed:20, active:true },
+  { id:"c68",  name:"Mateo",            email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
+  { id:"c69",  name:"Matthew",          email:"", password:"", sessionsTotal:24, sessionsUsed:9, active:true },
+  { id:"c70",  name:"Matthew2",         email:"", password:"", sessionsTotal:24, sessionsUsed:18, active:true },
+  { id:"c71",  name:"Mathis",           email:"", password:"", sessionsTotal:6, sessionsUsed:6, active:true },
+  { id:"c72",  name:"Matt G",           email:"", password:"", sessionsTotal:32, sessionsUsed:22, active:true },
+  { id:"c73",  name:"Maude",            email:"", password:"", sessionsTotal:24, sessionsUsed:2, active:true },
+  { id:"c74",  name:"Marie-Claude",     email:"", password:"", sessionsTotal:24, sessionsUsed:14, active:true },
+  { id:"c75",  name:"Mark",             email:"", password:"", sessionsTotal:30, sessionsUsed:12, active:true },
+  { id:"c76",  name:"Sienna",           email:"", password:"", sessionsTotal:30, sessionsUsed:9, active:true },
+  { id:"c77",  name:"Mary",             email:"", password:"", sessionsTotal:24, sessionsUsed:4, active:true },
+  { id:"c78",  name:"Maurizio",         email:"", password:"", sessionsTotal:24, sessionsUsed:16, active:true },
+  { id:"c79",  name:"Max B",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c80",  name:"Max L",            email:"", password:"", sessionsTotal:30, sessionsUsed:11, active:true },
+  { id:"c81",  name:"Maxime",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c82",  name:"Mehdi",            email:"", password:"", sessionsTotal:30, sessionsUsed:22, active:true },
+  { id:"c83",  name:"Meryen",           email:"", password:"", sessionsTotal:28, sessionsUsed:23, active:true },
+  { id:"c84",  name:"MichelleB",        email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c85",  name:"MichelleS",        email:"", password:"", sessionsTotal:24, sessionsUsed:1, active:true },
+  { id:"c86",  name:"MichelleT",        email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c87",  name:"Mike",             email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c88",  name:"Mila",             email:"", password:"", sessionsTotal:24, sessionsUsed:20, active:true },
+  { id:"c89",  name:"Mireille",         email:"", password:"", sessionsTotal:28, sessionsUsed:12, active:true },
+  { id:"c90",  name:"Nada",             email:"", password:"", sessionsTotal:10, sessionsUsed:10, active:true },
+  { id:"c91",  name:"Nadine B",         email:"", password:"", sessionsTotal:24, sessionsUsed:3, active:true },
+  { id:"c92",  name:"Nafiseh",          email:"", password:"", sessionsTotal:24, sessionsUsed:17, active:true },
+  { id:"c93",  name:"Nancy D",          email:"", password:"", sessionsTotal:24, sessionsUsed:14, active:true },
+  { id:"c94",  name:"Nancy Y",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c95",  name:"Nardine",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c96",  name:"Natasha",          email:"", password:"", sessionsTotal:28, sessionsUsed:13, active:true },
+  { id:"c97",  name:"Nathalie P",       email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c98",  name:"Nick",             email:"", password:"", sessionsTotal:28, sessionsUsed:19, active:true },
+  { id:"c99",  name:"Lucas",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c100", name:"Nishi",            email:"", password:"", sessionsTotal:24, sessionsUsed:8, active:true },
+  { id:"c101", name:"Phil",             email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
+  { id:"c102", name:"Matt",             email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
+  { id:"c103", name:"Rachel",           email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
+  { id:"c104", name:"Rachel2",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c105", name:"Rami",             email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c106", name:"Renelle",          email:"", password:"", sessionsTotal:28, sessionsUsed:25, active:true },
+  { id:"c107", name:"ReneeM",           email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
+  { id:"c108", name:"ReneeP",           email:"", password:"", sessionsTotal:28, sessionsUsed:19, active:true },
+  { id:"c109", name:"Reuven",           email:"", password:"", sessionsTotal:28, sessionsUsed:21, active:true },
+  { id:"c110", name:"Rodica",           email:"", password:"", sessionsTotal:24, sessionsUsed:7, active:true },
+  { id:"c111", name:"Romy",             email:"", password:"", sessionsTotal:28, sessionsUsed:6, active:true },
+  { id:"c112", name:"Rozita",           email:"", password:"", sessionsTotal:28, sessionsUsed:7, active:true },
+  { id:"c113", name:"Sabrina",          email:"", password:"", sessionsTotal:24, sessionsUsed:7, active:true },
+  { id:"c114", name:"Sandy",            email:"", password:"", sessionsTotal:10, sessionsUsed:7, active:true },
+  { id:"c115", name:"Sarah",            email:"", password:"", sessionsTotal:30, sessionsUsed:4, active:true },
+  { id:"c116", name:"Sam",              email:"", password:"", sessionsTotal:24, sessionsUsed:4, active:true },
+  { id:"c117", name:"Mira",             email:"", password:"", sessionsTotal:24, sessionsUsed:5, active:true },
+  { id:"c118", name:"Sean",             email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c119", name:"Simon",            email:"", password:"", sessionsTotal:28, sessionsUsed:15, active:true },
+  { id:"c120", name:"Sita",             email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c121", name:"Sherriff",         email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
+  { id:"c122", name:"Sonia",            email:"", password:"", sessionsTotal:24, sessionsUsed:23, active:true },
+  { id:"c123", name:"Sophie",           email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
+  { id:"c124", name:"Staci",            email:"", password:"", sessionsTotal:24, sessionsUsed:21, active:true },
+  { id:"c125", name:"StephV",           email:"", password:"", sessionsTotal:28, sessionsUsed:25, active:true },
+  { id:"c126", name:"Susan",            email:"", password:"", sessionsTotal:28, sessionsUsed:18, active:true },
+  { id:"c127", name:"Susan/Klaus",      email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
+  { id:"c128", name:"Klaus",            email:"", password:"", sessionsTotal:28, sessionsUsed:18, active:true },
+  { id:"c129", name:"Sylvie",           email:"", password:"", sessionsTotal:28, sessionsUsed:23, active:true },
+  { id:"c130", name:"Tanya",            email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
+  { id:"c131", name:"Thierry",          email:"", password:"", sessionsTotal:24, sessionsUsed:16, active:true },
+  { id:"c132", name:"Ujjaval",          email:"", password:"", sessionsTotal:28, sessionsUsed:17, active:true },
+  { id:"c133", name:"Tyler",            email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
+  { id:"c134", name:"Val Maheux",       email:"", password:"", sessionsTotal:11, sessionsUsed:11, active:true },
+  { id:"c135", name:"Yannie",           email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+];
+
+const seedSessions = () => [
+  { id:"s_2026-02-02_7", date:"2026-02-02", time:"7:00 AM", clientIds:["c9", "c49", "c72", "c97", "c10", "c109"], notes:"" },
+  { id:"s_2026-02-02_8", date:"2026-02-02", time:"8:00 AM", clientIds:["c18", "c133", "c106", "c58", "c134", "c96"], notes:"" },
+  { id:"s_2026-02-02_9", date:"2026-02-02", time:"9:00 AM", clientIds:["c56", "c129", "c59", "c118", "c67"], notes:"" },
+  { id:"s_2026-02-02_10", date:"2026-02-02", time:"10:00 AM", clientIds:["c71"], notes:"" },
+  { id:"s_2026-02-02_17", date:"2026-02-02", time:"5:00 PM", clientIds:["c6", "c47", "c48", "c64", "c119", "c16"], notes:"" },
+  { id:"s_2026-02-02_18", date:"2026-02-02", time:"6:00 PM", clientIds:["c2", "c63", "c14", "c69", "c82"], notes:"" },
+  { id:"s_2026-02-02_19", date:"2026-02-02", time:"7:00 PM", clientIds:["c1", "c70", "c31", "c35", "c75", "c76"], notes:"" },
+  { id:"s_2026-02-03_8", date:"2026-02-03", time:"8:00 AM", clientIds:["c8", "c24", "c125", "c135", "c58", "c89"], notes:"" },
+  { id:"s_2026-02-03_9", date:"2026-02-03", time:"9:00 AM", clientIds:["c83", "c15", "c61", "c68", "c118", "c122"], notes:"" },
+  { id:"s_2026-02-03_10", date:"2026-02-03", time:"10:00 AM", clientIds:["c126", "c41", "c42", "c43", "c44", "c98"], notes:"" },
+  { id:"s_2026-02-03_17", date:"2026-02-03", time:"5:00 PM", clientIds:["c113", "c49", "c51", "c108", "c26", "c91"], notes:"" },
+  { id:"s_2026-02-03_18", date:"2026-02-03", time:"6:00 PM", clientIds:["c29", "c39", "c88", "c82", "c17", "c50"], notes:"" },
+  { id:"s_2026-02-03_19", date:"2026-02-03", time:"7:00 PM", clientIds:["c13", "c30", "c4", "c53", "c57", "c124"], notes:"" },
+  { id:"s_2026-02-04_8", date:"2026-02-04", time:"8:00 AM", clientIds:["c62", "c122", "c83", "c87", "c11", "c109"], notes:"" },
+  { id:"s_2026-02-04_9", date:"2026-02-04", time:"9:00 AM", clientIds:["c75", "c90", "c67", "c100", "c20", "c56"], notes:"" },
+  { id:"s_2026-02-04_10", date:"2026-02-04", time:"10:00 AM", clientIds:["c35", "c113", "c119", "c110"], notes:"" },
+  { id:"s_2026-02-04_17", date:"2026-02-04", time:"5:00 PM", clientIds:["c47", "c48", "c55", "c64", "c37", "c38"], notes:"" },
+  { id:"s_2026-02-04_18", date:"2026-02-04", time:"6:00 PM", clientIds:["c2", "c27", "c69", "c92", "c96", "c103"], notes:"" },
+  { id:"s_2026-02-04_19", date:"2026-02-04", time:"7:00 PM", clientIds:["c14", "c21", "c22", "c114", "c70"], notes:"" },
+  { id:"s_2026-02-05_8", date:"2026-02-05", time:"8:00 AM", clientIds:["c9", "c8", "c24", "c125", "c109", "c89"], notes:"" },
+  { id:"s_2026-02-05_9", date:"2026-02-05", time:"9:00 AM", clientIds:["c126", "c20", "c26", "c107", "c68", "c106"], notes:"" },
+  { id:"s_2026-02-05_10", date:"2026-02-05", time:"10:00 AM", clientIds:["c63", "c41", "c42", "c129", "c60"], notes:"" },
+  { id:"s_2026-02-05_17", date:"2026-02-05", time:"5:00 PM", clientIds:["c50", "c51", "c108", "c134", "c88", "c93"], notes:"" },
+  { id:"s_2026-02-05_18", date:"2026-02-05", time:"6:00 PM", clientIds:["c29", "c39", "c33", "c124", "c34", "c49"], notes:"" },
+  { id:"s_2026-02-05_19", date:"2026-02-05", time:"7:00 PM", clientIds:["c13", "c45", "c53", "c115", "c71", "c4"], notes:"" },
+  { id:"s_2026-02-06_7", date:"2026-02-06", time:"7:00 AM", clientIds:["c11", "c10", "c72", "c97", "c57", "c109"], notes:"" },
+  { id:"s_2026-02-06_8", date:"2026-02-06", time:"8:00 AM", clientIds:["c61", "c119", "c132", "c135", "c66"], notes:"" },
+  { id:"s_2026-02-06_9", date:"2026-02-06", time:"9:00 AM", clientIds:["c43", "c44", "c56", "c126", "c130", "c77"], notes:"" },
+  { id:"s_2026-02-06_10", date:"2026-02-06", time:"10:00 AM", clientIds:["c113", "c100"], notes:"" },
+  { id:"s_2026-02-07_8", date:"2026-02-07", time:"8:00 AM", clientIds:["c6", "c30", "c97", "c121", "c78", "c87"], notes:"" },
+  { id:"s_2026-02-07_9", date:"2026-02-07", time:"9:00 AM", clientIds:["c17", "c37", "c38", "c134", "c92", "c90"], notes:"" },
+  { id:"s_2026-02-07_10", date:"2026-02-07", time:"10:00 AM", clientIds:["c21", "c22", "c75", "c76", "c14", "c114"], notes:"" },
+  { id:"s_2026-02-07_11", date:"2026-02-07", time:"11:00 AM", clientIds:["c89", "c70", "c53"], notes:"" },
+  { id:"s_2026-02-09_7", date:"2026-02-09", time:"7:00 AM", clientIds:["c9", "c49", "c72", "c109", "c10", "c96"], notes:"" },
+  { id:"s_2026-02-09_8", date:"2026-02-09", time:"8:00 AM", clientIds:["c8", "c135", "c133", "c122", "c60"], notes:"" },
+  { id:"s_2026-02-09_9", date:"2026-02-09", time:"9:00 AM", clientIds:["c32", "c56", "c100", "c107"], notes:"" },
+  { id:"s_2026-02-09_10", date:"2026-02-09", time:"10:00 AM", clientIds:["c119", "c124", "c1"], notes:"" },
+  { id:"s_2026-02-09_17", date:"2026-02-09", time:"5:00 PM", clientIds:["c47", "c48", "c64", "c93", "c16"], notes:"" },
+  { id:"s_2026-02-09_18", date:"2026-02-09", time:"6:00 PM", clientIds:["c2", "c14", "c63", "c101", "c102", "c82"], notes:"" },
+  { id:"s_2026-02-09_19", date:"2026-02-09", time:"7:00 PM", clientIds:["c35", "c45", "c75", "c76", "c21", "c22"], notes:"" },
+  { id:"s_2026-02-10_8", date:"2026-02-10", time:"8:00 AM", clientIds:["c24", "c18", "c119", "c58", "c125", "c133"], notes:"" },
+  { id:"s_2026-02-10_9", date:"2026-02-10", time:"9:00 AM", clientIds:["c15", "c68", "c61", "c118", "c20", "c110"], notes:"" },
+  { id:"s_2026-02-10_10", date:"2026-02-10", time:"10:00 AM", clientIds:["c41", "c42", "c60", "c27", "c126", "c129"], notes:"" },
+  { id:"s_2026-02-10_16", date:"2026-02-10", time:"4:00 PM", clientIds:["c43", "c44", "c45", "c50", "c12", "c134"], notes:"" },
+  { id:"s_2026-02-10_17", date:"2026-02-10", time:"5:00 PM", clientIds:["c51", "c37", "c38", "c91", "c113", "c108"], notes:"" },
+  { id:"s_2026-02-10_18", date:"2026-02-10", time:"6:00 PM", clientIds:["c82", "c29", "c39", "c40", "c53", "c17"], notes:"" },
+  { id:"s_2026-02-10_19", date:"2026-02-10", time:"7:00 PM", clientIds:["c4", "c30", "c7", "c31", "c70", "c13"], notes:"" },
+  { id:"s_2026-02-11_8", date:"2026-02-11", time:"8:00 AM", clientIds:["c11", "c89", "c72", "c135", "c109", "c106"], notes:"" },
+  { id:"s_2026-02-11_9", date:"2026-02-11", time:"9:00 AM", clientIds:["c122", "c56", "c67", "c75", "c90"], notes:"" },
+  { id:"s_2026-02-11_10", date:"2026-02-11", time:"10:00 AM", clientIds:["c83"], notes:"" },
+  { id:"s_2026-02-11_17", date:"2026-02-11", time:"5:00 PM", clientIds:["c47", "c57", "c55", "c64", "c93", "c44"], notes:"" },
+  { id:"s_2026-02-11_18", date:"2026-02-11", time:"6:00 PM", clientIds:["c2", "c34", "c69", "c116", "c117", "c92"], notes:"" },
+  { id:"s_2026-02-11_19", date:"2026-02-11", time:"7:00 PM", clientIds:["c14", "c49", "c114", "c21", "c22", "c118"], notes:"" },
+  { id:"s_2026-02-12_8", date:"2026-02-12", time:"8:00 AM", clientIds:["c8", "c9", "c24", "c125", "c133", "c96"], notes:"" },
+  { id:"s_2026-02-12_9", date:"2026-02-12", time:"9:00 AM", clientIds:["c59", "c68", "c126", "c128", "c20", "c71"], notes:"" },
+  { id:"s_2026-02-12_10", date:"2026-02-12", time:"10:00 AM", clientIds:["c41", "c42", "c60", "c130", "c63", "c129"], notes:"" },
+  { id:"s_2026-02-12_17", date:"2026-02-12", time:"5:00 PM", clientIds:["c23", "c50", "c134", "c51", "c108", "c119"], notes:"" },
+  { id:"s_2026-02-12_18", date:"2026-02-12", time:"6:00 PM", clientIds:["c124", "c29", "c39", "c40", "c101", "c102"], notes:"" },
+  { id:"s_2026-02-12_19", date:"2026-02-12", time:"7:00 PM", clientIds:["c7", "c45", "c70", "c13", "c115", "c1"], notes:"" },
+  { id:"s_2026-02-13_7", date:"2026-02-13", time:"7:00 AM", clientIds:["c11", "c49", "c57", "c72", "c109", "c97"], notes:"" },
+  { id:"s_2026-02-13_8", date:"2026-02-13", time:"8:00 AM", clientIds:["c66", "c132", "c135", "c133", "c89", "c26"], notes:"" },
+  { id:"s_2026-02-13_9", date:"2026-02-13", time:"9:00 AM", clientIds:["c32", "c83", "c67", "c61", "c126", "c100"], notes:"" },
+  { id:"s_2026-02-13_10", date:"2026-02-13", time:"10:00 AM", clientIds:["c20", "c131", "c12", "c113", "c106", "c10"], notes:"" },
+  { id:"s_2026-02-14_8", date:"2026-02-14", time:"8:00 AM", clientIds:["c23", "c30", "c35", "c97", "c87", "c121"], notes:"" },
+  { id:"s_2026-02-14_9", date:"2026-02-14", time:"9:00 AM", clientIds:["c70", "c37", "c38", "c75", "c76", "c92"], notes:"" },
+  { id:"s_2026-02-14_10", date:"2026-02-14", time:"10:00 AM", clientIds:["c14", "c6", "c17", "c134", "c114", "c90"], notes:"" },
+  { id:"s_2026-02-14_11", date:"2026-02-14", time:"11:00 AM", clientIds:["c78", "c80", "c31"], notes:"" },
+  { id:"s_2026-02-16_7", date:"2026-02-16", time:"7:00 AM", clientIds:["c9", "c10", "c72", "c49", "c97", "c109"], notes:"" },
+  { id:"s_2026-02-16_8", date:"2026-02-16", time:"8:00 AM", clientIds:["c66", "c133", "c134", "c135", "c122", "c8"], notes:"" },
+  { id:"s_2026-02-16_9", date:"2026-02-16", time:"9:00 AM", clientIds:["c56", "c57", "c118", "c32", "c112", "c111"], notes:"" },
+  { id:"s_2026-02-16_10", date:"2026-02-16", time:"10:00 AM", clientIds:["c41", "c60", "c130", "c129", "c85", "c36"], notes:"" },
+  { id:"s_2026-02-16_17", date:"2026-02-16", time:"5:00 PM", clientIds:["c47", "c48", "c119", "c51", "c108", "c64"], notes:"" },
+  { id:"s_2026-02-16_18", date:"2026-02-16", time:"6:00 PM", clientIds:["c2", "c63", "c101", "c102", "c21", "c14"], notes:"" },
+  { id:"s_2026-02-16_19", date:"2026-02-16", time:"7:00 PM", clientIds:["c35", "c70", "c45", "c6", "c75", "c76"], notes:"" },
+  { id:"s_2026-02-17_8", date:"2026-02-17", time:"8:00 AM", clientIds:["c109", "c24", "c46", "c26", "c73", "c123"], notes:"" },
+  { id:"s_2026-02-17_9", date:"2026-02-17", time:"9:00 AM", clientIds:["c15", "c110", "c131", "c118", "c106", "c67"], notes:"" },
+  { id:"s_2026-02-17_10", date:"2026-02-17", time:"10:00 AM", clientIds:["c27", "c41", "c60", "c59", "c90", "c71"], notes:"" },
+  { id:"s_2026-02-17_17", date:"2026-02-17", time:"5:00 PM", clientIds:["c43", "c44", "c103", "c74", "c113", "c93"], notes:"" },
+  { id:"s_2026-02-17_18", date:"2026-02-17", time:"6:00 PM", clientIds:["c29", "c50", "c57", "c53", "c39", "c40"], notes:"" },
+  { id:"s_2026-02-17_19", date:"2026-02-17", time:"7:00 PM", clientIds:["c4", "c30", "c17", "c13", "c78", "c31"], notes:"" },
+  { id:"s_2026-02-18_8", date:"2026-02-18", time:"8:00 AM", clientIds:["c125", "c72", "c18", "c62", "c135", "c89"], notes:"" },
+  { id:"s_2026-02-18_9", date:"2026-02-18", time:"9:00 AM", clientIds:["c56", "c61", "c90", "c113", "c105", "c75"], notes:"" },
+  { id:"s_2026-02-18_10", date:"2026-02-18", time:"10:00 AM", clientIds:["c83", "c85", "c119", "c17"], notes:"" },
+  { id:"s_2026-02-18_17", date:"2026-02-18", time:"5:00 PM", clientIds:["c47", "c48", "c55", "c64", "c37", "c38"], notes:"" },
+  { id:"s_2026-02-18_18", date:"2026-02-18", time:"6:00 PM", clientIds:["c2", "c33", "c34", "c27", "c92", "c49"], notes:"" },
+  { id:"s_2026-02-18_19", date:"2026-02-18", time:"7:00 PM", clientIds:["c14", "c45", "c39", "c40", "c114", "c69"], notes:"" },
+  { id:"s_2026-02-19_8", date:"2026-02-19", time:"8:00 AM", clientIds:["c24", "c133", "c58", "c89", "c11", "c109", "c105"], notes:"" },
+  { id:"s_2026-02-19_9", date:"2026-02-19", time:"9:00 AM", clientIds:["c68", "c126", "c128", "c106", "c67", "c130", "c110"], notes:"" },
+  { id:"s_2026-02-19_17", date:"2026-02-19", time:"5:00 PM", clientIds:["c43", "c44", "c51", "c134", "c88", "c103"], notes:"" },
+  { id:"s_2026-02-19_18", date:"2026-02-19", time:"6:00 PM", clientIds:["c29", "c50", "c98", "c23", "c101", "c102", "c71"], notes:"" },
+  { id:"s_2026-02-19_19", date:"2026-02-19", time:"7:00 PM", clientIds:["c4", "c124", "c13", "c70", "c115", "c111", "c63"], notes:"" },
+
+  { id:"s_2026-02-20_7", date:"2026-02-20", time:"7:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-20_8", date:"2026-02-20", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-20_9", date:"2026-02-20", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-20_10", date:"2026-02-20", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-21_8", date:"2026-02-21", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-21_9", date:"2026-02-21", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-21_10", date:"2026-02-21", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-21_11", date:"2026-02-21", time:"11:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_7", date:"2026-02-23", time:"7:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_8", date:"2026-02-23", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_9", date:"2026-02-23", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_10", date:"2026-02-23", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_17", date:"2026-02-23", time:"5:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_18", date:"2026-02-23", time:"6:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-23_19", date:"2026-02-23", time:"7:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_7", date:"2026-02-24", time:"7:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_8", date:"2026-02-24", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_9", date:"2026-02-24", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_10", date:"2026-02-24", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_17", date:"2026-02-24", time:"5:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_18", date:"2026-02-24", time:"6:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-24_19", date:"2026-02-24", time:"7:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_7", date:"2026-02-25", time:"7:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_8", date:"2026-02-25", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_9", date:"2026-02-25", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_10", date:"2026-02-25", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_17", date:"2026-02-25", time:"5:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_18", date:"2026-02-25", time:"6:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-25_19", date:"2026-02-25", time:"7:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_7", date:"2026-02-26", time:"7:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_8", date:"2026-02-26", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_9", date:"2026-02-26", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_10", date:"2026-02-26", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_17", date:"2026-02-26", time:"5:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_18", date:"2026-02-26", time:"6:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-26_19", date:"2026-02-26", time:"7:00 PM", clientIds:[], notes:"" },
+  { id:"s_2026-02-27_7", date:"2026-02-27", time:"7:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-27_8", date:"2026-02-27", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-27_9", date:"2026-02-27", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-27_10", date:"2026-02-27", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-28_8", date:"2026-02-28", time:"8:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-28_9", date:"2026-02-28", time:"9:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-28_10", date:"2026-02-28", time:"10:00 AM", clientIds:[], notes:"" },
+  { id:"s_2026-02-28_11", date:"2026-02-28", time:"11:00 AM", clientIds:[], notes:"" },
+];
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [user, setUser] = useState(null); // { role:'trainer'|'client', ...data }
+  const [clients, setClients] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load from Supabase, seed only if empty
+  useEffect(() => {
+    (async () => {
+      let c = await store.get("gym_clients");
+      let s = await store.get("gym_sessions");
+      if (!c) { c = seedClients(); await store.set("gym_clients", c); }
+      if (!s) { s = seedSessions(); await store.set("gym_sessions", s); }
+      setClients(c);
+      setSessions(s);
+      setLoaded(true);
+    })();
+  }, []);
+
+  const saveClients = async (updated) => {
+    setClients(updated);
+    await store.set("gym_clients", updated);
+  };
+  const saveSessions = async (updated) => {
+    setSessions(updated);
+    await store.set("gym_sessions", updated);
+  };
+
+  if (!loaded) return (
+    <>
+      <GlobalStyle />
+      <div className="login-wrap"><div style={{color:"var(--muted)",fontSize:14}}>Loading...</div></div>
+    </>
+  );
+
+  if (!user) return (
+    <>
+      <GlobalStyle />
+      <LoginScreen clients={clients} onLogin={setUser} saveClients={saveClients} />
+    </>
+  );
+
+  return (
+    <>
+      <GlobalStyle />
+      {user.role === "trainer"
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => setUser(null)} />
+        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => setUser(null)} />
+      }
+    </>
+  );
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+function LoginScreen({ clients, onLogin, saveClients }) {
+  const [mode, setMode] = useState("login"); // "login" | "setup"
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+
+  // Setup state
+  const [selectedId, setSelectedId] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [newPass2, setNewPass2] = useState("");
+  const [setupErr, setSetupErr] = useState("");
+
+  const submit = () => {
+    setErr("");
+    if (email === "trainer@gym.com" && pass === "trainer123") {
+      onLogin({ role:"trainer", name:"Coach", email });
+      return;
+    }
+    const c = clients.find(x => x.email === email && x.password === pass);
+    if (c) { onLogin({ role:"client", ...c }); return; }
+    setErr("Invalid email or password.");
+  };
+
+  const submitSetup = async () => {
+    setSetupErr("");
+    if (!selectedId) return setSetupErr("Please select your name.");
+    if (!newEmail.includes("@")) return setSetupErr("Enter a valid email address.");
+    if (newPass.length < 6) return setSetupErr("Password must be at least 6 characters.");
+    if (newPass !== newPass2) return setSetupErr("Passwords don't match.");
+    if (clients.find(x => x.email === newEmail && x.id !== selectedId)) return setSetupErr("That email is already taken.");
+    const client = clients.find(c => c.id === selectedId);
+    const updated = clients.map(c => c.id === selectedId ? {...c, email: newEmail, password: newPass} : c);
+    await saveClients(updated);
+    onLogin({ role:"client", ...client, email: newEmail, password: newPass });
+  };
+
+  const unclaimedClients = clients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
+
+  if (mode === "setup") return (
+    <div className="login-wrap">
+      <div className="login-box" style={{width:420}}>
+        <div className="bebas login-logo">ML FITNESS</div>
+        <div className="login-sub">Create Your Account</div>
+        {setupErr && <div className="error-msg">{setupErr}</div>}
+        <div className="field-label">Who are you?</div>
+        <select className="field-input" value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
+          <option value="">— Select your name —</option>
+          {unclaimedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <div className="field-label">Your Email</div>
+        <input className="field-input" type="email" placeholder="you@email.com" value={newEmail} onChange={e=>setNewEmail(e.target.value)} />
+        <div className="field-label">Choose a Password</div>
+        <input className="field-input" type="password" placeholder="Min. 6 characters" value={newPass} onChange={e=>setNewPass(e.target.value)} />
+        <div className="field-label">Confirm Password</div>
+        <input className="field-input" type="password" placeholder="Repeat password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitSetup()} />
+        <button className="btn-primary" onClick={submitSetup}>CREATE ACCOUNT</button>
+        <div className="switch-link"><span onClick={()=>setMode("login")}>← Back to sign in</span></div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="login-wrap">
+      <div className="login-box">
+        <div className="bebas login-logo">ML FITNESS</div>
+        <div className="login-sub">Scheduling Portal</div>
+        {err && <div className="error-msg">{err}</div>}
+        <div className="field-label">Email</div>
+        <input className="field-input" type="email" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} />
+        <div className="field-label">Password</div>
+        <input className="field-input" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} />
+        <button className="btn-primary" onClick={submit}>SIGN IN</button>
+        <div className="switch-link" style={{marginTop:16}}>
+          First time here? <span onClick={()=>setMode("setup")}>Create your account</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Trainer App ──────────────────────────────────────────────────────────────
+function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogout }) {
+  const [tab, setTab] = useState("schedule");
+  const nav = [
+    { id:"schedule", icon:"📅", label:"Schedule" },
+    { id:"clients", icon:"👥", label:"Clients" },
+    { id:"availability", icon:"📋", label:"Availability" },
+  ];
+
+  return (
+    <div className="app-shell">
+      <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
+      <div className="main-content">
+        {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
+        {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} />}
+        {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
+      </div>
+    </div>
+  );
+}
+
+function TrainerSchedule({ clients, sessions, saveSessions }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({ date:"", time:"7:00 AM", clientIds:[], notes:"" });
+  const [availabilities, setAvailabilities] = useState([]);
+  const [showAvailOnly, setShowAvailOnly] = useState(false);
+
+  useEffect(() => {
+    store.get("gym_availability").then(a => setAvailabilities(a||[]));
+  }, []);
+
+  const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const isAvailable = (clientId, date, time) => {
+    const avail = availabilities.find(a => a.clientId === clientId);
+    if (!avail) return false;
+    const d = new Date(date + "T12:00:00");
+    const dayName = DAY_ABBREVS[d.getDay()];
+    return avail.slots.some(slot => slot === dayName + " " + time);
+  };
+
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  // Sessions are stored with a `date` string "YYYY-MM-DD" for monthly view
+  // Fall back to old `day` (0-6 weekday) for legacy seed sessions
+  const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const sessionsForDate = (d) => {
+    const key = dateKey(d);
+    // match by date string OR by weekday (legacy)
+    return sessions.filter(s => {
+      if (s.date) return s.date === key;
+      // legacy: match weekday — js getDay() 0=Sun, our DAYS 0=Mon
+      const jsDay = d.getDay();
+      const ourDay = jsDay === 0 ? 6 : jsDay - 1;
+      return s.day === ourDay;
+    }).sort((a,b) => TIMES.indexOf(a.time) - TIMES.indexOf(b.time));
+  };
+
+  // Build calendar grid
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const lastDay = new Date(viewYear, viewMonth+1, 0);
+  const startPad = firstDay.getDay(); // 0=Sun
+  const totalCells = Math.ceil((startPad + lastDay.getDate()) / 7) * 7;
+  const cells = Array.from({length: totalCells}, (_,i) => {
+    const d = new Date(viewYear, viewMonth, i - startPad + 1);
+    return d.getMonth() === viewMonth ? d : null;
+  });
+
+  const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
+  const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
+
+  const openAdd = (d) => {
+    setForm({ date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"" });
+    setModal("add");
+  };
+  const openEdit = (s) => { setForm({...s}); setModal(s); };
+
+  const save = async () => {
+    if (modal === "add") {
+      await saveSessions([...sessions, { ...form, id:"s"+Date.now() }]);
+    } else {
+      await saveSessions(sessions.map(s=>s.id===modal.id?{...s,...form}:s));
+    }
+    setModal(null);
+  };
+
+  const del = async () => {
+    await saveSessions(sessions.filter(s=>s.id!==modal.id));
+    setModal(null);
+  };
+
+  const toggleClient = (id) => {
+    setForm(f => ({
+      ...f,
+      clientIds: f.clientIds.includes(id) ? f.clientIds.filter(x=>x!==id) : f.clientIds.length < 7 ? [...f.clientIds, id] : f.clientIds
+    }));
+  };
+
+  const isToday = (d) => d && dateKey(d) === dateKey(today);
+  const isSelected = (d) => d && selectedDate && dateKey(d) === dateKey(selectedDate);
+
+  const totalSessions = sessions.length;
+  const totalClients = sessions.reduce((a,s)=>a+s.clientIds.length,0);
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">MONTHLY SCHEDULE</div>
+        <div className="page-subtitle">Click any day to view or add sessions</div>
+      </div>
+
+      <div className="stats-grid">
+        <StatCard label="Total Sessions" value={totalSessions} sub="this schedule" />
+        <StatCard label="Client Slots" value={totalClients} sub="filled across sessions" />
+        <StatCard label="Active Clients" value={clients.filter(c=>c.active).length} sub="in roster" />
+        <StatCard label="Month" value={MONTH_NAMES[viewMonth].slice(0,3).toUpperCase()} sub={String(viewYear)} />
+      </div>
+
+      {/* Calendar */}
+      <div className="section">
+        <div className="section-header">
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={prevMonth}>‹</button>
+            <span className="bebas" style={{fontSize:22,color:"var(--text)",letterSpacing:2}}>{MONTH_NAMES[viewMonth]} {viewYear}</span>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={nextMonth}>›</button>
+          </div>
+        </div>
+        <div className="section-body" style={{padding:0}}>
+          {/* Day headers */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--border)"}}>
+            {DAY_NAMES.map(d=>(
+              <div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{d}</div>
+            ))}
+          </div>
+          {/* Calendar cells */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+            {cells.map((d,i) => {
+              if (!d) return <div key={i} style={{minHeight:90,borderRight:"1px solid var(--border)",borderBottom:"1px solid var(--border)",background:"var(--black)"}} />;
+              const daySessions = sessionsForDate(d);
+              const filled = daySessions.filter(s=>s.clientIds.length>0).length;
+              const sel = isSelected(d);
+              const tod = isToday(d);
+              return (
+                <div key={i} onClick={()=>setSelectedDate(d)}
+                  style={{
+                    minHeight:90, padding:"8px 6px", cursor:"pointer",
+                    borderRight:"1px solid var(--border)", borderBottom:"1px solid var(--border)",
+                    background: sel ? "#3ec9c915" : "transparent",
+                    transition:"background 0.15s",
+                  }}
+                  onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background="#ffffff05"; }}
+                  onMouseLeave={e=>{ if(!sel) e.currentTarget.style.background="transparent"; }}
+                >
+                  <div style={{
+                    width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:13,fontWeight:500,marginBottom:4,
+                    background: tod ? "var(--accent)" : "transparent",
+                    color: tod ? "var(--black)" : sel ? "var(--accent)" : "var(--text)",
+                    border: sel && !tod ? "1px solid var(--accent)" : "none",
+                  }}>{d.getDate()}</div>
+                  {daySessions.length > 0 && (
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      {daySessions.slice(0,3).map(s=>(
+                        <div key={s.id} style={{
+                          fontSize:9,padding:"2px 5px",borderRadius:2,
+                          background: s.clientIds.length>0 ? "#3ec9c925" : "#ffffff08",
+                          color: s.clientIds.length>0 ? "var(--accent)" : "var(--muted)",
+                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
+                        }}>{s.time}</div>
+                      ))}
+                      {daySessions.length > 3 && <div style={{fontSize:9,color:"var(--muted)",paddingLeft:4}}>+{daySessions.length-3} more</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Day detail panel */}
+      {selectedDate && (
+        <div className="section" style={{animation:"fadeUp 0.3s ease"}}>
+          <div className="section-header">
+            <span className="bebas" style={{fontSize:20,color:"var(--text)"}}>
+              {DAY_NAMES[selectedDate.getDay()]} {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
+            </span>
+            <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={()=>openAdd(selectedDate)}>+ Add Session</button>
+          </div>
+          <div className="section-body">
+            {sessionsForDate(selectedDate).length === 0
+              ? <div className="empty-state" style={{padding:"30px 20px"}}><div className="empty-icon">🗓</div><div className="empty-text">No sessions. Click + Add Session to schedule one.</div></div>
+              : sessionsForDate(selectedDate).map(s => {
+                  const names = s.clientIds.map(id => {
+                    const c = clients.find(x=>x.id===id);
+                    return c ? c.name.split(" ")[0] : id;
+                  });
+                  return (
+                    <div key={s.id} className="session-card" style={{cursor:"pointer"}} onClick={()=>openEdit(s)}>
+                      <div className="session-time bebas">{s.time}</div>
+                      <div className="session-info">
+                        <div style={{fontWeight:500,marginBottom:4}}>{s.clientIds.length} client{s.clientIds.length!==1?"s":""}</div>
+                        <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>{names.join(" · ") || "No clients assigned"}</div>
+                        {s.notes && <div className="session-note">📝 {s.notes}</div>}
+                      </div>
+                      <span className={`badge ${s.clientIds.length>0?"badge-accent":"badge-muted"}`}>{s.clientIds.length}/7</span>
+                    </div>
+                  );
+                })
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Session modal */}
+      {modal && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div className="modal">
+            <div className="modal-header">
+              <div className="bebas modal-title">{modal==="add"?"NEW SESSION":"EDIT SESSION"}</div>
+              <button className="modal-close" onClick={()=>setModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <label>Time</label>
+                <select value={form.time} onChange={e=>setForm({...form,time:e.target.value})}>
+                  {TIMES.map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="form-row">
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <label style={{margin:0}}>Clients ({form.clientIds.length}/7)</label>
+                  <div style={{display:"flex",alignItems:"center",gap:8,fontSize:11}}>
+                    <span style={{color:"var(--muted)"}}>Show available only</span>
+                    <div
+                      onClick={()=>setShowAvailOnly(v=>!v)}
+                      style={{
+                        width:36,height:20,borderRadius:10,cursor:"pointer",
+                        background:showAvailOnly?"var(--accent)":"var(--border)",
+                        position:"relative",transition:"background 0.2s"
+                      }}
+                    >
+                      <div style={{
+                        position:"absolute",top:3,left:showAvailOnly?18:3,
+                        width:14,height:14,borderRadius:"50%",
+                        background:showAvailOnly?"var(--black)":"var(--muted)",
+                        transition:"left 0.2s"
+                      }}/>
+                    </div>
+                  </div>
+                </div>
+                <div className="avail-grid" style={{marginTop:6}}>
+                  {[...clients].sort((a,b)=>a.name.localeCompare(b.name)).filter(c => {
+                    if (!c.active) return false;
+                    if (showAvailOnly) return isAvailable(c.id, form.date, form.time) || form.clientIds.includes(c.id);
+                    return true;
+                  }).map(c => {
+                    const avail = isAvailable(c.id, form.date, form.time);
+                    const selected = form.clientIds.includes(c.id);
+                    return (
+                      <div key={c.id}
+                        className={`avail-chip${selected?" selected":""}`}
+                        style={{position:"relative", borderColor: avail && !selected ? "var(--green)" : undefined, color: avail && !selected ? "var(--green)" : undefined}}
+                        onClick={()=>toggleClient(c.id)}
+                        title={avail ? "Available" : "No availability submitted"}
+                      >
+                        {c.name.split(" ")[0]}
+                        {avail && !selected && <span style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:"var(--green)"}}/>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {availabilities.length === 0 && (
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>No availability submissions yet.</div>
+                )}
+              </div>
+              <div className="form-row">
+                <label>Notes</label>
+                <textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="e.g. Upper body focus" />
+              </div>
+            </div>
+            <div className="modal-footer">
+              {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Delete</button>}
+              <button className="btn-secondary" onClick={()=>setModal(null)}>Cancel</button>
+              <button className="btn-primary" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={save}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function TrainerClients({ clients, sessions, saveClients }) {
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({ name:"", email:"", password:"client123", sessionsTotal:20, sessionsUsed:0, active:true });
+
+  const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
+
+  const openAdd = () => { setForm({ name:"", email:"", password:"client123", sessionsTotal:20, sessionsUsed:0, active:true }); setModal("add"); };
+  const openEdit = (c) => { setForm({...c}); setModal(c); };
+
+  const save = async () => {
+    if (modal === "add") {
+      await saveClients([...clients, { ...form, id:"c"+Date.now() }]);
+    } else {
+      await saveClients(clients.map(c=>c.id===modal.id?{...c,...form}:c));
+    }
+    setModal(null);
+  };
+
+  const del = async () => {
+    await saveClients(clients.filter(c=>c.id!==modal.id));
+    setModal(null);
+  };
+
+  const clientSessions = (id) => sessions.filter(s=>s.clientIds.includes(id)).length;
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">CLIENTS</div>
+        <div className="page-subtitle">{clients.filter(c=>c.active).length} active · {clients.filter(c=>!c.active).length} inactive</div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">All Clients ({clients.length})</span>
+          <div style={{display:"flex",gap:10}}>
+            <input className="search-input" placeholder="Search..." value={search} onChange={e=>setSearch(e.target.value)} />
+            <button className="btn-primary" style={{width:"auto",padding:"8px 20px",fontSize:14}} onClick={openAdd}>+ Add Client</button>
+          </div>
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Sessions Left</th>
+              <th>This Week</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...filtered].sort((a,b)=>a.name.localeCompare(b.name)).map(c => {
+              const left = c.sessionsTotal - c.sessionsUsed;
+              const pct = (c.sessionsUsed/c.sessionsTotal)*100;
+              return (
+                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>openEdit(c)}>
+                  <td>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div className="user-avatar" style={{background: left===0?"var(--red)":"var(--accent)",fontSize:11}}>
+                        {c.name.split(" ").map(x=>x[0]).join("")}
+                      </div>
+                      <span style={{fontWeight:500,color:"var(--accent)",textDecoration:"underline",textDecorationColor:"transparent",transition:"text-decoration-color 0.15s"}}
+                        onMouseEnter={e=>e.currentTarget.style.textDecorationColor="var(--accent)"}
+                        onMouseLeave={e=>e.currentTarget.style.textDecorationColor="transparent"}
+                      >{c.name}</span>
+                    </div>
+                  </td>
+                  <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
+                  <td>
+                    <div style={{fontSize:13,marginBottom:5}}>{left} / {c.sessionsTotal}</div>
+                    <div className="progress-wrap" style={{width:100}}>
+                      <div className="progress-fill" style={{width:`${pct}%`,background:left===0?"var(--red)":left<5?"var(--accent2)":"var(--accent)"}} />
+                    </div>
+                  </td>
+                  <td style={{color:"var(--accent)"}}>{clientSessions(c.id)} sessions</td>
+                  <td onClick={e=>e.stopPropagation()}>
+                    <span
+                      className={`badge ${c.active?"badge-green":"badge-muted"}`}
+                      style={{cursor:"pointer",userSelect:"none"}}
+                      title="Click to toggle"
+                      onClick={async()=>{ await saveClients(clients.map(x=>x.id===c.id?{...x,active:!x.active}:x)); }}
+                    >
+                      {c.active?"Active":"Inactive"}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {modal && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div className="modal">
+            <div className="modal-header">
+              <div className="bebas modal-title">{modal==="add"?"NEW CLIENT":"EDIT CLIENT"}</div>
+              <button className="modal-close" onClick={()=>setModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="two-col">
+                <div className="form-row">
+                  <label>Name</label>
+                  <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Full name" />
+                </div>
+                <div className="form-row">
+                  <label>Email</label>
+                  <input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="email@example.com" />
+                </div>
+              </div>
+              <div className="two-col">
+                <div className="form-row">
+                  <label>Password</label>
+                  <input value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
+                </div>
+                <div className="form-row">
+                  <label>Status</label>
+                  <select value={form.active?"active":"inactive"} onChange={e=>setForm({...form,active:e.target.value==="active"})}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div className="two-col">
+                <div className="form-row">
+                  <label>Total Sessions Purchased</label>
+                  <input type="number" value={form.sessionsTotal} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
+                </div>
+                <div className="form-row">
+                  <label>Sessions Used</label>
+                  <input type="number" value={form.sessionsUsed} onChange={e=>setForm({...form,sessionsUsed:+e.target.value})} />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Remove</button>}
+              <button className="btn-secondary" onClick={()=>setModal(null)}>Cancel</button>
+              <button className="btn-primary" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={save}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function TrainerAvailability({ clients, sessions, saveSessions }) {
+  const [avails, setAvails] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [assignFeedback, setAssignFeedback] = useState(""); // "Day Time" of last assigned
+
+  useEffect(() => {
+    store.get("gym_availability").then(a => setAvails(a||[]));
+  }, []);
+
+  const clientAvail = (clientId) => avails.find(a=>a.clientId===clientId);
+
+  // Parse "Mon 7:00 AM" -> find matching sessions in the next 7 days
+  const sessionsForSlot = (slotStr) => {
+    const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const [dayAbbr, ...timeParts] = slotStr.split(" ");
+    const time = timeParts.join(" ");
+    const now = new Date(); now.setHours(0,0,0,0);
+    const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
+    return sessions.filter(s => {
+      if (!s.date) return false;
+      const d = new Date(s.date + "T12:00:00");
+      return DAY_ABBREVS[d.getDay()] === dayAbbr && s.time === time && d >= now && d <= weekEnd;
+    }).sort((a,b) => a.date < b.date ? -1 : 1);
+  };
+
+  const isAssigned = (sessionId) => {
+    if (!selectedClient) return false;
+    const s = sessions.find(x=>x.id===sessionId);
+    return s && s.clientIds.includes(selectedClient.id);
+  };
+
+  const toggleAssign = async (session) => {
+    if (!selectedClient) return;
+    const alreadyIn = session.clientIds.includes(selectedClient.id);
+    let updated;
+    if (alreadyIn) {
+      updated = sessions.map(s => s.id===session.id
+        ? {...s, clientIds: s.clientIds.filter(id=>id!==selectedClient.id)}
+        : s);
+    } else {
+      if (session.clientIds.length >= 7) return;
+      updated = sessions.map(s => s.id===session.id
+        ? {...s, clientIds: [...s.clientIds, selectedClient.id]}
+        : s);
+    }
+    await saveSessions(updated);
+    setAssignFeedback(alreadyIn ? "" : session.date + " " + session.time);
+    setTimeout(() => setAssignFeedback(""), 2000);
+  };
+
+  const avail = selectedClient ? clientAvail(selectedClient.id) : null;
+  const slots = avail ? avail.slots : [];
+
+  // Group slots by day
+  const slotsByDay = {};
+  slots.forEach(slot => {
+    const day = slot.split(" ")[0];
+    if (!slotsByDay[day]) slotsByDay[day] = [];
+    slotsByDay[day].push(slot);
+  });
+  const dayOrder = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const sortedDays = Object.keys(slotsByDay).sort((a,b) => dayOrder.indexOf(a)-dayOrder.indexOf(b));
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">AVAILABILITY</div>
+        <div className="page-subtitle">Click a client to assign them to sessions</div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Client Availability</span>
+          <span style={{fontSize:12,color:"var(--muted)"}}>{avails.length} / {clients.length} submitted</span>
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Available Times</th>
+              <th>Status</th>
+              <th>Submitted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...clients].sort((a,b)=>a.name.localeCompare(b.name)).map(c => {
+              const a = clientAvail(c.id);
+              return (
+                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setSelectedClient(c)}>
+                  <td>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div className="user-avatar" style={{fontSize:11,background:selectedClient?.id===c.id?"var(--accent)":"var(--panel)",border:"1px solid var(--accent)",color:selectedClient?.id===c.id?"var(--black)":"var(--accent)"}}>
+                        {c.name.split(" ").map(x=>x[0]).join("")}
+                      </div>
+                      <span style={{fontWeight:500,color:selectedClient?.id===c.id?"var(--accent)":"var(--text)"}}>{c.name}</span>
+                    </div>
+                  </td>
+                  <td style={{color:"var(--muted)",fontSize:12}}>
+                    {a ? a.slots.slice(0,4).join(", ") + (a.slots.length>4?` +${a.slots.length-4} more`:"") : <span style={{color:"var(--border)"}}>—</span>}
+                  </td>
+                  <td>
+                    {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
+                  </td>
+                  <td style={{color:"var(--muted)",fontSize:12}}>{a?.date||"—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Scheduling popup */}
+      {selectedClient && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setSelectedClient(null)}>
+          <div className="modal" style={{width:560,maxHeight:"80vh"}}>
+            <div className="modal-header">
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13}}>
+                  {selectedClient.name.split(" ").map(x=>x[0]).join("")}
+                </div>
+                <div>
+                  <div className="bebas modal-title" style={{fontSize:22}}>{selectedClient.name}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>
+                    {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"}
+                  </div>
+                </div>
+              </div>
+              <button className="modal-close" onClick={()=>setSelectedClient(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {!avail ? (
+                <div className="empty-state" style={{padding:"30px 0"}}>
+                  <div className="empty-icon">📋</div>
+                  <div className="empty-text">{selectedClient.name} hasn't submitted availability yet.</div>
+                </div>
+              ) : (
+                <>
+                  {assignFeedback && (
+                    <div style={{background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:2,padding:"8px 14px",fontSize:12,color:"var(--accent)",marginBottom:16}}>
+                      ✓ Assigned to {assignFeedback}
+                    </div>
+                  )}
+                  {sortedDays.map(day => (
+                    <div key={day} style={{marginBottom:20}}>
+                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:10}}>{day}</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {slotsByDay[day].map(slot => {
+                          const matchingSessions = sessionsForSlot(slot);
+                          const time = slot.split(" ").slice(1).join(" ");
+                          return (
+                            <div key={slot}>
+                              <div style={{fontSize:12,color:"var(--text)",marginBottom:4,fontWeight:500}}>{time}</div>
+                              {matchingSessions.length === 0 ? (
+                                <div style={{fontSize:11,color:"var(--border)",paddingLeft:8}}>No sessions scheduled for this slot</div>
+                              ) : (
+                                <div style={{display:"flex",flexWrap:"wrap",gap:6,paddingLeft:8}}>
+                                  {matchingSessions.map(s => {
+                                    const assigned = isAssigned(s.id);
+                                    const full = s.clientIds.length >= 7 && !assigned;
+                                    return (
+                                      <div key={s.id}
+                                        onClick={()=>!full && toggleAssign(s)}
+                                        style={{
+                                          padding:"6px 14px",borderRadius:2,fontSize:12,cursor:full?"not-allowed":"pointer",
+                                          border:`1px solid ${assigned?"var(--accent)":full?"var(--border)":"var(--border)"}`,
+                                          background:assigned?"var(--accent)":full?"transparent":"var(--charcoal)",
+                                          color:assigned?"var(--black)":full?"var(--border)":"var(--text)",
+                                          transition:"all 0.15s",userSelect:"none",
+                                        }}
+                                        onMouseEnter={e=>{ if(!full&&!assigned) e.currentTarget.style.borderColor="var(--accent)"; }}
+                                        onMouseLeave={e=>{ if(!full&&!assigned) e.currentTarget.style.borderColor="var(--border)"; }}
+                                        title={full?"Session full":assigned?"Click to remove":"Click to assign"}
+                                      >
+                                        {s.date.slice(5).replace("-","/")} · {s.clientIds.length}/7
+                                        {assigned && " ✓"}
+                                        {full && " 🔒"}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={()=>setSelectedClient(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Client App ───────────────────────────────────────────────────────────────
+function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
+  const [tab, setTab] = useState("schedule");
+  const nav = [
+    { id:"schedule", icon:"📅", label:"My Schedule" },
+    { id:"availability", icon:"✅", label:"My Availability" },
+    { id:"account", icon:"👤", label:"Account" },
+  ];
+
+  const client = clients.find(c=>c.id===user.id);
+  const mySessions = sessions.filter(s=>s.clientIds.includes(user.id)).sort((a,b)=>{
+    const da = a.date||"", db = b.date||"";
+    return da < db ? -1 : da > db ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time);
+  });
+  const sessionsLeft = client ? client.sessionsTotal - client.sessionsUsed : 0;
+
+  return (
+    <div className="app-shell">
+      <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="CLIENT" />
+      <div className="main-content">
+        {tab === "schedule" && <ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} />}
+        {tab === "availability" && <ClientAvailability client={client} />}
+        {tab === "account" && <ClientAccount client={client} sessionsLeft={sessionsLeft} />}
+      </div>
+    </div>
+  );
+}
+
+function ClientSchedule({ client, mySessions, sessionsLeft }) {
+  if (!client) return null;
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const sessionsForDate = (d) => {
+    const key = dateKey(d);
+    return mySessions.filter(s => s.date === key).sort((a,b)=>TIMES.indexOf(a.time)-TIMES.indexOf(b.time));
+  };
+
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const lastDay = new Date(viewYear, viewMonth+1, 0);
+  const startPad = firstDay.getDay();
+  const totalCells = Math.ceil((startPad + lastDay.getDate()) / 7) * 7;
+  const cells = Array.from({length: totalCells}, (_,i) => {
+    const d = new Date(viewYear, viewMonth, i - startPad + 1);
+    return d.getMonth() === viewMonth ? d : null;
+  });
+
+  const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
+  const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
+
+  const pct = Math.round((client.sessionsUsed/client.sessionsTotal)*100);
+  const left = client.sessionsTotal - client.sessionsUsed;
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">MY SCHEDULE</div>
+        <div className="page-subtitle">Your sessions, {client.name.split(" ")[0]}</div>
+      </div>
+
+      <div className="stats-grid">
+        <StatCard label="Total Sessions" value={mySessions.length} sub="scheduled" />
+        <StatCard label="Sessions Left" value={left} sub={`of ${client.sessionsTotal} purchased`} accent={left<5?"red":undefined} />
+        <StatCard label="Sessions Used" value={client.sessionsUsed} sub="completed" />
+        <StatCard label="Completion" value={`${pct}%`} sub="of package used" />
+      </div>
+
+      <div className="section" style={{marginBottom:16}}>
+        <div className="section-header"><span className="section-title">Session Package</span></div>
+        <div className="section-body">
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13}}>
+            <span style={{color:"var(--muted)"}}>Progress</span>
+            <span>{client.sessionsUsed} / {client.sessionsTotal} sessions</span>
+          </div>
+          <div className="progress-wrap">
+            <div className="progress-fill" style={{width:`${pct}%`,background:left===0?"var(--red)":left<5?"var(--accent2)":"var(--accent)"}} />
+          </div>
+          {left === 0 && <div style={{color:"var(--red)",fontSize:12,marginTop:8}}>⚠ Package complete — contact your trainer to renew.</div>}
+          {left > 0 && left <= 5 && <div style={{color:"var(--accent2)",fontSize:12,marginTop:8}}>⚡ {left} session{left>1?"s":""} remaining — consider renewing soon.</div>}
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={prevMonth}>‹</button>
+            <span className="bebas" style={{fontSize:22,color:"var(--text)",letterSpacing:2}}>{MONTH_NAMES[viewMonth]} {viewYear}</span>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={nextMonth}>›</button>
+          </div>
+        </div>
+        <div style={{padding:0}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--border)"}}>
+            {DAY_NAMES.map(d=>(
+              <div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{d}</div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+            {cells.map((d,i) => {
+              if (!d) return <div key={i} style={{minHeight:70,borderRight:"1px solid var(--border)",borderBottom:"1px solid var(--border)",background:"var(--black)"}} />;
+              const daySessions = sessionsForDate(d);
+              const hasSessions = daySessions.length > 0;
+              const sel = selectedDate && dateKey(d) === dateKey(selectedDate);
+              const tod = dateKey(d) === dateKey(today);
+              return (
+                <div key={i} onClick={()=>setSelectedDate(d)}
+                  style={{
+                    minHeight:70, padding:"8px 6px", cursor: hasSessions ? "pointer" : "default",
+                    borderRight:"1px solid var(--border)", borderBottom:"1px solid var(--border)",
+                    background: sel ? "#3ec9c915" : "transparent",
+                  }}
+                >
+                  <div style={{
+                    width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:13,fontWeight:500,marginBottom:4,
+                    background: tod ? "var(--accent)" : "transparent",
+                    color: tod ? "var(--black)" : sel ? "var(--accent)" : "var(--text)",
+                    border: sel && !tod ? "1px solid var(--accent)" : "none",
+                  }}>{d.getDate()}</div>
+                  {hasSessions && (
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      {daySessions.slice(0,2).map(s=>(
+                        <div key={s.id} style={{
+                          fontSize:9,padding:"2px 5px",borderRadius:2,
+                          background:"#3ec9c925",color:"var(--accent)",
+                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
+                        }}>{s.time}</div>
+                      ))}
+                      {daySessions.length > 2 && <div style={{fontSize:9,color:"var(--muted)",paddingLeft:4}}>+{daySessions.length-2} more</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {selectedDate && sessionsForDate(selectedDate).length > 0 && (
+        <div className="section" style={{animation:"fadeUp 0.3s ease"}}>
+          <div className="section-header">
+            <span className="bebas" style={{fontSize:20,color:"var(--text)"}}>
+              {DAY_NAMES[selectedDate.getDay()]} {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}
+            </span>
+          </div>
+          <div className="section-body">
+            {sessionsForDate(selectedDate).map(s => (
+              <div key={s.id} className="session-card">
+                <div className="session-time bebas">{s.time}</div>
+                <div className="session-info">
+                  <div style={{fontWeight:500}}>Group Session</div>
+                  <div className="session-day">{s.clientIds.length} members</div>
+                  {s.notes && <div className="session-note">📝 {s.notes}</div>}
+                </div>
+                <span className="badge badge-accent">Confirmed</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ClientAvailability({ client }) {
+  const [saved, setSaved] = useState(false);
+  const [slots, setSlots] = useState({});
+
+  useEffect(() => {
+    store.get("gym_availability").then(all => {
+      const mine = (all||[]).find(a=>a.clientId===client.id);
+      if (mine) {
+        const rebuilt = {};
+        mine.slots.forEach(s => {
+          const [day,...rest] = s.split(" ");
+          const time = rest.join(" ");
+          if (!rebuilt[day]) rebuilt[day]={};
+          rebuilt[day][time]=true;
+        });
+        setSlots(rebuilt);
+      }
+    });
+  }, [client.id]);
+
+  const toggle = (day, time) => {
+    setSlots(prev => {
+      const d = {...(prev[day]||{})};
+      d[time] ? delete d[time] : (d[time]=true);
+      return {...prev,[day]:d};
+    });
+  };
+
+  const submit = async () => {
+    const flatSlots = [];
+    DAYS.forEach(d => Object.keys(slots[d]||{}).forEach(t => flatSlots.push(`${d} ${t}`)));
+    const all = (await store.get("gym_availability"))||[];
+    const filtered = all.filter(a=>a.clientId!==client.id);
+    const date = new Date().toLocaleDateString();
+    await store.set("gym_availability", [...filtered, { clientId:client.id, slots:flatSlots, date }]);
+    setSaved(true);
+    setTimeout(()=>setSaved(false),2500);
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">MY AVAILABILITY</div>
+        <div className="page-subtitle">Tell your trainer when you're free this week</div>
+      </div>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Select Your Available Times</span>
+          {saved && <span style={{color:"var(--green)",fontSize:12}}>✓ Saved!</span>}
+        </div>
+        <div className="section-body">
+          {DAYS.map(day => (
+            <div key={day} className="day-avail-row">
+              <div className="day-avail-label" style={{fontWeight:600}}>{day}</div>
+              <div className="time-chips">
+                {TIMES.map(t => (
+                  <div key={t} className={`time-chip${slots[day]?.[t]?" selected":""}`} onClick={()=>toggle(day,t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{marginTop:20}}>
+            <button className="btn-primary" style={{width:"auto",padding:"12px 32px",fontSize:15}} onClick={submit}>SUBMIT AVAILABILITY</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ClientAccount({ client, sessionsLeft }) {
+  if (!client) return null;
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">ACCOUNT</div>
+        <div className="page-subtitle">Your profile and package details</div>
+      </div>
+      <div className="two-col">
+        <div className="section">
+          <div className="section-header"><span className="section-title">Profile</span></div>
+          <div className="section-body">
+            <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
+              <div className="user-avatar" style={{width:56,height:56,fontSize:20}}>{client.name.split(" ").map(x=>x[0]).join("")}</div>
+              <div>
+                <div style={{fontWeight:600,fontSize:16}}>{client.name}</div>
+                <div style={{color:"var(--muted)",fontSize:13}}>{client.email}</div>
+              </div>
+            </div>
+            <div style={{color:"var(--muted)",fontSize:12,lineHeight:1.8}}>
+              <div>Status: <span style={{color:client.active?"var(--green)":"var(--red)"}}>{client.active?"Active":"Inactive"}</span></div>
+            </div>
+          </div>
+        </div>
+        <div className="section">
+          <div className="section-header"><span className="section-title">Package</span></div>
+          <div className="section-body">
+            <StatCard label="Sessions Remaining" value={sessionsLeft} sub={`of ${client.sessionsTotal} total`} accent={sessionsLeft<5?"red":undefined} />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Shared components ────────────────────────────────────────────────────────
+function Sidebar({ user, nav, tab, setTab, onLogout, role }) {
+  return (
+    <div className="sidebar">
+      <div className="sidebar-logo">
+        <div className="bebas sidebar-logo-text">ML FITNESS</div>
+        <div className="sidebar-role">{role}</div>
+      </div>
+      <div className="sidebar-nav">
+        {nav.map(n=>(
+          <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+            <span className="nav-icon">{n.icon}</span>
+            {n.label}
+          </div>
+        ))}
+      </div>
+      <div className="sidebar-bottom">
+        <div className="user-pill">
+          <div className="user-avatar">{user.name[0]}</div>
+          <div className="user-name">{user.name.split(" ")[0]}</div>
+          <button className="logout-btn" title="Log out" onClick={onLogout}>⏻</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, accent }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-label">{label}</div>
+      <div className="bebas stat-value" style={accent==="red"?{color:"var(--red)"}:{}}>{value}</div>
+      {sub && <div className="stat-sub">{sub}</div>}
+    </div>
+  );
+}
