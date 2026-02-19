@@ -1586,7 +1586,12 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
   const [assignFeedback, setAssignFeedback] = useState(""); // "Day Time" of last assigned
 
   useEffect(() => {
-    store.get("gym_availability").then(a => setAvails(a||[]));
+    store.get("gym_availability").then(a => {
+      if (a) setAvails(a.map(r => ({
+        ...r,
+        slots: Array.isArray(r.slots) ? r.slots : (typeof r.slots === "string" ? JSON.parse(r.slots) : [])
+      })));
+    });
   }, []);
 
   const clientAvail = (clientId) => avails.find(a=>a.clientId===clientId);
@@ -1982,10 +1987,12 @@ function ClientAvailability({ client }) {
   const submit = async () => {
     const flatSlots = [];
     DAYS.forEach(d => Object.keys(slots[d]||{}).forEach(t => flatSlots.push(`${d} ${t}`)));
-    const all = (await store.get("gym_availability"))||[];
-    const filtered = all.filter(a=>a.clientId!==client.id);
     const date = new Date().toLocaleDateString();
-    await store.set("gym_availability", [...filtered, { clientId:client.id, slots:flatSlots, date }]);
+    const row = { clientId: client.id, slots: flatSlots, date };
+    // Upsert directly using clientId as the key
+    await sbFetch("availability", "POST", [row], {
+      Prefer: "resolution=merge-duplicates,return=minimal"
+    });
     setSaved(true);
     setTimeout(()=>setSaved(false),2500);
   };
