@@ -595,7 +595,8 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return null;
-      const rows = await sbFetch(`${table}?select=*`);
+      const rows = await sbFetch(`${table}?select=*&order=id`);
+      console.log(`Supabase ${table}: got ${rows ? rows.length : 0} rows`);
       if (!rows || rows.length === 0) return null;
       if (key === "gym_sessions") {
         return rows.map(r => ({
