@@ -1005,7 +1005,8 @@ function LoginScreen({ clients, onLogin, saveClients }) {
       onLogin({ role:"trainer", name:"Coach", email });
       return;
     }
-    const c = clients.find(x => x.email === email && x.password === pass);
+    if (!email || !pass) { setErr("Please enter your email and password."); return; }
+    const c = clients.find(x => x.email && x.email === email && x.password && x.password === pass);
     if (c) { onLogin({ role:"client", ...c }); return; }
     setErr("Invalid email or password.");
   };
