@@ -2351,23 +2351,38 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
 }
 
 function ClientAvailability({ client }) {
-  const [saved, setSaved] = useState(false);
-  const [slots, setSlots] = useState({});
-  const [trainingsWanted, setTrainingsWanted] = useState(0);
-  const [submittedSlots, setSubmittedSlots] = useState(null);
-  const [submittedTrainings, setSubmittedTrainings] = useState(null);
-
   const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const MONTH_ABBREVS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
-  const getNextWeekDates = () => {
+  // Build list of upcoming Mondays (next 4 weeks)
+  const getUpcomingWeeks = () => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const day = today.getDay();
-    const daysUntilMon = day === 0 ? 1 : 8 - day;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + daysUntilMon);
+    const dow = today.getDay();
+    const daysUntilMon = dow === 0 ? 1 : 8 - dow;
+    const weeks = [];
+    for (let w = 0; w < 4; w++) {
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + daysUntilMon + w * 7);
+      weeks.push(monday);
+    }
+    return weeks;
+  };
+
+  const upcomingWeeks = getUpcomingWeeks();
+  const [selectedWeek, setSelectedWeek] = useState(upcomingWeeks[0]);
+  const [allData, setAllData] = useState({}); // key: weekMonday dateKey, value: { slots, trainingsWanted, saved }
+  const [saved, setSaved] = useState(false);
+
+  const weekKey = (monday) => dateKey(monday);
+
+  const weekLabel = (monday) => {
+    const sat = new Date(monday); sat.setDate(monday.getDate() + 5);
+    return `Week of ${MONTH_ABBREVS[monday.getMonth()]} ${monday.getDate()}`;
+  };
+
+  const getWeekDates = (monday) => {
     const dates = [];
     for (let i = 0; i < 6; i++) {
       const d = new Date(monday);
@@ -2376,8 +2391,6 @@ function ClientAvailability({ client }) {
     }
     return dates;
   };
-
-  const weekDates = getNextWeekDates();
 
   const timesForDate = (d) => {
     const weekday = d.getDay();
@@ -2390,28 +2403,48 @@ function ClientAvailability({ client }) {
   };
 
   useEffect(() => {
-    store.get("gym_availability").then(all => {
-      const mine = (all||[]).find(a=>a.clientId===client.id);
-      if (mine) {
-        const rebuilt = {};
-        (Array.isArray(mine.slots) ? mine.slots : JSON.parse(mine.slots||"[]")).forEach(s => {
+    // Load all availability rows for this client
+    sbFetch(`availability?select=*&clientId=eq.${client.id}`).then(rows => {
+      if (!rows || !Array.isArray(rows)) return;
+      const built = {};
+      rows.forEach(row => {
+        const wk = row.weekKey;
+        if (!wk) return;
+        const slots = {};
+        (Array.isArray(row.slots) ? row.slots : JSON.parse(row.slots||"[]")).forEach(s => {
           const parts = s.split(" ");
           if (parts.length >= 3) {
             const dk = parts[0];
             const time = parts.slice(1).join(" ");
-            if (!rebuilt[dk]) rebuilt[dk] = {};
-            rebuilt[dk][time] = true;
+            if (!slots[dk]) slots[dk] = {};
+            slots[dk][time] = true;
           }
         });
-        if (mine.trainingsWanted) {
-          setTrainingsWanted(mine.trainingsWanted);
-          setSubmittedTrainings(mine.trainingsWanted);
-        }
-        setSlots(rebuilt);
-        setSubmittedSlots([...mine.slots]);
-      }
+        built[wk] = { slots, trainingsWanted: row.trainingsWanted||0, saved: true };
+      });
+      setAllData(built);
     });
   }, [client.id]);
+
+  const wk = weekKey(selectedWeek);
+  const current = allData[wk] || { slots: {}, trainingsWanted: 0, saved: false };
+  const slots = current.slots;
+  const trainingsWanted = current.trainingsWanted;
+
+  const setSlots = (fn) => {
+    setAllData(prev => {
+      const cur = prev[wk] || { slots: {}, trainingsWanted: 0, saved: false };
+      const newSlots = typeof fn === "function" ? fn(cur.slots) : fn;
+      return { ...prev, [wk]: { ...cur, slots: newSlots } };
+    });
+  };
+
+  const setTrainingsWanted = (n) => {
+    setAllData(prev => {
+      const cur = prev[wk] || { slots: {}, trainingsWanted: 0, saved: false };
+      return { ...prev, [wk]: { ...cur, trainingsWanted: n } };
+    });
+  };
 
   const toggle = (dk, time) => {
     setSlots(prev => {
@@ -2427,33 +2460,62 @@ function ClientAvailability({ client }) {
       Object.keys(times).forEach(t => flatSlots.push(`${dk} ${t}`));
     });
     const date = new Date().toLocaleDateString();
-    const row = { clientId: client.id, slots: flatSlots, date, trainingsWanted };
+    const row = { clientId: client.id, slots: flatSlots, date, trainingsWanted, weekKey: wk };
     await sbFetch("availability", "POST", [row], {
       Prefer: "resolution=merge-duplicates,return=minimal"
     });
-    setSubmittedSlots(flatSlots);
-    setSubmittedTrainings(trainingsWanted);
-    setSaved(true);
+    setAllData(prev => ({ ...prev, [wk]: { ...current, slots, trainingsWanted, saved: true } }));
+    setSaved(wk);
+    setTimeout(() => setSaved(false), 100);
   };
 
+  const weekDates = getWeekDates(selectedWeek);
   const totalSelected = Object.values(slots).reduce((a,v)=>a+Object.keys(v).length,0);
+  const flatSubmitted = current.saved ? Object.entries(slots).flatMap(([dk,times]) => Object.keys(times).map(t=>`${dk} ${t}`)) : [];
 
   return (
     <>
       <div className="page-header">
         <div className="bebas page-title">MY AVAILABILITY</div>
-        <div className="page-subtitle">Select the times you're available next week</div>
+        <div className="page-subtitle">Select which week and your available times</div>
       </div>
+
+      {/* Week selector */}
       <div className="section">
-        <div className="section-header">
-          <span className="section-title">Next Week</span>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            {saved && <span style={{color:"var(--green)",fontSize:12}}>✓ Saved!</span>}
-            {totalSelected > 0 && <span style={{fontSize:12,color:"var(--muted)"}}>{totalSelected} slot{totalSelected!==1?"s":""} selected</span>}
+        <div className="section-header"><span className="section-title">Select a Week</span></div>
+        <div className="section-body">
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {upcomingWeeks.map((monday, i) => {
+              const wkk = weekKey(monday);
+              const hasData = allData[wkk]?.saved;
+              const isSelected = wkk === wk;
+              return (
+                <div key={wkk} onClick={()=>setSelectedWeek(monday)} style={{
+                  padding:"12px 20px",borderRadius:4,cursor:"pointer",
+                  border:`2px solid ${isSelected?"var(--accent)":hasData?"var(--green)":"var(--border)"}`,
+                  background:isSelected?"var(--accent)":hasData?"#22c55e10":"var(--charcoal)",
+                  color:isSelected?"var(--black)":hasData?"var(--green)":"var(--text)",
+                  transition:"all 0.15s",userSelect:"none",minWidth:160
+                }}>
+                  <div style={{fontWeight:700,fontSize:14}}>{weekLabel(monday)}</div>
+                  <div style={{fontSize:11,marginTop:4,opacity:0.8}}>
+                    {hasData ? `✓ ${allData[wkk].trainingsWanted||"?"} sessions · ${Object.values(allData[wkk].slots).reduce((a,v)=>a+Object.keys(v).length,0)} slots` : i===0?"Next week":"Available"}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+      </div>
+
+      {/* Availability form for selected week */}
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">{weekLabel(selectedWeek)}</span>
+          {totalSelected > 0 && <span style={{fontSize:12,color:"var(--muted)"}}>{totalSelected} slot{totalSelected!==1?"s":""} selected</span>}
+        </div>
         <div className="section-body">
-          {/* Trainings wanted */}
+          {/* Sessions wanted */}
           <div style={{marginBottom:24}}>
             <div style={{fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12}}>How many sessions do you want this week?</div>
             <div style={{display:"flex",gap:10}}>
@@ -2470,6 +2532,8 @@ function ClientAvailability({ client }) {
               ))}
             </div>
           </div>
+
+          {/* Days */}
           {weekDates.map(d => {
             const dk = dateKey(d);
             const times = timesForDate(d);
@@ -2498,53 +2562,39 @@ function ClientAvailability({ client }) {
               </div>
             );
           })}
+
           <div style={{marginTop:20}}>
             <button className="btn-primary" style={{width:"auto",padding:"12px 32px",fontSize:15}} onClick={submit}>SUBMIT AVAILABILITY</button>
           </div>
 
-          {/* Persistent confirmation banner */}
-          {saved && submittedSlots && (
-            <div style={{
-              marginTop:24,padding:"20px 24px",borderRadius:4,
-              background:"#3ec9c920",border:"2px solid var(--accent)",
-              animation:"fadeUp 0.3s ease"
-            }}>
+          {/* Persistent confirmation */}
+          {current.saved && flatSubmitted.length > 0 && (
+            <div style={{marginTop:24,padding:"20px 24px",borderRadius:4,background:"#3ec9c920",border:"2px solid var(--accent)",animation:"fadeUp 0.3s ease"}}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                <div style={{
-                  width:36,height:36,borderRadius:"50%",
-                  background:"var(--accent)",color:"var(--black)",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:20,fontWeight:700,flexShrink:0
-                }}>✓</div>
+                <div style={{width:36,height:36,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,flexShrink:0}}>✓</div>
                 <div>
                   <div className="bebas" style={{fontSize:20,color:"var(--accent)"}}>AVAILABILITY SUBMITTED!</div>
-                  <div style={{fontSize:12,color:"var(--muted)"}}>Your trainer has been notified</div>
+                  <div style={{fontSize:12,color:"var(--muted)"}}>Saved for {weekLabel(selectedWeek)}</div>
                 </div>
               </div>
-              {submittedTrainings > 0 && (
+              {trainingsWanted > 0 && (
                 <div style={{fontSize:13,color:"var(--text)",marginBottom:10}}>
-                  🎯 You want <span style={{color:"var(--accent)",fontWeight:700}}>{submittedTrainings}</span> session{submittedTrainings>1?"s":""} this week
+                  🎯 You want <span style={{color:"var(--accent)",fontWeight:700}}>{trainingsWanted}</span> session{trainingsWanted>1?"s":""} this week
                 </div>
               )}
               <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Your available times:</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {submittedSlots.slice(0,8).map((s,i) => {
+                {flatSubmitted.slice(0,8).map((s,i) => {
                   const parts = s.split(" ");
-                  const dk = parts[0];
+                  const d = new Date(parts[0]+"T12:00:00");
                   const time = parts.slice(1).join(" ");
-                  const d = new Date(dk+"T12:00:00");
-                  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-                  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
                   return (
-                    <span key={i} style={{
-                      padding:"4px 10px",borderRadius:2,fontSize:11,
-                      background:"var(--accent)",color:"var(--black)",fontWeight:600
-                    }}>{days[d.getDay()]} {months[d.getMonth()]} {d.getDate()} · {time}</span>
+                    <span key={i} style={{padding:"4px 10px",borderRadius:2,fontSize:11,background:"var(--accent)",color:"var(--black)",fontWeight:600}}>
+                      {DAY_ABBREVS[d.getDay()]} {MONTH_ABBREVS[d.getMonth()]} {d.getDate()} · {time}
+                    </span>
                   );
                 })}
-                {submittedSlots.length > 8 && (
-                  <span style={{padding:"4px 10px",borderRadius:2,fontSize:11,background:"var(--charcoal)",color:"var(--muted)"}}>+{submittedSlots.length-8} more</span>
-                )}
+                {flatSubmitted.length > 8 && <span style={{padding:"4px 10px",borderRadius:2,fontSize:11,background:"var(--charcoal)",color:"var(--muted)"}}>+{flatSubmitted.length-8} more</span>}
               </div>
             </div>
           )}
