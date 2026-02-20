@@ -1924,7 +1924,8 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
             <tr>
               <th>Client</th>
               <th>Available Times</th>
-              <th>Status</th>
+              <th>Availability</th>
+              <th>Next Week</th>
               <th>Submitted</th>
             </tr>
           </thead>
@@ -1957,6 +1958,27 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                   </td>
                   <td>
                     {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
+                  </td>
+                  <td>
+                    {(() => {
+                      if (!a) return <span className="badge badge-muted">—</span>;
+                      // Check if client is in any session next week
+                      const today2 = new Date(); today2.setHours(0,0,0,0);
+                      const dow = today2.getDay();
+                      const daysUntilMon = dow === 0 ? 1 : 8 - dow;
+                      const monday = new Date(today2); monday.setDate(today2.getDate() + daysUntilMon);
+                      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+                      const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                      const isNextWeek = s => {
+                        if (!s.date) return false;
+                        const sd = new Date(s.date+"T12:00:00");
+                        return sd >= monday && sd <= sunday;
+                      };
+                      const booked = sessions.some(s => isNextWeek(s) && s.clientIds.includes(c.id));
+                      return booked
+                        ? <span className="badge badge-green">✓ Booked</span>
+                        : <span className="badge" style={{background:"#ef444420",color:"var(--red)",border:"1px solid var(--red)"}}>✗ Not Booked</span>;
+                    })()}
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>{a?.date||"—"}</td>
                 </tr>
