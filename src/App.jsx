@@ -1021,7 +1021,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 
   const submit = () => {
     setErr("");
-    if (email === "trainer@gym.com" && pass === "Peachtree9") {
+    if (email === "trainer@gym.com" && pass === import.meta.env.VITE_TRAINER_PASSWORD) {
       onLogin({ role:"trainer", name:"Coach", email });
       return;
     }
