@@ -147,60 +147,64 @@ const GlobalStyle = () => (
     /* Layout */
     .app-shell {
       display: flex;
+      flex-direction: column;
       height: 100vh;
       overflow: hidden;
     }
-    .sidebar {
-      width: 220px;
+    .topbar {
       background: var(--charcoal);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      padding: 0;
-      flex-shrink: 0;
-    }
-    .sidebar-logo {
-      padding: 24px 20px 20px;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      height: 56px;
+      flex-shrink: 0;
+      gap: 0;
     }
-    .sidebar-logo-text {
-      font-size: 30px;
+    .topbar-logo {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-right: 32px;
+    }
+    .topbar-logo-text {
+      font-size: 22px;
       color: var(--accent);
       letter-spacing: 1px;
     }
-    .sidebar-role {
-      font-size: 10px;
+    .topbar-role {
+      font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 2px;
       color: var(--muted);
-      margin-top: 2px;
     }
-    .sidebar-nav {
+    .topbar-nav {
+      display: flex;
+      align-items: center;
       flex: 1;
-      padding: 16px 0;
+      gap: 2px;
     }
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 11px 20px;
+      gap: 6px;
+      padding: 0 16px;
+      height: 56px;
       font-size: 13px;
       color: var(--muted);
       cursor: pointer;
       transition: all 0.15s;
-      border-left: 2px solid transparent;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
     }
-    .nav-item:hover { color: var(--text); background: #ffffff08; }
-    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: #3ec9c910; }
-    .nav-icon { font-size: 16px; }
-    .sidebar-bottom {
-      padding: 16px 20px;
-      border-top: 1px solid var(--border);
-    }
+    .nav-item:hover { color: var(--text); background: #ffffff05; }
+    .nav-item.active { color: var(--accent); border-bottom-color: var(--accent); background: #3ec9c908; }
+    .nav-icon { font-size: 15px; }
     .user-pill {
       display: flex;
       align-items: center;
       gap: 10px;
+      margin-left: auto;
     }
     .user-avatar {
       width: 32px;
@@ -215,7 +219,7 @@ const GlobalStyle = () => (
       font-weight: 600;
       flex-shrink: 0;
     }
-    .user-name { font-size: 12px; font-weight: 500; flex: 1; }
+    .user-name { font-size: 12px; font-weight: 500; color: var(--text); }
     .logout-btn {
       background: none;
       border: none;
@@ -1130,7 +1134,7 @@ function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogo
   return (
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
-      <div className="main-content">
+      <div className="main-content" style={{overflowY:"auto"}}>
         {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
         {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
@@ -2073,7 +2077,7 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
   return (
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="CLIENT" />
-      <div className="main-content">
+      <div className="main-content" style={{overflowY:"auto"}}>
         {tab === "schedule" && <ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} />}
         {tab === "availability" && <ClientAvailability client={client} />}
         {tab === "account" && <ClientAccount client={client} sessionsLeft={sessionsLeft} />}
@@ -2388,12 +2392,12 @@ function ClientAccount({ client, sessionsLeft }) {
 // ─── Shared components ────────────────────────────────────────────────────────
 function Sidebar({ user, nav, tab, setTab, onLogout, role }) {
   return (
-    <div className="sidebar">
-      <div className="sidebar-logo">
-        <div className="bebas sidebar-logo-text">ML FITNESS</div>
-        <div className="sidebar-role">{role}</div>
+    <div className="topbar">
+      <div className="topbar-logo">
+        <div className="bebas topbar-logo-text">ML FITNESS</div>
+        <div className="topbar-role">{role}</div>
       </div>
-      <div className="sidebar-nav">
+      <div className="topbar-nav">
         {nav.map(n=>(
           <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
             <span className="nav-icon">{n.icon}</span>
@@ -2401,12 +2405,10 @@ function Sidebar({ user, nav, tab, setTab, onLogout, role }) {
           </div>
         ))}
       </div>
-      <div className="sidebar-bottom">
-        <div className="user-pill">
-          <div className="user-avatar">{user.name[0]}</div>
-          <div className="user-name">{user.name.split(" ")[0]}</div>
-          <button className="logout-btn" title="Log out" onClick={onLogout}>⏻</button>
-        </div>
+      <div className="user-pill">
+        <div className="user-avatar">{user.name[0]}</div>
+        <div className="user-name">{user.name.split(" ")[0]}</div>
+        <button className="logout-btn" title="Log out" onClick={onLogout}>⏻</button>
       </div>
     </div>
   );
