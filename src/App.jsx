@@ -571,6 +571,14 @@ const GlobalStyle = () => (
 );
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
+// Hash password using SHA-256 (one-way, irreversible)
+const hashPassword = async (password) => {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+};
+
 const SUPABASE_URL = "https://rdklpaqlkbpmmxvmzppj.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJka2xwYXFsa2JwbW14dm16cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjM2MDUsImV4cCI6MjA4NzA5OTYwNX0.6Hwgvz4CHANbYXciRp_T7aQwXhOIB2KAVwjsdxUn_d0";
 const TABLE_MAP = { gym_clients:"clients", gym_sessions:"sessions", gym_availability:"availability" };
@@ -1019,14 +1027,15 @@ function LoginScreen({ clients, onLogin, saveClients }) {
   const signupClient = freshClients.find(c => c.id === signupId);
   const unclaimedClients = freshClients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
 
-  const submit = () => {
+  const submit = async () => {
     setErr("");
     if (email === "trainer@gym.com" && pass === import.meta.env.VITE_TRAINER_PASSWORD) {
       onLogin({ role:"trainer", name:"Coach", email });
       return;
     }
     if (!email || !pass) { setErr("Please enter your email and password."); return; }
-    const c = freshClients.find(x => x.email && x.email === email && x.password && x.password === pass);
+    const hashed = await hashPassword(pass);
+    const c = freshClients.find(x => x.email && x.email === email && x.password && x.password === hashed);
     if (c) { onLogin({ role:"client", ...c }); return; }
     setErr("Invalid email or password.");
   };
@@ -1039,7 +1048,8 @@ function LoginScreen({ clients, onLogin, saveClients }) {
     if (newPass !== newPass2) return setSetupErr("Passwords don't match.");
     if (freshClients.find(x => x.email === newEmail && x.id !== selectedId)) return setSetupErr("That email is already taken.");
     const client = freshClients.find(c => c.id === selectedId);
-    const updatedClient = {...client, email: newEmail, password: newPass};
+    const hashed = await hashPassword(newPass);
+    const updatedClient = {...client, email: newEmail, password: hashed};
     const updated = freshClients.map(c => c.id === selectedId ? updatedClient : c);
     await saveClients(updated, updatedClient);
     onLogin({ role:"client", ...updatedClient });
@@ -2383,7 +2393,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
                 <div className="session-time bebas">{s.time}</div>
                 <div className="session-info">
                   <div style={{fontWeight:500}}>Group Session</div>
-                  <div className="session-day">{s.clientIds.length} members</div>
+
                   {s.notes && <div className="session-note">📝 {s.notes}</div>}
                 </div>
                 <span className="badge badge-accent">Confirmed</span>
