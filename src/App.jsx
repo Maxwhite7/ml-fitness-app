@@ -1817,7 +1817,8 @@ function TrainerClients({ clients, sessions, saveClients }) {
 function TrainerAvailability({ clients, sessions, saveSessions }) {
   const [avails, setAvails] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [assignFeedback, setAssignFeedback] = useState(""); // "Day Time" of last assigned
+  const [assignFeedback, setAssignFeedback] = useState("");
+  const [expandedSession, setExpandedSession] = useState(null);
 
   useEffect(() => {
     // Fetch directly from Supabase availability table
@@ -2073,27 +2074,62 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                         <div style={{display:"flex",flexDirection:"column",gap:4}}>
                           {daySessions.length === 0 ? (
                             <div style={{fontSize:10,color:"var(--border)",textAlign:"center",padding:"10px 0"}}>No sessions</div>
-                          ) : daySessions.map(s => {
-                            const assigned = s.clientIds.includes(selectedClient.id);
-                            const full = s.clientIds.length >= 7 && !assigned;
-                            const clientAvailable = isClientAvail(d, s.time);
+                          ) : (() => {
+                            const morning = daySessions.filter(s => s.time.includes("AM"));
+                            const evening = daySessions.filter(s => s.time.includes("PM"));
+                            const renderSession = (s) => {
+                              const assigned = s.clientIds.includes(selectedClient.id);
+                              const full = s.clientIds.length >= 7 && !assigned;
+                              const clientAvailable = isClientAvail(d, s.time);
+                              const expanded = expandedSession === s.id;
+                              const assignedNames = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : "?"; });
+                              return (
+                                <div key={s.id} style={{borderRadius:2,overflow:"hidden",border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"var(--charcoal)"}}>
+                                  {/* Header row */}
+                                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",cursor:"pointer",userSelect:"none"}}
+                                    onClick={()=>setExpandedSession(expanded ? null : s.id)}
+                                  >
+                                    <div>
+                                      <div style={{fontWeight:600,fontSize:11,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
+                                      <div style={{fontSize:10,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
+                                    </div>
+                                    <div style={{fontSize:10,color:assigned?"var(--black)":"var(--muted)"}}>{expanded?"▲":"▼"}</div>
+                                  </div>
+                                  {/* Expanded names */}
+                                  {expanded && (
+                                    <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"6px 8px",background:"rgba(0,0,0,0.15)"}}>
+                                      {assignedNames.length === 0 ? (
+                                        <div style={{fontSize:10,color:"var(--muted)",fontStyle:"italic"}}>No clients yet</div>
+                                      ) : assignedNames.map((name,i) => (
+                                        <div key={i} style={{fontSize:10,color:assigned?"var(--black)":"var(--text)",padding:"2px 0"}}>{name}</div>
+                                      ))}
+                                      {!full && (
+                                        <div
+                                          onClick={e=>{e.stopPropagation();toggleAssign(s);}}
+                                          style={{
+                                            marginTop:6,padding:"4px 0",textAlign:"center",borderRadius:2,fontSize:10,cursor:"pointer",
+                                            background:assigned?"rgba(0,0,0,0.2)":"var(--accent)",
+                                            color:assigned?"var(--black)":"var(--black)",fontWeight:600
+                                          }}
+                                        >
+                                          {assigned ? "Remove" : "+ Assign"}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            };
                             return (
-                              <div key={s.id}
-                                onClick={()=>!full && toggleAssign(s)}
-                                style={{
-                                  padding:"6px 6px",borderRadius:2,fontSize:11,cursor:full?"not-allowed":"pointer",
-                                  border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,
-                                  background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"var(--charcoal)",
-                                  color:assigned?"var(--black)":full?"var(--border)":"var(--text)",
-                                  transition:"all 0.15s",textAlign:"center",userSelect:"none",
-                                }}
-                                title={full?"Session full":assigned?"Click to remove":clientAvailable?"Available — click to assign":"Click to assign"}
-                              >
-                                <div style={{fontWeight:600}}>{s.time}</div>
-                                <div style={{fontSize:10,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)",marginTop:2}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
-                              </div>
+                              <>
+                                {morning.map(renderSession)}
+                                {morning.length > 0 && evening.length > 0 && (
+                                  <div style={{height:1,background:"var(--border)",margin:"4px 0"}} />
+                                )}
+                                {evening.map(renderSession)}
+                              </>
                             );
-                          })}
+                          })()}
                         </div>
                       </div>
                     );
