@@ -2338,12 +2338,17 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
 
 function ClientAvailability({ client }) {
   const [saved, setSaved] = useState(false);
-  const [slots, setSlots] = useState({}); // key: "YYYY-MM-DD", value: { "7:00 AM": true, ... }
+  const [slots, setSlots] = useState({});
+  const [trainingsWanted, setTrainingsWanted] = useState(0);
 
-  // Get next week's dates (Mon-Sat)
+  const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const MONTH_ABBREVS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
   const getNextWeekDates = () => {
-    const today = new Date();
-    const day = today.getDay(); // 0=Sun
+    const today = new Date(); today.setHours(0,0,0,0);
+    const day = today.getDay();
     const daysUntilMon = day === 0 ? 1 : 8 - day;
     const monday = new Date(today);
     monday.setDate(today.getDate() + daysUntilMon);
@@ -2351,14 +2356,12 @@ function ClientAvailability({ client }) {
     for (let i = 0; i < 6; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      if (d.getDay() !== 0) dates.push(d); // skip Sunday
+      if (d.getDay() !== 0) dates.push(d);
     }
     return dates;
   };
 
   const weekDates = getNextWeekDates();
-  const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const MONTH_ABBREVS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const timesForDate = (d) => {
     const weekday = d.getDay();
@@ -2367,7 +2370,7 @@ function ClientAvailability({ client }) {
     const saturday = ["8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM"];
     if (weekday === 6) return saturday;
     if (weekday >= 1 && weekday <= 4) return [...morning, ...evening];
-    return morning; // Friday
+    return morning;
   };
 
   useEffect(() => {
@@ -2376,29 +2379,27 @@ function ClientAvailability({ client }) {
       if (mine) {
         const rebuilt = {};
         (Array.isArray(mine.slots) ? mine.slots : JSON.parse(mine.slots||"[]")).forEach(s => {
-          // slots stored as "YYYY-MM-DD HH:MM AM/PM"
           const parts = s.split(" ");
           if (parts.length >= 3) {
-            const dateKey = parts[0];
+            const dk = parts[0];
             const time = parts.slice(1).join(" ");
-            if (!rebuilt[dateKey]) rebuilt[dateKey] = {};
-            rebuilt[dateKey][time] = true;
+            if (!rebuilt[dk]) rebuilt[dk] = {};
+            rebuilt[dk][time] = true;
           }
         });
+        if (mine.trainingsWanted) setTrainingsWanted(mine.trainingsWanted);
         setSlots(rebuilt);
       }
     });
   }, [client.id]);
 
-  const toggle = (dateKey, time) => {
+  const toggle = (dk, time) => {
     setSlots(prev => {
-      const d = {...(prev[dateKey]||{})};
+      const d = {...(prev[dk]||{})};
       d[time] ? delete d[time] : (d[time] = true);
-      return {...prev, [dateKey]: d};
+      return {...prev, [dk]: d};
     });
   };
-
-  const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
   const submit = async () => {
     const flatSlots = [];
@@ -2406,7 +2407,7 @@ function ClientAvailability({ client }) {
       Object.keys(times).forEach(t => flatSlots.push(`${dk} ${t}`));
     });
     const date = new Date().toLocaleDateString();
-    const row = { clientId: client.id, slots: flatSlots, date };
+    const row = { clientId: client.id, slots: flatSlots, date, trainingsWanted };
     await sbFetch("availability", "POST", [row], {
       Prefer: "resolution=merge-duplicates,return=minimal"
     });
@@ -2431,24 +2432,47 @@ function ClientAvailability({ client }) {
           </div>
         </div>
         <div className="section-body">
+          {/* Trainings wanted */}
+          <div style={{marginBottom:24}}>
+            <div style={{fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12}}>How many sessions do you want this week?</div>
+            <div style={{display:"flex",gap:10}}>
+              {[1,2,3,4,5].map(n => (
+                <div key={n} onClick={()=>setTrainingsWanted(n)} style={{
+                  width:52,height:52,borderRadius:4,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:22,fontWeight:700,
+                  border:`2px solid ${trainingsWanted===n?"var(--accent)":"var(--border)"}`,
+                  background:trainingsWanted===n?"var(--accent)":"var(--charcoal)",
+                  color:trainingsWanted===n?"var(--black)":"var(--text)",
+                  transition:"all 0.15s",userSelect:"none"
+                }}>{n}</div>
+              ))}
+            </div>
+          </div>
           {weekDates.map(d => {
             const dk = dateKey(d);
             const times = timesForDate(d);
-            const dayName = DAY_ABBREVS[d.getDay()];
-            const monthName = MONTH_ABBREVS[d.getMonth()];
+            const morning = times.filter(t=>t.includes("AM"));
+            const evening = times.filter(t=>t.includes("PM"));
             return (
-              <div key={dk} className="day-avail-row" style={{marginBottom:16}}>
-                <div className="day-avail-label" style={{minWidth:70}}>
-                  <div style={{fontWeight:600,color:"var(--text)"}}>{dayName}</div>
-                  <div style={{fontSize:11,color:"var(--muted)"}}>{monthName} {d.getDate()}</div>
+              <div key={dk} className="day-avail-row" style={{marginBottom:16,alignItems:"flex-start"}}>
+                <div className="day-avail-label" style={{minWidth:70,paddingTop:4}}>
+                  <div style={{fontWeight:600,color:"var(--text)"}}>{DAY_ABBREVS[d.getDay()]}</div>
+                  <div style={{fontSize:11,color:"var(--muted)"}}>{MONTH_ABBREVS[d.getMonth()]} {d.getDate()}</div>
                 </div>
-                <div className="time-chips">
-                  {times.map(t => (
-                    <div key={t}
-                      className={`time-chip${slots[dk]?.[t]?" selected":""}`}
-                      onClick={()=>toggle(dk,t)}
-                    >{t}</div>
-                  ))}
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  <div className="time-chips">
+                    {morning.map(t => (
+                      <div key={t} className={`time-chip${slots[dk]?.[t]?" selected":""}`} onClick={()=>toggle(dk,t)}>{t}</div>
+                    ))}
+                  </div>
+                  {evening.length > 0 && (
+                    <div className="time-chips">
+                      {evening.map(t => (
+                        <div key={t} className={`time-chip${slots[dk]?.[t]?" selected":""}`} onClick={()=>toggle(dk,t)}>{t}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
