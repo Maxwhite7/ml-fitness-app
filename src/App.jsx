@@ -7,7 +7,7 @@ const GlobalStyle = () => (
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    :root { 
       --black: #0a0a0a;
       --charcoal: #141414;
       --panel: #1c1c1c;
@@ -648,7 +648,7 @@ const store = {
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM","5:00 PM","6:00 PM","7:00 PM","8:00 PM"];
+const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","5:00 PM","6:00 PM","7:00 PM"];
 
 const seedClients = () => [
   { id:"c1",   name:"Abdel",            email:"abdel@gym.com",            password:"abdel123", sessionsTotal:28, sessionsUsed:8, active:true },
@@ -1251,23 +1251,23 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
       const weekday = cur.getDay(); // 0=Sun,1=Mon...6=Sat
       const dateStr = dateKey(cur);
 
-      // Mon-Fri morning: 7,8,9,10,11 AM
+      // Mon-Fri morning: 7,8,9,10 AM
       if (weekday >= 1 && weekday <= 5) {
-        ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM"].forEach(time => {
+        ["7:00 AM","8:00 AM","9:00 AM","10:00 AM"].forEach(time => {
           const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
           if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
         });
       }
-      // Mon-Thu evening: 5,6,7,8 PM
+      // Mon-Thu evening: 5,6,7 PM
       if (weekday >= 1 && weekday <= 4) {
-        ["5:00 PM","6:00 PM","7:00 PM","8:00 PM"].forEach(time => {
+        ["5:00 PM","6:00 PM","7:00 PM"].forEach(time => {
           const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
           if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
         });
       }
-      // Saturday: 8,9,10,11 AM, 12 PM
+      // Saturday: 8,9,10 AM, 12 PM
       if (weekday === 6) {
-        ["8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM"].forEach(time => {
+        ["8:00 AM","9:00 AM","10:00 AM","11:00 AM"].forEach(time => {
           const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
           if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
         });
@@ -1286,6 +1286,49 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
     }
     setGenerating(false);
     setTimeout(() => setGenFeedback(""), 3000);
+  };
+
+  const generateFullYear = async () => {
+    setGenerating(true);
+    setGenFeedback("Generating full year...");
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yearEnd = new Date(today.getFullYear(), 11, 31);
+    const newSessions = [];
+    const cur = new Date(today);
+    // Start from next Monday
+    const dow = cur.getDay();
+    const daysUntilMon = dow === 0 ? 1 : (dow === 1 ? 0 : 8 - dow);
+    cur.setDate(cur.getDate() + daysUntilMon);
+
+    while (cur <= yearEnd) {
+      const weekday = cur.getDay();
+      const dateStr = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}-${String(cur.getDate()).padStart(2,"0")}`;
+      const times = [];
+      if (weekday >= 1 && weekday <= 5) times.push(...["7:00 AM","8:00 AM","9:00 AM","10:00 AM"]);
+      if (weekday >= 1 && weekday <= 4) times.push(...["5:00 PM","6:00 PM","7:00 PM"]);
+      if (weekday === 6) times.push(...["8:00 AM","9:00 AM","10:00 AM","11:00 AM"]);
+      times.forEach(time => {
+        const id = `s_${dateStr}_${time.replace(":00","").replace(" ","_")}`;
+        if (!sessions.find(s=>s.id===id)) newSessions.push({id, date:dateStr, time, clientIds:[], notes:""});
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    if (newSessions.length === 0) {
+      setGenFeedback("Year already fully scheduled!");
+    } else {
+      // Save in batches to avoid timeout
+      const batchSize = 50;
+      for (let i = 0; i < newSessions.length; i += batchSize) {
+        const batch = newSessions.slice(i, i + batchSize);
+        await sbFetch("sessions", "POST", batch, { Prefer: "resolution=merge-duplicates,return=minimal" });
+      }
+      const allSessions = [...sessions, ...newSessions];
+      setSessions(allSessions);
+      setGenFeedback(`✓ Added ${newSessions.length} sessions through Dec 31`);
+    }
+    setGenerating(false);
+    setTimeout(() => setGenFeedback(""), 5000);
   };
 
   const totalSessions = sessions.length;
@@ -1498,6 +1541,9 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
             {genFeedback && <span style={{fontSize:12,color:"var(--accent)"}}>{genFeedback}</span>}
             <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={generateNextWeek} disabled={generating}>
               {generating ? "Generating..." : "＋ Next Week"}
+            </button>
+            <button className="btn-secondary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={generateFullYear} disabled={generating}>
+              📅 Full Year
             </button>
           </div>
         </div>
@@ -2394,9 +2440,9 @@ function ClientAvailability({ client }) {
 
   const timesForDate = (d) => {
     const weekday = d.getDay();
-    const morning = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM"];
-    const evening = ["5:00 PM","6:00 PM","7:00 PM","8:00 PM"];
-    const saturday = ["8:00 AM","9:00 AM","10:00 AM","11:00 AM","12:00 PM"];
+    const morning = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM"];
+    const evening = ["5:00 PM","6:00 PM","7:00 PM"];
+    const saturday = ["8:00 AM","9:00 AM","10:00 AM","11:00 AM"];
     if (weekday === 6) return saturday;
     if (weekday >= 1 && weekday <= 4) return [...morning, ...evening];
     return morning;
