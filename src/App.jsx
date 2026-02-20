@@ -1875,6 +1875,27 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [assignFeedback, setAssignFeedback] = useState("");
   const [expandedSession, setExpandedSession] = useState(null);
+  const [trainerWeekOffset, setTrainerWeekOffset] = useState(0); // 0=current week, 1=next, etc.
+
+  const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const getWeekMonday = (offset) => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dow = today.getDay();
+    const daysToMon = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + daysToMon + offset * 7);
+    return monday;
+  };
+
+  const weekDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+  const weekLabel = (monday) => {
+    return `Week of ${MONTH_ABBREVS_T[monday.getMonth()]} ${monday.getDate()}`;
+  };
+
+  const currentMonday = getWeekMonday(trainerWeekOffset);
+  const currentWeekKey = weekDateKey(currentMonday);
 
   useEffect(() => {
     // Fetch directly from Supabase availability table
@@ -1899,7 +1920,12 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
     });
   };
 
-  const clientAvail = (clientId) => avails.find(a=>a.clientId===clientId);
+  const clientAvail = (clientId) => {
+    // Find availability for the selected week (by weekKey), fallback to any
+    const weekMatch = avails.find(a => a.clientId===clientId && a.weekKey===currentWeekKey);
+    if (weekMatch) return weekMatch;
+    return null;
+  };
 
   // Parse "YYYY-MM-DD HH:MM AM/PM" slot -> find matching session
   const sessionsForSlot = (slotStr) => {
@@ -1967,11 +1993,24 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
         <div className="page-subtitle">Click a client to assign them to sessions</div>
       </div>
 
+      {/* Week selector */}
+      <div className="section">
+        <div className="section-header"><span className="section-title">Select Week</span></div>
+        <div className="section-body" style={{paddingTop:0,paddingBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>setTrainerWeekOffset(o=>o-1)}>‹</button>
+            <span className="bebas" style={{fontSize:18,color:"var(--text)",minWidth:200,textAlign:"center"}}>{weekLabel(currentMonday)}</span>
+            <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>setTrainerWeekOffset(o=>o+1)}>›</button>
+            {trainerWeekOffset !== 0 && <button className="btn-secondary" style={{padding:"6px 12px",fontSize:11}} onClick={()=>setTrainerWeekOffset(0)}>Today</button>}
+          </div>
+        </div>
+      </div>
+
       <div className="section">
         <div className="section-header">
           <span className="section-title">Client Availability</span>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:12,color:"var(--muted)"}}>{avails.length} submitted</span>
+            <span style={{fontSize:12,color:"var(--muted)"}}>{avails.filter(a=>a.weekKey===currentWeekKey).length} submitted for this week</span>
             <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={refresh}>↻ Refresh</button>
           </div>
         </div>
@@ -2033,10 +2072,7 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                     {(() => {
                       if (!a) return <span className="badge badge-muted">—</span>;
                       // Check if client is in any session next week
-                      const today2 = new Date(); today2.setHours(0,0,0,0);
-                      const dow = today2.getDay();
-                      const daysUntilMon = dow === 0 ? 1 : 8 - dow;
-                      const monday = new Date(today2); monday.setDate(today2.getDate() + daysUntilMon);
+                      const monday = currentMonday;
                       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
                       const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
                       const isNextWeek = s => {
