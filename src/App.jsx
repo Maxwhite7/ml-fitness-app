@@ -979,14 +979,14 @@ export default function App() {
     </>
   );
 
+  const [previewClient, setPreviewClient] = useState(null);
+
   if (!user) return (
     <>
       <GlobalStyle />
       <LoginScreen clients={clients} onLogin={setUser} saveClients={saveClients} />
     </>
   );
-
-  const [previewClient, setPreviewClient] = useState(null);
 
   return (
     <>
