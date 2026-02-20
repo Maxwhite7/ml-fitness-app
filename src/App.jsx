@@ -1965,95 +1965,145 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
         </table>
       </div>
 
-      {/* Scheduling popup */}
-      {selectedClient && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setSelectedClient(null)}>
-          <div className="modal" style={{width:560,maxHeight:"80vh"}}>
-            <div className="modal-header">
+      {/* Split screen panel when client selected */}
+      {selectedClient && (() => {
+        // Build next week dates Mon-Sat
+        const today2 = new Date(); today2.setHours(0,0,0,0);
+        const dow = today2.getDay();
+        const daysUntilMon = dow === 0 ? 1 : 8 - dow;
+        const monday = new Date(today2); monday.setDate(today2.getDate() + daysUntilMon);
+        const weekDates = Array.from({length:6}, (_,i) => { const d = new Date(monday); d.setDate(monday.getDate()+i); return d; });
+        const dk2 = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+        const DAY_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+        const MON_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const isClientAvail = (date, time) => {
+          const dk = dk2(date);
+          return slots.some(s => {
+            const parts = s.split(" ");
+            return parts[0] === dk && parts.slice(1).join(" ") === time;
+          });
+        };
+        return (
+          <div style={{
+            position:"fixed",top:56,left:0,right:0,bottom:0,
+            background:"var(--black)",zIndex:200,
+            display:"flex",flexDirection:"column"
+          }}>
+            {/* Header */}
+            <div style={{
+              display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"14px 24px",background:"var(--charcoal)",borderBottom:"1px solid var(--border)",
+              flexShrink:0
+            }}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13}}>
                   {selectedClient.name.split(" ").map(x=>x[0]).join("")}
                 </div>
                 <div>
-                  <div className="bebas modal-title" style={{fontSize:22}}>{selectedClient.name}</div>
-                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>
-                    {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"}
+                  <div className="bebas" style={{fontSize:20,color:"var(--text)"}}>{selectedClient.name}</div>
+                  <div style={{fontSize:11,color:"var(--muted)"}}>
+                    {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"} · Next week schedule
                   </div>
                 </div>
               </div>
-              <button className="modal-close" onClick={()=>setSelectedClient(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              {!avail ? (
-                <div className="empty-state" style={{padding:"30px 0"}}>
-                  <div className="empty-icon">📋</div>
-                  <div className="empty-text">{selectedClient.name} hasn't submitted availability yet.</div>
+              {assignFeedback && (
+                <div style={{background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:2,padding:"6px 14px",fontSize:12,color:"var(--accent)"}}>
+                  ✓ Assigned to {assignFeedback}
                 </div>
-              ) : (
-                <>
-                  {assignFeedback && (
-                    <div style={{background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:2,padding:"8px 14px",fontSize:12,color:"var(--accent)",marginBottom:16}}>
-                      ✓ Assigned to {assignFeedback}
-                    </div>
-                  )}
-                  {sortedDays.map(day => (
-                    <div key={day} style={{marginBottom:20}}>
-                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:10}}>{day}</div>
-                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                        {slotsByDay[day].map(slot => {
-                          const matchingSessions = sessionsForSlot(slot);
-                          const time = slot.split(" ").slice(1).join(" ");
-                          return (
-                            <div key={slot}>
-                              <div style={{fontSize:12,color:"var(--text)",marginBottom:4,fontWeight:500}}>
-                        {slot.includes("-") ? 
-                          (() => { const parts = slot.split(" "); const d = new Date(parts[0]+"T12:00:00"); return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]} ${d.getDate()} — ${parts.slice(1).join(" ")}`; })()
-                          : time}
-                      </div>
-                              {matchingSessions.length === 0 ? (
-                                <div style={{fontSize:11,color:"var(--border)",paddingLeft:8}}>No sessions scheduled for this slot</div>
-                              ) : (
-                                <div style={{display:"flex",flexWrap:"wrap",gap:6,paddingLeft:8}}>
-                                  {matchingSessions.map(s => {
-                                    const assigned = isAssigned(s.id);
-                                    const full = s.clientIds.length >= 7 && !assigned;
-                                    return (
-                                      <div key={s.id}
-                                        onClick={()=>!full && toggleAssign(s)}
-                                        style={{
-                                          padding:"6px 14px",borderRadius:2,fontSize:12,cursor:full?"not-allowed":"pointer",
-                                          border:`1px solid ${assigned?"var(--accent)":full?"var(--border)":"var(--border)"}`,
-                                          background:assigned?"var(--accent)":full?"transparent":"var(--charcoal)",
-                                          color:assigned?"var(--black)":full?"var(--border)":"var(--text)",
-                                          transition:"all 0.15s",userSelect:"none",
-                                        }}
-                                        onMouseEnter={e=>{ if(!full&&!assigned) e.currentTarget.style.borderColor="var(--accent)"; }}
-                                        onMouseLeave={e=>{ if(!full&&!assigned) e.currentTarget.style.borderColor="var(--border)"; }}
-                                        title={full?"Session full":assigned?"Click to remove":"Click to assign"}
-                                      >
-                                        {s.date.slice(5).replace("-","/")} · {s.clientIds.length}/7
-                                        {assigned && " ✓"}
-                                        {full && " 🔒"}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </>
               )}
+              <button className="modal-close" style={{fontSize:20}} onClick={()=>setSelectedClient(null)}>✕</button>
             </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={()=>setSelectedClient(null)}>Close</button>
+
+            {/* Split body */}
+            <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+
+              {/* LEFT — client availability */}
+              <div style={{width:320,borderRight:"1px solid var(--border)",overflowY:"auto",padding:"20px 20px",flexShrink:0}}>
+                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>Submitted Availability</div>
+                {!avail ? (
+                  <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">No availability submitted yet.</div></div>
+                ) : sortedDays.length === 0 ? (
+                  <div style={{color:"var(--muted)",fontSize:13}}>No slots selected.</div>
+                ) : sortedDays.map(day => (
+                  <div key={day} style={{marginBottom:16}}>
+                    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>
+                      {day.includes("-") ? (() => { const d2 = new Date(day+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${MON_SHORT[d2.getMonth()]} ${d2.getDate()}`; })() : day}
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {slotsByDay[day].map(slot => {
+                        const time = slot.split(" ").slice(1).join(" ");
+                        const matchingSessions = sessionsForSlot(slot);
+                        const anyAssigned = matchingSessions.some(s => s.clientIds.includes(selectedClient.id));
+                        return (
+                          <div key={slot} style={{
+                            padding:"8px 12px",borderRadius:2,fontSize:12,
+                            background: anyAssigned ? "#3ec9c920" : "var(--charcoal)",
+                            border:`1px solid ${anyAssigned?"var(--accent)":"var(--border)"}`,
+                            color: anyAssigned ? "var(--accent)" : "var(--text)"
+                          }}>
+                            {time} {anyAssigned && "✓"}
+                            {matchingSessions.length === 0 && <span style={{fontSize:10,color:"var(--muted)",marginLeft:8}}>no session</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* RIGHT — next week schedule */}
+              <div style={{flex:1,overflowY:"auto",padding:"20px 20px"}}>
+                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>Next Week — Click to Assign</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
+                  {weekDates.map(d => {
+                    const dk = dk2(d);
+                    const daySessions = sessions.filter(s=>s.date===dk).sort((a,b)=>TIMES.indexOf(a.time)-TIMES.indexOf(b.time));
+                    const tod = dk === dk2(today2);
+                    return (
+                      <div key={dk}>
+                        <div style={{
+                          textAlign:"center",padding:"8px 4px",marginBottom:6,
+                          borderBottom:"2px solid",
+                          borderColor: tod ? "var(--accent)" : "var(--border)"
+                        }}>
+                          <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
+                          <div style={{fontSize:18,fontWeight:600,color: tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
+                          <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                          {daySessions.length === 0 ? (
+                            <div style={{fontSize:10,color:"var(--border)",textAlign:"center",padding:"10px 0"}}>No sessions</div>
+                          ) : daySessions.map(s => {
+                            const assigned = s.clientIds.includes(selectedClient.id);
+                            const full = s.clientIds.length >= 7 && !assigned;
+                            const clientAvailable = isClientAvail(d, s.time);
+                            return (
+                              <div key={s.id}
+                                onClick={()=>!full && toggleAssign(s)}
+                                style={{
+                                  padding:"6px 6px",borderRadius:2,fontSize:11,cursor:full?"not-allowed":"pointer",
+                                  border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,
+                                  background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"var(--charcoal)",
+                                  color:assigned?"var(--black)":full?"var(--border)":"var(--text)",
+                                  transition:"all 0.15s",textAlign:"center",userSelect:"none",
+                                }}
+                                title={full?"Session full":assigned?"Click to remove":clientAvailable?"Available — click to assign":"Click to assign"}
+                              >
+                                <div style={{fontWeight:600}}>{s.time}</div>
+                                <div style={{fontSize:10,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)",marginTop:2}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }
