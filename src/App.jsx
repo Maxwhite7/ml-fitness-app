@@ -1924,6 +1924,7 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
             <tr>
               <th>Client</th>
               <th>Available Times</th>
+              <th>Sessions Wanted</th>
               <th>Availability</th>
               <th>Next Week</th>
               <th>Submitted</th>
@@ -1955,6 +1956,19 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                       });
                       return formatted.join(", ") + (a.slots.length>3?` +${a.slots.length-3} more`:"");
                     })() : <span style={{color:"var(--border)"}}>—</span>}
+                  </td>
+                  <td>
+                    {a?.trainingsWanted > 0 ? (
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{
+                          width:32,height:32,borderRadius:"50%",
+                          background:"var(--accent)",color:"var(--black)",
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:16,fontWeight:700
+                        }}>{a.trainingsWanted}</div>
+                        <span style={{fontSize:12,color:"var(--muted)"}}>session{a.trainingsWanted>1?"s":""}</span>
+                      </div>
+                    ) : <span style={{color:"var(--border)"}}>—</span>}
                   </td>
                   <td>
                     {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
