@@ -2340,6 +2340,8 @@ function ClientAvailability({ client }) {
   const [saved, setSaved] = useState(false);
   const [slots, setSlots] = useState({});
   const [trainingsWanted, setTrainingsWanted] = useState(0);
+  const [submittedSlots, setSubmittedSlots] = useState(null);
+  const [submittedTrainings, setSubmittedTrainings] = useState(null);
 
   const DAY_ABBREVS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const MONTH_ABBREVS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -2387,8 +2389,12 @@ function ClientAvailability({ client }) {
             rebuilt[dk][time] = true;
           }
         });
-        if (mine.trainingsWanted) setTrainingsWanted(mine.trainingsWanted);
+        if (mine.trainingsWanted) {
+          setTrainingsWanted(mine.trainingsWanted);
+          setSubmittedTrainings(mine.trainingsWanted);
+        }
         setSlots(rebuilt);
+        setSubmittedSlots([...mine.slots]);
       }
     });
   }, [client.id]);
@@ -2411,8 +2417,9 @@ function ClientAvailability({ client }) {
     await sbFetch("availability", "POST", [row], {
       Prefer: "resolution=merge-duplicates,return=minimal"
     });
+    setSubmittedSlots(flatSlots);
+    setSubmittedTrainings(trainingsWanted);
     setSaved(true);
-    setTimeout(()=>setSaved(false),2500);
   };
 
   const totalSelected = Object.values(slots).reduce((a,v)=>a+Object.keys(v).length,0);
@@ -2480,6 +2487,53 @@ function ClientAvailability({ client }) {
           <div style={{marginTop:20}}>
             <button className="btn-primary" style={{width:"auto",padding:"12px 32px",fontSize:15}} onClick={submit}>SUBMIT AVAILABILITY</button>
           </div>
+
+          {/* Persistent confirmation banner */}
+          {saved && submittedSlots && (
+            <div style={{
+              marginTop:24,padding:"20px 24px",borderRadius:4,
+              background:"#3ec9c920",border:"2px solid var(--accent)",
+              animation:"fadeUp 0.3s ease"
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                <div style={{
+                  width:36,height:36,borderRadius:"50%",
+                  background:"var(--accent)",color:"var(--black)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:20,fontWeight:700,flexShrink:0
+                }}>✓</div>
+                <div>
+                  <div className="bebas" style={{fontSize:20,color:"var(--accent)"}}>AVAILABILITY SUBMITTED!</div>
+                  <div style={{fontSize:12,color:"var(--muted)"}}>Your trainer has been notified</div>
+                </div>
+              </div>
+              {submittedTrainings > 0 && (
+                <div style={{fontSize:13,color:"var(--text)",marginBottom:10}}>
+                  🎯 You want <span style={{color:"var(--accent)",fontWeight:700}}>{submittedTrainings}</span> session{submittedTrainings>1?"s":""} this week
+                </div>
+              )}
+              <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Your available times:</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {submittedSlots.slice(0,8).map((s,i) => {
+                  const parts = s.split(" ");
+                  const dk = parts[0];
+                  const time = parts.slice(1).join(" ");
+                  const d = new Date(dk+"T12:00:00");
+                  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+                  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                  return (
+                    <span key={i} style={{
+                      padding:"4px 10px",borderRadius:2,fontSize:11,
+                      background:"var(--accent)",color:"var(--black)",fontWeight:600
+                    }}>{days[d.getDay()]} {months[d.getMonth()]} {d.getDate()} · {time}</span>
+                  );
+                })}
+                {submittedSlots.length > 8 && (
+                  <span style={{padding:"4px 10px",borderRadius:2,fontSize:11,background:"var(--charcoal)",color:"var(--muted)"}}>+{submittedSlots.length-8} more</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
