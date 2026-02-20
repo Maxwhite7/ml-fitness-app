@@ -986,11 +986,33 @@ export default function App() {
     </>
   );
 
+  const [previewClient, setPreviewClient] = useState(null);
+
   return (
     <>
       <GlobalStyle />
-      {user.role === "trainer"
-        ? <TrainerApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => setUser(null)} />
+      {user.role === "trainer" && !previewClient
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => setUser(null)} onPreviewClient={setPreviewClient} />
+        : user.role === "trainer" && previewClient
+        ? (
+          <>
+            <div style={{
+              position:"fixed",top:0,left:0,right:0,zIndex:9999,
+              background:"var(--accent)",color:"var(--black)",
+              padding:"8px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",
+              fontSize:13,fontWeight:600
+            }}>
+              <span>👁 Viewing as {previewClient.name} — this is what they see</span>
+              <button onClick={()=>setPreviewClient(null)} style={{
+                background:"var(--black)",color:"var(--accent)",border:"none",
+                padding:"4px 14px",borderRadius:2,cursor:"pointer",fontWeight:700,fontSize:12
+              }}>← Back to Trainer View</button>
+            </div>
+            <div style={{marginTop:40}}>
+              <ClientApp user={{role:"client",...previewClient}} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={()=>setPreviewClient(null)} />
+            </div>
+          </>
+          )
         : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => setUser(null)} />
       }
     </>
@@ -1133,7 +1155,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 }
 
 // ─── Trainer App ──────────────────────────────────────────────────────────────
-function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogout }) {
+function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogout, onPreviewClient }) {
   const [tab, setTab] = useState("schedule");
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
@@ -1146,7 +1168,7 @@ function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogo
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
         {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
-        {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} />}
+        {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} onPreviewClient={onPreviewClient} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
       </div>
     </div>
@@ -1709,7 +1731,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   );
 }
 
-function TrainerClients({ clients, sessions, saveClients }) {
+function TrainerClients({ clients, sessions, saveClients, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ name:"", email:"", password:"client123", sessionsTotal:20, sessionsUsed:0, active:true });
@@ -1807,6 +1829,13 @@ function TrainerClients({ clients, sessions, saveClients }) {
                           alert(`Signup link copied!\n\n${link}`);
                         }}
                       >🔗 Copy Link</span>
+                    )}
+                    {c.email && (
+                      <span
+                        className="badge"
+                        style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
+                        onClick={e=>{e.stopPropagation(); onPreviewClient(c);}}
+                      >👁 View</span>
                     )}
                   </td>
                 </tr>
@@ -2553,7 +2582,7 @@ function ClientAvailability({ client }) {
     });
     const date = new Date().toLocaleDateString();
     const row = { clientId: client.id, slots: flatSlots, date, trainingsWanted, weekKey: wk };
-    await sbFetch("availability", "POST", [row], {
+    await sbFetch(`availability?on_conflict=clientId,weekKey`, "POST", [row], {
       Prefer: "resolution=merge-duplicates,return=minimal"
     });
     setAllData(prev => ({ ...prev, [wk]: { ...current, slots, trainingsWanted, saved: true } }));
