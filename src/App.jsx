@@ -941,6 +941,7 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [previewClient, setPreviewClient] = useState(null);
 
   // Load from Supabase, seed only if empty
   useEffect(() => {
@@ -978,8 +979,6 @@ export default function App() {
       <div className="login-wrap"><div style={{color:"var(--muted)",fontSize:14}}>Loading...</div></div>
     </>
   );
-
-  const [previewClient, setPreviewClient] = useState(null);
 
   if (!user) return (
     <>
