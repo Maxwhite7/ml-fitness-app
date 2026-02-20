@@ -947,8 +947,8 @@ export default function App() {
     (async () => {
       let c = await store.get("gym_clients");
       let s = await store.get("gym_sessions");
-      if (!c) { c = seedClients(); await store.set("gym_clients", c); }
-      if (!s) { s = seedSessions(); await store.set("gym_sessions", s); }
+      if (!c) { c = []; }
+      if (!s) { s = []; }
       setClients(c);
       setSessions(s);
       setLoaded(true);
