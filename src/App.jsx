@@ -7,7 +7,7 @@ const GlobalStyle = () => (
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root { 
+    :root {
       --black: #0a0a0a;
       --charcoal: #141414;
       --panel: #1c1c1c;
@@ -1021,7 +1021,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 
   const submit = () => {
     setErr("");
-    if (email === "trainer@gym.com" && pass === "trainer123") {
+    if (email === "trainer@gym.com" && pass === "Peachtree9") {
       onLogin({ role:"trainer", name:"Coach", email });
       return;
     }
