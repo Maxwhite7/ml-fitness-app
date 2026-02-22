@@ -2529,6 +2529,7 @@ function ClientAvailability({ client }) {
   const [selectedWeek, setSelectedWeek] = useState(upcomingWeeks[0]);
   const [allData, setAllData] = useState({}); // key: weekMonday dateKey, value: { slots, trainingsWanted, saved }
   const [saved, setSaved] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const weekKey = (monday) => dateKey(monday);
 
@@ -2719,8 +2720,49 @@ function ClientAvailability({ client }) {
           })}
 
           <div style={{marginTop:20}}>
-            <button className="btn-primary" style={{width:"auto",padding:"12px 32px",fontSize:15}} onClick={submit}>SUBMIT AVAILABILITY</button>
+            <button className="btn-primary" style={{width:"auto",padding:"12px 32px",fontSize:15}} onClick={()=>setShowConfirm(true)}>SUBMIT AVAILABILITY</button>
           </div>
+
+          {/* Confirmation popup */}
+          {showConfirm && (
+            <div style={{
+              position:"fixed",top:0,left:0,right:0,bottom:0,
+              background:"rgba(0,0,0,0.7)",zIndex:1000,
+              display:"flex",alignItems:"center",justifyContent:"center",
+              animation:"fadeIn 0.2s ease"
+            }}>
+              <div style={{
+                background:"var(--charcoal)",border:"2px solid var(--accent)",
+                borderRadius:6,padding:"32px 36px",maxWidth:420,width:"90%",
+                textAlign:"center",animation:"fadeUp 0.3s ease"
+              }}>
+                <div style={{fontSize:40,marginBottom:12}}>📋</div>
+                <div className="bebas" style={{fontSize:26,color:"var(--accent)",marginBottom:8}}>CONFIRM AVAILABILITY</div>
+                <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>
+                  You are submitting availability for
+                </div>
+                <div style={{fontSize:15,color:"var(--text)",fontWeight:600,marginBottom:6}}>
+                  {weekLabel(selectedWeek)}
+                </div>
+                {trainingsWanted > 0 && (
+                  <div style={{fontSize:13,color:"var(--muted)",marginBottom:16}}>
+                    Requesting <span style={{color:"var(--accent)",fontWeight:700}}>{trainingsWanted}</span> session{trainingsWanted>1?"s":""}
+                  </div>
+                )}
+                <div style={{fontSize:13,color:"var(--muted)",marginBottom:24}}>
+                  <span style={{color:"var(--text)",fontWeight:600}}>{totalSelected}</span> time slot{totalSelected!==1?"s":""} selected
+                </div>
+                <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+                  <button className="btn-secondary" style={{padding:"12px 28px",fontSize:14}} onClick={()=>setShowConfirm(false)}>
+                    Cancel
+                  </button>
+                  <button className="btn-primary" style={{width:"auto",padding:"12px 28px",fontSize:14}} onClick={async()=>{ setShowConfirm(false); await submit(); }}>
+                    ✓ Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Persistent confirmation */}
           {current.saved && flatSubmitted.length > 0 && (
