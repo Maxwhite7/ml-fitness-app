@@ -2749,8 +2749,31 @@ function ClientAvailability({ client }) {
                     Requesting <span style={{color:"var(--accent)",fontWeight:700}}>{trainingsWanted}</span> session{trainingsWanted>1?"s":""}
                   </div>
                 )}
-                <div style={{fontSize:13,color:"var(--muted)",marginBottom:24}}>
+                <div style={{fontSize:13,color:"var(--muted)",marginBottom:12}}>
                   <span style={{color:"var(--text)",fontWeight:600}}>{totalSelected}</span> time slot{totalSelected!==1?"s":""} selected
+                </div>
+
+                {/* Show selected days and times */}
+                <div style={{textAlign:"left",marginBottom:24,maxHeight:200,overflowY:"auto"}}>
+                  {weekDates.filter(d => Object.keys(slots[dateKey(d)]||{}).length > 0).map(d => {
+                    const dk = dateKey(d);
+                    const times = Object.keys(slots[dk]||{}).sort((a,b) => TIMES.indexOf(a)-TIMES.indexOf(b));
+                    return (
+                      <div key={dk} style={{marginBottom:8}}>
+                        <div style={{fontSize:12,fontWeight:600,color:"var(--text)",marginBottom:4}}>
+                          {DAY_ABBREVS[d.getDay()]} {MONTH_ABBREVS[d.getMonth()]} {d.getDate()}
+                        </div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                          {times.map(t => (
+                            <span key={t} style={{
+                              padding:"3px 8px",borderRadius:2,fontSize:11,
+                              background:"var(--accent)",color:"var(--black)",fontWeight:600
+                            }}>{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div style={{display:"flex",gap:12,justifyContent:"center"}}>
                   <button className="btn-secondary" style={{padding:"12px 28px",fontSize:14}} onClick={()=>setShowConfirm(false)}>
