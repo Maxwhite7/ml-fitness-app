@@ -2227,40 +2227,7 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                   </div>
                 ))}
 
-                {/* Booking History */}
-                {(() => {
-                  const today3 = new Date(); today3.setHours(0,0,0,0);
-                  const pastSessions = sessions
-                    .filter(s => s.clientIds.includes(selectedClient.id) && s.date && new Date(s.date+"T12:00:00") < today3)
-                    .sort((a,b) => b.date.localeCompare(a.date));
-                  return (
-                    <div style={{marginTop:28}}>
-                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12,borderTop:"1px solid var(--border)",paddingTop:16}}>
-                        Booking History ({pastSessions.length})
-                      </div>
-                      {pastSessions.length === 0 ? (
-                        <div style={{fontSize:12,color:"var(--border)"}}>No past sessions yet.</div>
-                      ) : pastSessions.map(s => {
-                        const d = new Date(s.date+"T12:00:00");
-                        return (
-                          <div key={s.id} style={{
-                            display:"flex",justifyContent:"space-between",alignItems:"center",
-                            padding:"8px 12px",borderRadius:2,marginBottom:4,
-                            background:"var(--charcoal)",border:"1px solid var(--border)"
-                          }}>
-                            <div>
-                              <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>
-                                {DAY_SHORT[d.getDay()]} {MON_SHORT[d.getMonth()]} {d.getDate()}
-                              </div>
-                              <div style={{fontSize:11,color:"var(--muted)"}}>{s.time}</div>
-                            </div>
-                            <span style={{fontSize:10,color:"var(--green)"}}>✓ Done</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+
               </div>
 
               {/* RIGHT — next week schedule */}
