@@ -2686,9 +2686,8 @@ function AIAgent({ clients, sessions, setSessions }) {
       }
       case "list_clients": {
         const sorted = [...clients].sort((a,b)=>a.name.localeCompare(b.name));
-        return `👥 ${sorted.length} clients:
-${sorted.map(c=>`• ${c.name}${c.active?"":" (inactive)"}`).join("
-")}`;
+        const lines = sorted.map(c=>"• " + c.name + (c.active?"":" (inactive)")).join("\n");
+        return "👥 " + sorted.length + " clients:\n" + lines;
       }
       default:
         return null;
