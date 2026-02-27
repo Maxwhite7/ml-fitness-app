@@ -8,7 +8,7 @@ const GlobalStyle = () => (
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --black: #0a0a0a;
+      --black: #0a0a0a; 
       --charcoal: #141414;
       --panel: #1c1c1c;
       --border: #2a2a2a;
@@ -1744,7 +1744,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
 
   const save = async () => {
     if (modal === "add") {
-      const newClient = { ...form, id:"c"+Date.now() };
+      const maxId = clients.reduce((max, c) => {
+        const num = parseInt(c.id.replace("c",""));
+        return !isNaN(num) && num > max ? num : max;
+      }, 0);
+      const newClient = { ...form, id:"c"+(maxId+1) };
       await saveClients([...clients, newClient], newClient);
     } else {
       const updatedClient = {...modal,...form};
