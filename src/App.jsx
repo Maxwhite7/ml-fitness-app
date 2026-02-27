@@ -1803,13 +1803,8 @@ function TrainerClients({ clients, sessions, saveClients, onPreviewClient }) {
                     </div>
                   </td>
                   <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
-                  <td>
-                    <div style={{fontSize:13,marginBottom:5}}>{left} / {c.sessionsTotal}</div>
-                    <div className="progress-wrap" style={{width:100}}>
-                      <div className="progress-fill" style={{width:`${pct}%`,background:left===0?"var(--red)":left<5?"var(--accent2)":"var(--accent)"}} />
-                    </div>
-                  </td>
-                  <td style={{color:"var(--accent)"}}>{clientSessions(c.id)} sessions</td>
+                  <td></td>
+                  <td></td>
                   <td onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,alignItems:"center"}}>
                     <span
                       className={`badge ${c.active?"badge-green":"badge-muted"}`}
