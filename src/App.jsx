@@ -1178,6 +1178,70 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
   );
 }
 
+// ─── Client Search Input ──────────────────────────────────────────────────────
+function ClientSearchInput({ clients, excludeIds, onSelect, date, time, isAvailable }) {
+  const [search, setSearch] = useState("");
+  const [showDrop, setShowDrop] = useState(false);
+
+  const filtered = [...clients]
+    .filter(c => c.active && !excludeIds.includes(c.id) && c.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b) => a.name.localeCompare(b.name));
+
+  return (
+    <div style={{position:"relative"}}>
+      <input
+        value={search}
+        onChange={e=>{ setSearch(e.target.value); setShowDrop(true); }}
+        onFocus={()=>setShowDrop(true)}
+        onBlur={()=>setTimeout(()=>setShowDrop(false),150)}
+        placeholder="Type a name to add..."
+        style={{
+          width:"100%",padding:"9px 12px",fontSize:13,
+          background:"var(--charcoal)",border:"1px solid var(--accent)",
+          borderRadius:4,color:"var(--text)",outline:"none",boxSizing:"border-box"
+        }}
+      />
+      {showDrop && search.length > 0 && filtered.length > 0 && (
+        <div style={{
+          position:"absolute",top:"100%",left:0,right:0,marginTop:3,
+          background:"var(--charcoal)",border:"1px solid var(--accent)",
+          borderRadius:4,zIndex:200,boxShadow:"0 8px 24px rgba(0,0,0,0.4)",
+          maxHeight:200,overflowY:"auto"
+        }}>
+          {filtered.map(c => {
+            const avail = isAvailable ? isAvailable(c.id, date, time) : false;
+            return (
+              <div key={c.id}
+                onMouseDown={()=>{ onSelect(c.id); setSearch(""); setShowDrop(false); }}
+                style={{
+                  padding:"10px 14px",cursor:"pointer",fontSize:13,
+                  borderBottom:"1px solid var(--border)",
+                  display:"flex",alignItems:"center",justifyContent:"space-between",
+                  background:"transparent"
+                }}
+                onMouseEnter={e=>e.currentTarget.style.background="var(--panel)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+              >
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{
+                    width:28,height:28,borderRadius:"50%",
+                    background:"var(--accent)",color:"var(--black)",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:10,fontWeight:700,flexShrink:0
+                  }}>{c.name.split(" ").map(x=>x[0]).join("")}</div>
+                  <span style={{fontWeight:500}}>{c.name}</span>
+                </div>
+                {avail && <span style={{fontSize:11,color:"var(--green)"}}>● Available</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function TrainerSchedule({ clients, sessions, saveSessions }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -1689,64 +1753,16 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   </div>
                 )}
                 {/* Search input */}
-                {form.clientIds.length < 7 && (() => {
-                  const [clientSearch, setClientSearch] = React.useState("");
-                  const [showDrop, setShowDrop] = React.useState(false);
-                  const filtered = [...clients]
-                    .filter(c => c.active && !form.clientIds.includes(c.id) && c.name.toLowerCase().includes(clientSearch.toLowerCase()))
-                    .sort((a,b) => a.name.localeCompare(b.name));
-                  return (
-                    <div style={{position:"relative"}}>
-                      <input
-                        value={clientSearch}
-                        onChange={e=>{ setClientSearch(e.target.value); setShowDrop(true); }}
-                        onFocus={()=>setShowDrop(true)}
-                        onBlur={()=>setTimeout(()=>setShowDrop(false),150)}
-                        placeholder="Type a name to add..."
-                        style={{
-                          width:"100%",padding:"9px 12px",fontSize:13,
-                          background:"var(--charcoal)",border:"1px solid var(--accent)",
-                          borderRadius:4,color:"var(--text)",outline:"none",boxSizing:"border-box"
-                        }}
-                      />
-                      {showDrop && clientSearch.length > 0 && filtered.length > 0 && (
-                        <div style={{
-                          position:"absolute",top:"100%",left:0,right:0,marginTop:3,
-                          background:"var(--charcoal)",border:"1px solid var(--accent)",
-                          borderRadius:4,zIndex:200,boxShadow:"0 8px 24px rgba(0,0,0,0.4)",
-                          maxHeight:200,overflowY:"auto"
-                        }}>
-                          {filtered.map(c => {
-                            const avail = isAvailable(c.id, form.date, form.time);
-                            return (
-                              <div key={c.id}
-                                onMouseDown={()=>{ toggleClient(c.id); setClientSearch(""); setShowDrop(false); }}
-                                style={{
-                                  padding:"10px 14px",cursor:"pointer",fontSize:13,
-                                  borderBottom:"1px solid var(--border)",
-                                  display:"flex",alignItems:"center",justifyContent:"space-between"
-                                }}
-                                onMouseEnter={e=>e.currentTarget.style.background="var(--panel)"}
-                                onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-                              >
-                                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                                  <div style={{
-                                    width:28,height:28,borderRadius:"50%",
-                                    background:"var(--accent)",color:"var(--black)",
-                                    display:"flex",alignItems:"center",justifyContent:"center",
-                                    fontSize:10,fontWeight:700,flexShrink:0
-                                  }}>{c.name.split(" ").map(x=>x[0]).join("")}</div>
-                                  <span style={{fontWeight:500}}>{c.name}</span>
-                                </div>
-                                {avail && <span style={{fontSize:11,color:"var(--green)"}}>● Available</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                {form.clientIds.length < 7 && (
+                  <ClientSearchInput
+                    clients={clients}
+                    excludeIds={form.clientIds}
+                    onSelect={id=>toggleClient(id)}
+                    date={form.date}
+                    time={form.time}
+                    isAvailable={isAvailable}
+                  />
+                )}
                 {availabilities.length === 0 && (
                   <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>No availability submissions yet.</div>
                 )}
@@ -2357,6 +2373,7 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
     </>
   );
 }
+
 
 // ─── Trainer Progress ─────────────────────────────────────────────────────────
 const MUSCLE_GROUPS = {
