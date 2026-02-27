@@ -8,7 +8,7 @@ const GlobalStyle = () => (
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --black: #0a0a0a; 
+      --black: #0a0a0a;
       --charcoal: #141414;
       --panel: #1c1c1c;
       --border: #2a2a2a;
@@ -2099,8 +2099,22 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                       </div>
                     ) : <span style={{color:"var(--border)"}}>—</span>}
                   </td>
-                  <td>
-                    {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
+                  <td onClick={e=>e.stopPropagation()}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
+                      {a && (
+                        <span
+                          className="badge"
+                          style={{cursor:"pointer",fontSize:10,background:"#ef444420",color:"var(--red)",border:"1px solid var(--red)"}}
+                          title="Clear availability"
+                          onClick={async()=>{
+                            if (!window.confirm(`Clear all availability for ${c.name}?`)) return;
+                            await sbFetch(`availability?clientId=eq.${c.id}`, "DELETE");
+                            setAvails(prev => prev.filter(x => x.clientId !== c.id));
+                          }}
+                        >✕ Clear</span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     {(() => {
