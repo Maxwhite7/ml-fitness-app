@@ -2107,10 +2107,10 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                           className="badge"
                           style={{cursor:"pointer",fontSize:10,background:"#ef444420",color:"var(--red)",border:"1px solid var(--red)"}}
                           title="Clear availability"
-                          onClick={async()=>{
-                            if (!window.confirm(`Clear all availability for ${c.name}?`)) return;
-                            await sbFetch(`availability?clientId=eq.${c.id}`, "DELETE");
-                            setAvails(prev => prev.filter(x => x.clientId !== c.id));
+                          onClick={async(e)=>{
+                            e.stopPropagation();
+                            await sbFetch(`availability?clientId=eq.${c.id}&weekKey=eq.${currentWeekKey}`, "DELETE");
+                            setAvails(prev => prev.filter(x => !(x.clientId === c.id && x.weekKey === currentWeekKey)));
                           }}
                         >✕ Clear</span>
                       )}
