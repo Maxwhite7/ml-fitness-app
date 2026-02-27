@@ -1168,7 +1168,7 @@ function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogo
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
         {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
-        {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} onPreviewClient={onPreviewClient} />}
+        {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
         {tab === "progress" && <TrainerProgress clients={clients} />}
       </div>
@@ -1732,7 +1732,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   );
 }
 
-function TrainerClients({ clients, sessions, saveClients, onPreviewClient }) {
+function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ name:"", email:"", password:"client123", sessionsTotal:20, sessionsUsed:0, active:true });
@@ -1754,7 +1754,9 @@ function TrainerClients({ clients, sessions, saveClients, onPreviewClient }) {
   };
 
   const del = async () => {
-    await saveClients(clients.filter(c=>c.id!==modal.id));
+    // Actually delete from Supabase, not just upsert without them
+    await sbFetch(`clients?id=eq.${encodeURIComponent(modal.id)}`, "DELETE");
+    deleteClient(modal.id);
     setModal(null);
   };
 
