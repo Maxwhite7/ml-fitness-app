@@ -2371,13 +2371,15 @@ function TrainerProgress({ clients }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [progressData, setProgressData] = useState({});
   const [activeGroup, setActiveGroup] = useState("Chest");
-  const [editCell, setEditCell] = useState(null); // { exercise, field }
+  const [editCell, setEditCell] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [addExercise, setAddExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
   const [newExerciseGroup, setNewExerciseGroup] = useState("Chest");
   const [customExercises, setCustomExercises] = useState({});
+  const [search, setSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const clientKey = selectedClient ? selectedClient.id : null;
 
@@ -2456,21 +2458,73 @@ function TrainerProgress({ clients }) {
         <div className="page-subtitle">Track sets, reps and weight per client</div>
       </div>
 
-      {/* Client selector */}
+      {/* Client search bar */}
       <div className="section">
-        <div className="section-header"><span className="section-title">Select Client</span></div>
+        <div className="section-header"><span className="section-title">Search Client</span></div>
         <div className="section-body">
-          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            {[...clients].sort((a,b)=>a.name.localeCompare(b.name)).map(c => (
-              <div key={c.id} onClick={()=>{ setSelectedClient(c); setProgressData({}); setCustomExercises({}); }} style={{
-                padding:"8px 16px",borderRadius:2,cursor:"pointer",fontSize:13,fontWeight:500,
-                border:`1px solid ${selectedClient?.id===c.id?"var(--accent)":"var(--border)"}`,
-                background:selectedClient?.id===c.id?"var(--accent)":"var(--charcoal)",
-                color:selectedClient?.id===c.id?"var(--black)":"var(--text)",
-                transition:"all 0.15s",userSelect:"none"
-              }}>{c.name}</div>
-            ))}
+          <div style={{position:"relative",maxWidth:360}}>
+            <input
+              value={search}
+              onChange={e=>{ setSearch(e.target.value); setShowDropdown(true); }}
+              onFocus={()=>setShowDropdown(true)}
+              onBlur={()=>setTimeout(()=>setShowDropdown(false),150)}
+              placeholder="Type a name..."
+              style={{
+                width:"100%",padding:"12px 16px",fontSize:15,
+                background:"var(--charcoal)",border:"2px solid var(--accent)",
+                borderRadius:4,color:"var(--text)",outline:"none",boxSizing:"border-box"
+              }}
+            />
+            {search && (
+              <div
+                onClick={()=>{ setSearch(""); setSelectedClient(null); }}
+                style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",color:"var(--muted)",fontSize:18,lineHeight:1}}
+              >✕</div>
+            )}
+            {showDropdown && search.length > 0 && (() => {
+              const filtered = [...clients]
+                .filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+                .sort((a,b) => a.name.localeCompare(b.name));
+              if (filtered.length === 0) return (
+                <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:4,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"12px 16px",fontSize:13,color:"var(--muted)",zIndex:100}}>
+                  No clients found
+                </div>
+              );
+              return (
+                <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:4,background:"var(--charcoal)",border:"1px solid var(--accent)",borderRadius:4,overflow:"hidden",zIndex:100,boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}>
+                  {filtered.map(c => (
+                    <div key={c.id} onMouseDown={()=>{ setSelectedClient(c); setSearch(c.name); setShowDropdown(false); setProgressData({}); setCustomExercises({}); }} style={{
+                      padding:"12px 16px",cursor:"pointer",fontSize:14,
+                      borderBottom:"1px solid var(--border)",
+                      background:selectedClient?.id===c.id?"var(--accent)":"transparent",
+                      color:selectedClient?.id===c.id?"var(--black)":"var(--text)",
+                      display:"flex",alignItems:"center",gap:10,transition:"background 0.1s"
+                    }}
+                    onMouseEnter={e=>{ if(selectedClient?.id!==c.id) e.currentTarget.style.background="var(--panel)"; }}
+                    onMouseLeave={e=>{ if(selectedClient?.id!==c.id) e.currentTarget.style.background="transparent"; }}
+                    >
+                      <div style={{
+                        width:30,height:30,borderRadius:"50%",flexShrink:0,
+                        background:selectedClient?.id===c.id?"rgba(0,0,0,0.2)":"var(--accent)",
+                        color:selectedClient?.id===c.id?"var(--black)":"var(--black)",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:11,fontWeight:700
+                      }}>{c.name.split(" ").map(x=>x[0]).join("")}</div>
+                      <div>
+                        <div style={{fontWeight:600}}>{c.name}</div>
+                        {c.email && <div style={{fontSize:11,color:selectedClient?.id===c.id?"rgba(0,0,0,0.6)":"var(--muted)"}}>{c.email}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
+          {selectedClient && (
+            <div style={{marginTop:12,fontSize:13,color:"var(--muted)"}}>
+              Viewing: <span style={{color:"var(--accent)",fontWeight:600}}>{selectedClient.name}</span>
+            </div>
+          )}
         </div>
       </div>
 
