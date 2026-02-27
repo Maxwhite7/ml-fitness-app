@@ -1171,7 +1171,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
         {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
-        {tab === "progress" && <TrainerProgress clients={clients} />}
+        {tab === "progress" && <TrainerProgress clients={clients} sessions={sessions} />}
         {tab === "agent" && <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} />}
       </div>
     </div>
@@ -2387,7 +2387,7 @@ const MUSCLE_GROUPS = {
   "Cardio": ["Treadmill","Bike","Rowing Machine","Jump Rope","Stair Climber","Battle Ropes"],
 };
 
-function TrainerProgress({ clients }) {
+function TrainerProgress({ clients, sessions }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [progressData, setProgressData] = useState({});
   const [activeGroup, setActiveGroup] = useState("Chest");
@@ -2400,6 +2400,28 @@ function TrainerProgress({ clients }) {
   const [customExercises, setCustomExercises] = useState({});
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [currentSessionClients, setCurrentSessionClients] = useState([]);
+
+  // Detect clients in current session
+  useEffect(() => {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const currentHour = now.getHours();
+    // Find session happening now (within the hour)
+    const currentSession = sessions.find(s => {
+      if (s.date !== todayKey) return false;
+      if (!s.time) return false;
+      const [timePart, ampm] = s.time.split(" ");
+      let [h] = timePart.split(":").map(Number);
+      if (ampm === "PM" && h !== 12) h += 12;
+      if (ampm === "AM" && h === 12) h = 0;
+      return Math.abs(h - currentHour) <= 1;
+    });
+    if (currentSession && currentSession.clientIds.length > 0) {
+      const presentClients = clients.filter(c => currentSession.clientIds.includes(c.id));
+      setCurrentSessionClients(presentClients);
+    }
+  }, [sessions, clients]);
 
   const clientKey = selectedClient ? selectedClient.id : null;
 
@@ -2477,6 +2499,37 @@ function TrainerProgress({ clients }) {
         <div className="bebas page-title">PROGRESS</div>
         <div className="page-subtitle">Track sets, reps and weight per client</div>
       </div>
+
+      {/* Current session banner */}
+      {currentSessionClients.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">🟢 Current Session</span>
+            <span style={{fontSize:12,color:"var(--muted)"}}>Clients present right now</span>
+          </div>
+          <div className="section-body">
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {currentSessionClients.map(c => (
+                <div key={c.id} onClick={()=>{ setSelectedClient(c); setSearch(c.name); setProgressData({}); setCustomExercises({}); }} style={{
+                  padding:"10px 18px",borderRadius:4,cursor:"pointer",fontSize:14,fontWeight:600,
+                  border:`2px solid ${selectedClient?.id===c.id?"var(--accent)":"var(--green)"}`,
+                  background:selectedClient?.id===c.id?"var(--accent)":"#22c55e15",
+                  color:selectedClient?.id===c.id?"var(--black)":"var(--green)",
+                  display:"flex",alignItems:"center",gap:8,transition:"all 0.15s"
+                }}>
+                  <div style={{
+                    width:32,height:32,borderRadius:"50%",flexShrink:0,
+                    background:selectedClient?.id===c.id?"rgba(0,0,0,0.2)":"var(--green)",
+                    color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:11,fontWeight:700
+                  }}>{c.name.split(" ").map(x=>x[0]).join("")}</div>
+                  {c.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Client search bar */}
       <div className="section">
