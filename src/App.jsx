@@ -1160,6 +1160,7 @@ function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogo
     { id:"schedule", icon:"📅", label:"Schedule" },
     { id:"clients", icon:"👥", label:"Clients" },
     { id:"availability", icon:"📋", label:"Availability" },
+    { id:"progress", icon:"💪", label:"Progress" },
   ];
 
   return (
@@ -1169,6 +1170,7 @@ function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogo
         {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
         {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} onPreviewClient={onPreviewClient} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
+        {tab === "progress" && <TrainerProgress clients={clients} />}
       </div>
     </div>
   );
@@ -2331,6 +2333,253 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
           </div>
         );
       })()}
+    </>
+  );
+}
+
+// ─── Trainer Progress ─────────────────────────────────────────────────────────
+const MUSCLE_GROUPS = {
+  "Chest": ["Bench Press","Incline Bench Press","Decline Bench Press","Push-Ups","Cable Fly","Dumbbell Fly","Chest Dip"],
+  "Back": ["Pull-Ups","Lat Pulldown","Barbell Row","Dumbbell Row","Seated Cable Row","Deadlift","Back Extension","Face Pull"],
+  "Shoulders": ["Overhead Press","Dumbbell Lateral Raise","Front Raise","Rear Delt Fly","Arnold Press","Upright Row","Shrugs"],
+  "Biceps": ["Barbell Curl","Dumbbell Curl","Hammer Curl","Incline Curl","Concentration Curl","Cable Curl","Preacher Curl"],
+  "Triceps": ["Tricep Pushdown","Skull Crusher","Overhead Tricep Extension","Close-Grip Bench","Dips","Kickbacks"],
+  "Legs": ["Squat","Leg Press","Romanian Deadlift","Leg Curl","Leg Extension","Calf Raise","Lunges","Hip Thrust","Bulgarian Split Squat"],
+  "Core": ["Plank","Crunches","Russian Twist","Leg Raise","Cable Crunch","Ab Wheel","Dead Bug","Pallof Press"],
+  "Cardio": ["Treadmill","Bike","Rowing Machine","Jump Rope","Stair Climber","Battle Ropes"],
+};
+
+function TrainerProgress({ clients }) {
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [progressData, setProgressData] = useState({});
+  const [activeGroup, setActiveGroup] = useState("Chest");
+  const [editCell, setEditCell] = useState(null); // { exercise, field }
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [addExercise, setAddExercise] = useState(false);
+  const [newExerciseName, setNewExerciseName] = useState("");
+  const [newExerciseGroup, setNewExerciseGroup] = useState("Chest");
+  const [customExercises, setCustomExercises] = useState({});
+
+  const clientKey = selectedClient ? selectedClient.id : null;
+
+  useEffect(() => {
+    if (!clientKey) return;
+    sbFetch(`progress?select=*&clientId=eq.${clientKey}`).then(rows => {
+      if (!rows || !Array.isArray(rows)) return;
+      const built = {};
+      rows.forEach(row => { built[row.exercise] = { sets: row.sets||"", reps: row.reps||"", weight: row.weight||"", notes: row.notes||"", updatedAt: row.updatedAt||"" }; });
+      setProgressData(built);
+    });
+    // Load custom exercises for this client
+    sbFetch(`progress_exercises?select=*&clientId=eq.${clientKey}`).then(rows => {
+      if (!rows || !Array.isArray(rows)) return;
+      const built = {};
+      rows.forEach(row => {
+        if (!built[row.muscleGroup]) built[row.muscleGroup] = [];
+        built[row.muscleGroup].push(row.exercise);
+      });
+      setCustomExercises(built);
+    });
+  }, [clientKey]);
+
+  const allExercisesForGroup = (group) => {
+    const base = MUSCLE_GROUPS[group] || [];
+    const custom = customExercises[group] || [];
+    return [...base, ...custom];
+  };
+
+  const saveExercise = async (exercise, field, value) => {
+    setSaving(true);
+    const existing = progressData[exercise] || { sets:"", reps:"", weight:"", notes:"" };
+    const updated = { ...existing, [field]: value, updatedAt: new Date().toLocaleDateString() };
+    setProgressData(prev => ({ ...prev, [exercise]: updated }));
+    await sbFetch(`progress?on_conflict=clientId,exercise`, "POST", [{
+      clientId: clientKey, exercise, ...updated
+    }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    setSaving(false);
+  };
+
+  const handleCellClick = (exercise, field, currentVal) => {
+    setEditCell({ exercise, field });
+    setEditValue(currentVal || "");
+  };
+
+  const handleCellSave = async () => {
+    if (!editCell) return;
+    await saveExercise(editCell.exercise, editCell.field, editValue);
+    setEditCell(null);
+  };
+
+  const addCustomExercise = async () => {
+    if (!newExerciseName.trim()) return;
+    const name = newExerciseName.trim();
+    setCustomExercises(prev => ({
+      ...prev,
+      [newExerciseGroup]: [...(prev[newExerciseGroup]||[]), name]
+    }));
+    await sbFetch(`progress_exercises`, "POST", [{
+      clientId: clientKey, exercise: name, muscleGroup: newExerciseGroup
+    }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    setNewExerciseName("");
+    setAddExercise(false);
+    setActiveGroup(newExerciseGroup);
+  };
+
+  const hasData = (exercise) => {
+    const d = progressData[exercise];
+    return d && (d.sets || d.reps || d.weight);
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">PROGRESS</div>
+        <div className="page-subtitle">Track sets, reps and weight per client</div>
+      </div>
+
+      {/* Client selector */}
+      <div className="section">
+        <div className="section-header"><span className="section-title">Select Client</span></div>
+        <div className="section-body">
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {[...clients].sort((a,b)=>a.name.localeCompare(b.name)).map(c => (
+              <div key={c.id} onClick={()=>{ setSelectedClient(c); setProgressData({}); setCustomExercises({}); }} style={{
+                padding:"8px 16px",borderRadius:2,cursor:"pointer",fontSize:13,fontWeight:500,
+                border:`1px solid ${selectedClient?.id===c.id?"var(--accent)":"var(--border)"}`,
+                background:selectedClient?.id===c.id?"var(--accent)":"var(--charcoal)",
+                color:selectedClient?.id===c.id?"var(--black)":"var(--text)",
+                transition:"all 0.15s",userSelect:"none"
+              }}>{c.name}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {selectedClient && (
+        <div className="section">
+          <div className="section-header">
+            <span className="section-title">💪 {selectedClient.name}</span>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {saving && <span style={{fontSize:11,color:"var(--muted)"}}>Saving...</span>}
+              <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={()=>setAddExercise(true)}>+ Add Exercise</button>
+            </div>
+          </div>
+          <div className="section-body" style={{padding:0}}>
+
+            {/* Muscle group tabs */}
+            <div style={{display:"flex",flexWrap:"wrap",gap:0,borderBottom:"1px solid var(--border)"}}>
+              {Object.keys(MUSCLE_GROUPS).map(group => {
+                const exercises = allExercisesForGroup(group);
+                const filled = exercises.filter(e => hasData(e)).length;
+                return (
+                  <div key={group} onClick={()=>setActiveGroup(group)} style={{
+                    padding:"10px 16px",cursor:"pointer",fontSize:13,fontWeight:500,
+                    borderBottom:`2px solid ${activeGroup===group?"var(--accent)":"transparent"}`,
+                    color:activeGroup===group?"var(--accent)":"var(--muted)",
+                    transition:"all 0.15s",userSelect:"none",position:"relative"
+                  }}>
+                    {group}
+                    {filled > 0 && <span style={{marginLeft:5,background:"var(--accent)",color:"var(--black)",borderRadius:10,padding:"1px 5px",fontSize:9,fontWeight:700}}>{filled}</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Exercise table */}
+            <div style={{padding:"16px 20px"}}>
+              <table className="table" style={{marginBottom:0}}>
+                <thead>
+                  <tr>
+                    <th style={{width:"40%"}}>Exercise</th>
+                    <th style={{textAlign:"center"}}>Sets</th>
+                    <th style={{textAlign:"center"}}>Reps</th>
+                    <th style={{textAlign:"center"}}>Weight (lbs)</th>
+                    <th style={{textAlign:"center"}}>Last Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allExercisesForGroup(activeGroup).map(exercise => {
+                    const d = progressData[exercise] || {};
+                    return (
+                      <tr key={exercise} style={{background:hasData(exercise)?"#3ec9c908":"transparent"}}>
+                        <td style={{fontWeight:hasData(exercise)?600:400,color:hasData(exercise)?"var(--text)":"var(--muted)"}}>
+                          {exercise}
+                        </td>
+                        {["sets","reps","weight"].map(field => (
+                          <td key={field} style={{textAlign:"center"}}>
+                            {editCell?.exercise===exercise && editCell?.field===field ? (
+                              <input
+                                type="number"
+                                value={editValue}
+                                autoFocus
+                                onChange={e=>setEditValue(e.target.value)}
+                                onBlur={handleCellSave}
+                                onKeyDown={e=>{ if(e.key==="Enter") handleCellSave(); if(e.key==="Escape") setEditCell(null); }}
+                                style={{
+                                  width:70,textAlign:"center",background:"var(--charcoal)",
+                                  border:"1px solid var(--accent)",borderRadius:2,
+                                  color:"var(--text)",padding:"4px",fontSize:13
+                                }}
+                              />
+                            ) : (
+                              <div
+                                onClick={()=>handleCellClick(exercise, field, d[field])}
+                                style={{
+                                  cursor:"pointer",padding:"6px 8px",borderRadius:2,
+                                  minWidth:50,display:"inline-block",
+                                  background:d[field]?"var(--charcoal)":"transparent",
+                                  border:`1px solid ${d[field]?"var(--border)":"transparent"}`,
+                                  color:d[field]?"var(--text)":"var(--border)",
+                                  fontSize:13,transition:"all 0.1s"
+                                }}
+                                title="Click to edit"
+                              >
+                                {d[field] || "—"}
+                              </div>
+                            )}
+                          </td>
+                        ))}
+                        <td style={{textAlign:"center",fontSize:11,color:"var(--muted)"}}>
+                          {d.updatedAt || "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Exercise Modal */}
+      {addExercise && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setAddExercise(false)}>
+          <div className="modal" style={{maxWidth:380}}>
+            <div className="modal-header">
+              <div className="bebas modal-title">ADD EXERCISE</div>
+              <button className="modal-close" onClick={()=>setAddExercise(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <label>Exercise Name</label>
+                <input value={newExerciseName} onChange={e=>setNewExerciseName(e.target.value)} placeholder="e.g. Cable Lateral Raise" autoFocus onKeyDown={e=>e.key==="Enter"&&addCustomExercise()} />
+              </div>
+              <div className="form-row">
+                <label>Muscle Group</label>
+                <select value={newExerciseGroup} onChange={e=>setNewExerciseGroup(e.target.value)}>
+                  {Object.keys(MUSCLE_GROUPS).map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={()=>setAddExercise(false)}>Cancel</button>
+              <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={addCustomExercise}>Add</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
