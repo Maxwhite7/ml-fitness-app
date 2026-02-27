@@ -1666,48 +1666,87 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                 </select>
               </div>
               <div className="form-row">
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                  <label style={{margin:0}}>Clients ({form.clientIds.length}/7)</label>
-                  <div style={{display:"flex",alignItems:"center",gap:8,fontSize:11}}>
-                    <span style={{color:"var(--muted)"}}>Show available only</span>
-                    <div
-                      onClick={()=>setShowAvailOnly(v=>!v)}
-                      style={{
-                        width:36,height:20,borderRadius:10,cursor:"pointer",
-                        background:showAvailOnly?"var(--accent)":"var(--border)",
-                        position:"relative",transition:"background 0.2s"
-                      }}
-                    >
-                      <div style={{
-                        position:"absolute",top:3,left:showAvailOnly?18:3,
-                        width:14,height:14,borderRadius:"50%",
-                        background:showAvailOnly?"var(--black)":"var(--muted)",
-                        transition:"left 0.2s"
-                      }}/>
-                    </div>
+                <label>Clients ({form.clientIds.length}/7)</label>
+                {/* Selected clients */}
+                {form.clientIds.length > 0 && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                    {form.clientIds.map(id => {
+                      const c = clients.find(x=>x.id===id);
+                      if (!c) return null;
+                      const avail = isAvailable(id, form.date, form.time);
+                      return (
+                        <div key={id} style={{
+                          display:"flex",alignItems:"center",gap:5,
+                          padding:"4px 10px",borderRadius:20,fontSize:12,fontWeight:600,
+                          background:"var(--accent)",color:"var(--black)"
+                        }}>
+                          <span style={{marginRight:2}}>{avail?"●":""}</span>
+                          {c.name.split(" ")[0]}
+                          <span style={{cursor:"pointer",fontWeight:700,marginLeft:2}} onClick={()=>toggleClient(id)}>✕</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-                <div className="avail-grid" style={{marginTop:6}}>
-                  {[...clients].sort((a,b)=>a.name.localeCompare(b.name)).filter(c => {
-                    if (!c.active) return false;
-                    if (showAvailOnly) return isAvailable(c.id, form.date, form.time) || form.clientIds.includes(c.id);
-                    return true;
-                  }).map(c => {
-                    const avail = isAvailable(c.id, form.date, form.time);
-                    const selected = form.clientIds.includes(c.id);
-                    return (
-                      <div key={c.id}
-                        className={`avail-chip${selected?" selected":""}`}
-                        style={{position:"relative", borderColor: avail && !selected ? "var(--green)" : undefined, color: avail && !selected ? "var(--green)" : undefined}}
-                        onClick={()=>toggleClient(c.id)}
-                        title={avail ? "Available" : "No availability submitted"}
-                      >
-                        {c.name.split(" ")[0]}
-                        {avail && !selected && <span style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:"var(--green)"}}/>}
-                      </div>
-                    );
-                  })}
-                </div>
+                )}
+                {/* Search input */}
+                {form.clientIds.length < 7 && (() => {
+                  const [clientSearch, setClientSearch] = React.useState("");
+                  const [showDrop, setShowDrop] = React.useState(false);
+                  const filtered = [...clients]
+                    .filter(c => c.active && !form.clientIds.includes(c.id) && c.name.toLowerCase().includes(clientSearch.toLowerCase()))
+                    .sort((a,b) => a.name.localeCompare(b.name));
+                  return (
+                    <div style={{position:"relative"}}>
+                      <input
+                        value={clientSearch}
+                        onChange={e=>{ setClientSearch(e.target.value); setShowDrop(true); }}
+                        onFocus={()=>setShowDrop(true)}
+                        onBlur={()=>setTimeout(()=>setShowDrop(false),150)}
+                        placeholder="Type a name to add..."
+                        style={{
+                          width:"100%",padding:"9px 12px",fontSize:13,
+                          background:"var(--charcoal)",border:"1px solid var(--accent)",
+                          borderRadius:4,color:"var(--text)",outline:"none",boxSizing:"border-box"
+                        }}
+                      />
+                      {showDrop && clientSearch.length > 0 && filtered.length > 0 && (
+                        <div style={{
+                          position:"absolute",top:"100%",left:0,right:0,marginTop:3,
+                          background:"var(--charcoal)",border:"1px solid var(--accent)",
+                          borderRadius:4,zIndex:200,boxShadow:"0 8px 24px rgba(0,0,0,0.4)",
+                          maxHeight:200,overflowY:"auto"
+                        }}>
+                          {filtered.map(c => {
+                            const avail = isAvailable(c.id, form.date, form.time);
+                            return (
+                              <div key={c.id}
+                                onMouseDown={()=>{ toggleClient(c.id); setClientSearch(""); setShowDrop(false); }}
+                                style={{
+                                  padding:"10px 14px",cursor:"pointer",fontSize:13,
+                                  borderBottom:"1px solid var(--border)",
+                                  display:"flex",alignItems:"center",justifyContent:"space-between"
+                                }}
+                                onMouseEnter={e=>e.currentTarget.style.background="var(--panel)"}
+                                onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                              >
+                                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                  <div style={{
+                                    width:28,height:28,borderRadius:"50%",
+                                    background:"var(--accent)",color:"var(--black)",
+                                    display:"flex",alignItems:"center",justifyContent:"center",
+                                    fontSize:10,fontWeight:700,flexShrink:0
+                                  }}>{c.name.split(" ").map(x=>x[0]).join("")}</div>
+                                  <span style={{fontWeight:500}}>{c.name}</span>
+                                </div>
+                                {avail && <span style={{fontSize:11,color:"var(--green)"}}>● Available</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {availabilities.length === 0 && (
                   <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>No availability submissions yet.</div>
                 )}
