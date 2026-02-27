@@ -1754,10 +1754,12 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
   };
 
   const del = async () => {
-    // Actually delete from Supabase, not just upsert without them
-    await sbFetch(`clients?id=eq.${encodeURIComponent(modal.id)}`, "DELETE");
-    deleteClient(modal.id);
+    if (!window.confirm(`Remove ${modal.name}? This cannot be undone.`)) return;
+    const clientId = modal.id;
     setModal(null);
+    deleteClient(clientId);
+    // Delete from Supabase
+    await sbFetch(`clients?id=eq.${encodeURIComponent(clientId)}`, "DELETE");
   };
 
   const clientSessions = (id) => sessions.filter(s=>s.clientIds.includes(id)).length;
