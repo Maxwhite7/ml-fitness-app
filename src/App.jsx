@@ -2388,8 +2388,9 @@ const MUSCLE_GROUPS = {
 };
 
 function TrainerProgress({ clients, sessions }) {
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [progressData, setProgressData] = useState({});
+  const [openClients, setOpenClients] = useState([]); // array of client objects, max 7
+  const [activeClientId, setActiveClientId] = useState(null); // which tab is active
+  const [progressData, setProgressData] = useState({}); // keyed by clientId
   const [activeGroup, setActiveGroup] = useState("Chest");
   const [editCell, setEditCell] = useState(null);
   const [editValue, setEditValue] = useState("");
@@ -2397,10 +2398,12 @@ function TrainerProgress({ clients, sessions }) {
   const [addExercise, setAddExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
   const [newExerciseGroup, setNewExerciseGroup] = useState("Chest");
-  const [customExercises, setCustomExercises] = useState({});
+  const [customExercises, setCustomExercises] = useState({}); // keyed by clientId
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [currentSessionClients, setCurrentSessionClients] = useState([]);
+
+  const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
   // Detect clients in current session
   useEffect(() => {
@@ -2423,17 +2426,18 @@ function TrainerProgress({ clients, sessions }) {
     }
   }, [sessions, clients]);
 
-  const clientKey = selectedClient ? selectedClient.id : null;
+  const clientKey = activeClientId;
 
   useEffect(() => {
     if (!clientKey) return;
+    // Only load if not already loaded
+    if (progressData[clientKey]) return;
     sbFetch(`progress?select=*&clientId=eq.${clientKey}`).then(rows => {
       if (!rows || !Array.isArray(rows)) return;
       const built = {};
       rows.forEach(row => { built[row.exercise] = { sets: row.sets||"", reps: row.reps||"", weight: row.weight||"", notes: row.notes||"", updatedAt: row.updatedAt||"" }; });
-      setProgressData(built);
+      setProgressData(prev => ({ ...prev, [clientKey]: built }));
     });
-    // Load custom exercises for this client
     sbFetch(`progress_exercises?select=*&clientId=eq.${clientKey}`).then(rows => {
       if (!rows || !Array.isArray(rows)) return;
       const built = {};
@@ -2441,21 +2445,24 @@ function TrainerProgress({ clients, sessions }) {
         if (!built[row.muscleGroup]) built[row.muscleGroup] = [];
         built[row.muscleGroup].push(row.exercise);
       });
-      setCustomExercises(built);
+      setCustomExercises(prev => ({ ...prev, [clientKey]: built }));
     });
   }, [clientKey]);
 
   const allExercisesForGroup = (group) => {
     const base = MUSCLE_GROUPS[group] || [];
-    const custom = customExercises[group] || [];
+    const custom = (customExercises[clientKey] || {})[group] || [];
     return [...base, ...custom];
   };
 
+  const clientProgressData = progressData[clientKey] || {};
+  const clientCustomExercises = customExercises[clientKey] || {};
+
   const saveExercise = async (exercise, field, value) => {
     setSaving(true);
-    const existing = progressData[exercise] || { sets:"", reps:"", weight:"", notes:"" };
+    const existing = (progressData[clientKey] || {})[exercise] || { sets:"", reps:"", weight:"", notes:"" };
     const updated = { ...existing, [field]: value, updatedAt: new Date().toLocaleDateString() };
-    setProgressData(prev => ({ ...prev, [exercise]: updated }));
+    setProgressData(prev => ({ ...prev, [clientKey]: { ...(prev[clientKey]||{}), [exercise]: updated } }));
     await sbFetch(`progress?on_conflict=clientId,exercise`, "POST", [{
       clientId: clientKey, exercise, ...updated
     }], { Prefer: "resolution=merge-duplicates,return=minimal" });
@@ -2478,7 +2485,10 @@ function TrainerProgress({ clients, sessions }) {
     const name = newExerciseName.trim();
     setCustomExercises(prev => ({
       ...prev,
-      [newExerciseGroup]: [...(prev[newExerciseGroup]||[]), name]
+      [clientKey]: {
+        ...(prev[clientKey]||{}),
+        [newExerciseGroup]: [...((prev[clientKey]||{})[newExerciseGroup]||[]), name]
+      }
     }));
     await sbFetch(`progress_exercises`, "POST", [{
       clientId: clientKey, exercise: name, muscleGroup: newExerciseGroup
@@ -2489,7 +2499,7 @@ function TrainerProgress({ clients, sessions }) {
   };
 
   const hasData = (exercise) => {
-    const d = progressData[exercise];
+    const d = (progressData[clientKey] || {})[exercise];
     return d && (d.sets || d.reps || d.weight);
   };
 
@@ -2510,11 +2520,14 @@ function TrainerProgress({ clients, sessions }) {
           <div className="section-body">
             <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
               {currentSessionClients.map(c => (
-                <div key={c.id} onClick={()=>{ setSelectedClient(c); setSearch(c.name); setProgressData({}); setCustomExercises({}); }} style={{
+                <div key={c.id} onClick={()=>{ 
+                  if (!openClients.find(x=>x.id===c.id)) setOpenClients(prev=>[...prev,c]);
+                  setActiveClientId(c.id); setSearch("");
+                }} style={{
                   padding:"10px 18px",borderRadius:4,cursor:"pointer",fontSize:14,fontWeight:600,
-                  border:`2px solid ${selectedClient?.id===c.id?"var(--accent)":"var(--green)"}`,
-                  background:selectedClient?.id===c.id?"var(--accent)":"#22c55e15",
-                  color:selectedClient?.id===c.id?"var(--black)":"var(--green)",
+                  border:`2px solid ${activeClientId===c.id?"var(--accent)":"var(--green)"}`,
+                  background:activeClientId===c.id?"var(--accent)":"#22c55e15",
+                  color:activeClientId===c.id?"var(--black)":"var(--green)",
                   display:"flex",alignItems:"center",gap:8,transition:"all 0.15s"
                 }}>
                   <div style={{
@@ -2566,7 +2579,10 @@ function TrainerProgress({ clients, sessions }) {
               return (
                 <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:4,background:"var(--charcoal)",border:"1px solid var(--accent)",borderRadius:4,overflow:"hidden",zIndex:100,boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}>
                   {filtered.map(c => (
-                    <div key={c.id} onMouseDown={()=>{ setSelectedClient(c); setSearch(c.name); setShowDropdown(false); setProgressData({}); setCustomExercises({}); }} style={{
+                    <div key={c.id} onMouseDown={()=>{ 
+                      if (!openClients.find(x=>x.id===c.id)) setOpenClients(prev=>[...prev,c]);
+                      setActiveClientId(c.id); setSearch(""); setShowDropdown(false);
+                    }} style={{
                       padding:"12px 16px",cursor:"pointer",fontSize:14,
                       borderBottom:"1px solid var(--border)",
                       background:selectedClient?.id===c.id?"var(--accent)":"transparent",
@@ -2593,21 +2609,43 @@ function TrainerProgress({ clients, sessions }) {
               );
             })()}
           </div>
-          {selectedClient && (
+          {openClients.length > 0 && (
             <div style={{marginTop:12,fontSize:13,color:"var(--muted)"}}>
-              Viewing: <span style={{color:"var(--accent)",fontWeight:600}}>{selectedClient.name}</span>
+              Open: {openClients.map(c=><span key={c.id} style={{color:"var(--accent)",fontWeight:600,marginRight:8}}>{c.name.split(" ")[0]}</span>)}
             </div>
           )}
         </div>
       </div>
 
-      {selectedClient && (
+      {openClients.length > 0 && (
         <div className="section">
-          <div className="section-header">
-            <span className="section-title">💪 {selectedClient.name}</span>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {/* Client tabs */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:0,borderBottom:"1px solid var(--border)",paddingLeft:8,paddingTop:8}}>
+            {openClients.map(c => (
+              <div key={c.id} style={{display:"flex",alignItems:"center",gap:0}}>
+                <div onClick={()=>setActiveClientId(c.id)} style={{
+                  padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:600,
+                  borderRadius:"4px 4px 0 0",
+                  background:activeClientId===c.id?"var(--accent)":"var(--charcoal)",
+                  color:activeClientId===c.id?"var(--black)":"var(--muted)",
+                  borderBottom:activeClientId===c.id?"2px solid var(--accent)":"1px solid var(--border)",
+                  transition:"all 0.15s",userSelect:"none"
+                }}>
+                  {c.name.split(" ")[0]}
+                </div>
+                <div onClick={()=>{
+                  const remaining = openClients.filter(x=>x.id!==c.id);
+                  setOpenClients(remaining);
+                  if (activeClientId===c.id) setActiveClientId(remaining[0]?.id||null);
+                }} style={{
+                  padding:"4px 6px",cursor:"pointer",fontSize:12,color:"var(--muted)",
+                  marginLeft:-2,marginRight:4
+                }}>✕</div>
+              </div>
+            ))}
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,paddingRight:12,paddingBottom:4}}>
               {saving && <span style={{fontSize:11,color:"var(--muted)"}}>Saving...</span>}
-              <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={()=>setAddExercise(true)}>+ Add Exercise</button>
+              {selectedClient && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={()=>setAddExercise(true)}>+ Add Exercise</button>}
             </div>
           </div>
           <div className="section-body" style={{padding:0}}>
@@ -2645,7 +2683,7 @@ function TrainerProgress({ clients, sessions }) {
                 </thead>
                 <tbody>
                   {allExercisesForGroup(activeGroup).map(exercise => {
-                    const d = progressData[exercise] || {};
+                    const d = clientProgressData[exercise] || {};
                     return (
                       <tr key={exercise} style={{background:hasData(exercise)?"#3ec9c908":"transparent"}}>
                         <td style={{fontWeight:hasData(exercise)?600:400,color:hasData(exercise)?"var(--text)":"var(--muted)"}}>
