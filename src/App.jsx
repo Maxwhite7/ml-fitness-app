@@ -1332,7 +1332,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 
   const [generating, setGenerating] = useState(false);
   const [genFeedback, setGenFeedback] = useState("");
-  const [calView, setCalView] = useState("month"); // "day" | "week" | "month" | "year"
+  const [calView, setCalView] = useState("day"); // "day" | "week" | "month" | "year"
   const [viewDate, setViewDate] = useState(today); // anchor date for day/week views
 
   const generateNextWeek = async () => {
