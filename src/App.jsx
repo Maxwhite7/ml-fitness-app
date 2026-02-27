@@ -1546,12 +1546,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
         <div className="page-subtitle">Manage your training sessions</div>
       </div>
 
-      <div className="stats-grid">
-        <StatCard label="Total Sessions" value={totalSessions} sub="this schedule" />
-        <StatCard label="Client Slots" value={totalClients} sub="filled across sessions" />
-        <StatCard label="Active Clients" value={clients.filter(c=>c.active).length} sub="in roster" />
-        <StatCard label="Month" value={MONTH_NAMES[viewMonth].slice(0,3).toUpperCase()} sub={String(viewYear)} />
-      </div>
+
 
       {/* View switcher + nav */}
       <div className="section">
