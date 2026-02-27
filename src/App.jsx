@@ -2575,9 +2575,8 @@ function TrainerProgress({ clients, sessions }) {
                 const session = sessions.find(s => s.date===sessionDate && s.time===sessionTime);
                 if (!session || session.clientIds.length===0) return;
                 const sessionClients = clients.filter(c=>session.clientIds.includes(c.id));
-                sessionClients.forEach(c=>{
-                  if (!openClients.find(x=>x.id===c.id)) setOpenClients(prev=>[...prev,c]);
-                });
+                // Replace all open clients with only this session's clients
+                setOpenClients(sessionClients);
                 setActiveClientId(sessionClients[0]?.id||null);
               }}
             >Load Session</button>
