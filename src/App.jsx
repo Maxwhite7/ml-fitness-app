@@ -2684,6 +2684,18 @@ function AIAgent({ clients, sessions, setSessions }) {
         const lines = sorted.map(c=>"• " + c.name + (c.active?"":" (inactive)")).join("\n");
         return "👥 " + sorted.length + " clients:\n" + lines;
       }
+      case "add_session": {
+        const { date, time } = params;
+        // Validate
+        if (!date || !time) return "⚠️ Need both a date and time to add a session.";
+        const id = "s_" + date + "_" + time.replace(":00","").replace(" ","_");
+        const existing = sessions.find(s => s.id === id || (s.date === date && s.time === time));
+        if (existing) return `⚠️ A session already exists on ${date} at ${time}.`;
+        const newSession = { id, date, time, clientIds: [], notes: "" };
+        await sbFetch("sessions", "POST", [newSession], { Prefer: "resolution=merge-duplicates,return=minimal" });
+        setSessions(prev => [...prev, newSession]);
+        return `✓ Added session on ${date} at ${time}.`;
+      }
       case "update_progress": {
         const { clientName, exercise, sets, reps, weight, muscleGroup } = params;
         // Find client by name (fuzzy match)
@@ -2739,6 +2751,7 @@ Available actions:
 - show_stats — shows gym statistics
 - list_clients — lists all clients
 - update_progress — updates sets/reps/weight for a client exercise
+- add_session — adds a new session to the schedule
 
 For update_progress, use this format:
 <action>{"type":"update_progress","params":{"clientName":"Asma","exercise":"Bench Press","sets":"3","reps":"10","weight":"100","muscleGroup":"Chest"}}</action>
@@ -2750,6 +2763,15 @@ When the trainer says something like "Asma bench press flat 10 reps 100 lbs", ex
 - reps: number of reps
 - weight: weight in lbs
 - muscleGroup: the muscle group (Chest, Back, Shoulders, Biceps, Triceps, Legs, Core, Cardio)
+
+For add_session, use this format:
+<action>{"type":"add_session","params":{"date":"2026-03-10","time":"7:00 AM"}}</action>
+
+When the trainer says something like "add a session Monday March 10 at 7am", extract:
+- date: in YYYY-MM-DD format
+- time: in "H:MM AM/PM" format (e.g. "7:00 AM", "5:00 PM")
+
+Today is ${todayStr}. Use this to resolve relative dates like "next Monday", "this Friday" etc.
 
 Always confirm what you saved after executing.
 For anything else, just respond conversationally and helpfully.
@@ -2812,6 +2834,7 @@ ${actionResult}` : displayText;
             "Show me gym stats",
             "List all clients",
             "Asma bench press 3 sets 10 reps 100 lbs",
+            "Add a session Monday at 7am",
           ].map(s => (
             <div key={s} onClick={()=>{ setInput(s); }} style={{
               padding:"6px 14px",borderRadius:20,fontSize:12,cursor:"pointer",
