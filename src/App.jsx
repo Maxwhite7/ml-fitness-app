@@ -991,7 +991,7 @@ export default function App() {
     <>
       <GlobalStyle />
       {user.role === "trainer" && !previewClient
-        ? <TrainerApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => setUser(null)} onPreviewClient={setPreviewClient} />
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => setUser(null)} onPreviewClient={setPreviewClient} />
         : user.role === "trainer" && previewClient
         ? (
           <>
@@ -1154,7 +1154,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 }
 
 // ─── Trainer App ──────────────────────────────────────────────────────────────
-function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogout, onPreviewClient }) {
+function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient }) {
   const [tab, setTab] = useState("schedule");
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
@@ -1172,422 +1172,9 @@ function TrainerApp({ user, clients, sessions, saveClients, saveSessions, onLogo
         {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
         {tab === "progress" && <TrainerProgress clients={clients} />}
-        {tab === "agent" && <TrainerAgent clients={clients} sessions={sessions} saveClients={saveClients} saveSessions={saveSessions} />}
+        {tab === "agent" && <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} />}
       </div>
     </div>
-  );
-}
-
-// ─── AI Agent ─────────────────────────────────────────────────────────────────
-function TrainerAgent({ clients, sessions, saveClients, saveSessions }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hey Coach! 👋 I'm your ML Fitness AI agent. I have full access to your client roster, sessions, and packages.\n\nHere's what I can do:\n• **Schedule sessions** — book, edit, or cancel sessions\n• **Check availability** — see who's free at a given time\n• **Manage packages** — update sessions used/total for any client\n• **Stats & reports** — get summaries, low-session alerts, and more\n\nJust ask me anything in plain English!"
-    }
-  ]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null);
-  const bottomRef = useRef(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  const buildSystemPrompt = () => {
-    const today = new Date();
-    const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const todayStr = dateKey(today);
-
-    // Summarize clients
-    const clientSummary = clients.map(c => ({
-      id: c.id,
-      name: c.name,
-      sessionsTotal: c.sessionsTotal,
-      sessionsUsed: c.sessionsUsed,
-      sessionsLeft: c.sessionsTotal - c.sessionsUsed,
-      active: c.active
-    }));
-
-    // Upcoming sessions (next 14 days)
-    const upcoming = sessions
-      .filter(s => s.date >= todayStr)
-      .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
-      .slice(0, 60)
-      .map(s => ({
-        id: s.id,
-        date: s.date,
-        time: s.time,
-        clients: s.clientIds.map(id => clients.find(c=>c.id===id)?.name || id),
-        clientIds: s.clientIds,
-        spots: 7 - s.clientIds.length,
-        notes: s.notes
-      }));
-
-    // Low sessions clients
-    const lowSessions = clientSummary.filter(c => c.sessionsLeft <= 3 && c.sessionsLeft >= 0);
-
-    return `You are an AI assistant for ML Fitness, a personal training gym. You help the trainer (Coach) manage their gym efficiently through natural conversation.
-
-TODAY: ${todayStr}
-
-=== CLIENT ROSTER (${clients.length} clients) ===
-${JSON.stringify(clientSummary, null, 2)}
-
-=== UPCOMING SESSIONS (next ~14 days) ===
-${JSON.stringify(upcoming, null, 2)}
-
-=== LOW SESSION ALERTS (≤3 sessions left) ===
-${JSON.stringify(lowSessions, null, 2)}
-
-=== YOUR CAPABILITIES ===
-You can help the trainer with:
-1. SCHEDULE SESSIONS: Find available slots, suggest bookings, show who can be booked
-2. CHECK AVAILABILITY: Tell the trainer who is free at a given date/time
-3. MANAGE PACKAGES: Report on session counts, flag who needs renewal
-4. STATS & REPORTS: Summaries, occupancy, revenue estimates, trends
-
-=== IMPORTANT RULES ===
-- When the trainer asks you to MAKE A CHANGE (add/edit/remove client from session, update package), respond with a clear summary of what you'll do AND include a special JSON block at the end of your message wrapped in triple backticks like this:
-\`\`\`ACTION
-{"type":"ADD_CLIENT_TO_SESSION","sessionId":"s_2026-02-28_8","clientId":"c5","clientName":"Alice"}
-\`\`\`
-OR for updating packages:
-\`\`\`ACTION
-{"type":"UPDATE_PACKAGE","clientId":"c5","clientName":"Alice","sessionsTotal":28,"sessionsUsed":10}
-\`\`\`
-OR for removing a client from session:
-\`\`\`ACTION
-{"type":"REMOVE_CLIENT_FROM_SESSION","sessionId":"s_2026-02-28_8","clientId":"c5","clientName":"Alice"}
-\`\`\`
-OR for creating a new session:
-\`\`\`ACTION
-{"type":"CREATE_SESSION","date":"2026-03-01","time":"9:00 AM","clientIds":["c5"],"notes":""}
-\`\`\`
-- Only include an ACTION block if the trainer has explicitly confirmed they want a change
-- Be conversational, friendly, and concise
-- When listing sessions or clients, format nicely but keep it readable
-- Always double-check client names using the roster — use fuzzy matching if needed
-- If you're unsure about a name, list the matches and ask for clarification
-- Session IDs follow the format: s_YYYY-MM-DD_H (e.g., s_2026-03-01_9 for 9 AM on March 1)`;
-  };
-
-  const parseAction = (text) => {
-    const match = text.match(/```ACTION\n([\s\S]*?)```/);
-    if (!match) return null;
-    try { return JSON.parse(match[1].trim()); } catch { return null; }
-  };
-
-  const cleanMessage = (text) => text.replace(/```ACTION\n[\s\S]*?```/g, "").trim();
-
-  const executeAction = async (action) => {
-    try {
-      if (action.type === "ADD_CLIENT_TO_SESSION") {
-        const session = sessions.find(s => s.id === action.sessionId);
-        if (!session) return "❌ Session not found.";
-        if (session.clientIds.includes(action.clientId)) return `⚠️ ${action.clientName} is already in that session.`;
-        if (session.clientIds.length >= 7) return "❌ Session is full (max 7 clients).";
-        const updated = sessions.map(s => s.id === action.sessionId
-          ? {...s, clientIds: [...s.clientIds, action.clientId]}
-          : s);
-        await saveSessions(updated);
-        return `✅ Added **${action.clientName}** to the ${session.time} session on ${session.date}.`;
-      }
-      if (action.type === "REMOVE_CLIENT_FROM_SESSION") {
-        const session = sessions.find(s => s.id === action.sessionId);
-        if (!session) return "❌ Session not found.";
-        const updated = sessions.map(s => s.id === action.sessionId
-          ? {...s, clientIds: s.clientIds.filter(id => id !== action.clientId)}
-          : s);
-        await saveSessions(updated);
-        return `✅ Removed **${action.clientName}** from the ${session.time} session on ${session.date}.`;
-      }
-      if (action.type === "UPDATE_PACKAGE") {
-        const updated = clients.map(c => c.id === action.clientId
-          ? {...c, sessionsTotal: action.sessionsTotal, sessionsUsed: action.sessionsUsed}
-          : c);
-        await saveClients(updated);
-        return `✅ Updated **${action.clientName}**'s package: ${action.sessionsUsed}/${action.sessionsTotal} sessions used.`;
-      }
-      if (action.type === "CREATE_SESSION") {
-        const id = `s_${action.date}_${action.time.replace(":00","").replace(" ","_")}`;
-        const newSession = { id, date: action.date, time: action.time, clientIds: action.clientIds||[], notes: action.notes||"" };
-        await saveSessions([...sessions, newSession]);
-        return `✅ Created new session on **${action.date}** at **${action.time}** with ${action.clientIds?.length||0} client(s).`;
-      }
-      return "❌ Unknown action type.";
-    } catch (e) {
-      return `❌ Failed to execute action: ${e.message}`;
-    }
-  };
-
-  const send = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
-    setInput("");
-    const newMessages = [...messages, { role:"user", content: text }];
-    setMessages(newMessages);
-    setLoading(true);
-
-    try {
-      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: buildSystemPrompt(),
-          messages: apiMessages
-        })
-      });
-      const data = await res.json();
-      const rawText = data.content?.[0]?.text || "Sorry, I couldn't process that.";
-      const action = parseAction(rawText);
-      const displayText = cleanMessage(rawText);
-
-      if (action) {
-        setPendingAction({ action, preview: displayText });
-        setMessages(prev => [...prev, { role:"assistant", content: displayText, hasPending: true }]);
-      } else {
-        setMessages(prev => [...prev, { role:"assistant", content: displayText }]);
-      }
-    } catch(e) {
-      setMessages(prev => [...prev, { role:"assistant", content: `❌ Error: ${e.message}` }]);
-    }
-    setLoading(false);
-  };
-
-  const confirmAction = async () => {
-    if (!pendingAction) return;
-    setLoading(true);
-    const result = await executeAction(pendingAction.action);
-    setMessages(prev => [...prev, { role:"assistant", content: result, isConfirmation: true }]);
-    setPendingAction(null);
-    setLoading(false);
-  };
-
-  const cancelAction = () => {
-    setPendingAction(null);
-    setMessages(prev => [...prev, { role:"assistant", content: "Got it, no changes made." }]);
-  };
-
-  const formatMessage = (text) => {
-    // Simple markdown-like formatting
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^• /gm, '&bull; ')
-      .split('\n').map((line, i) => `<span key=${i}>${line}</span>`).join('<br/>');
-  };
-
-  const SUGGESTIONS = [
-    "Who has sessions today?",
-    "Which clients are running low on sessions?",
-    "Show me tomorrow's schedule",
-    "How many total sessions this week?",
-  ];
-
-  return (
-    <>
-      <style>{`
-        .agent-wrap {
-          display: flex;
-          flex-direction: column;
-          height: calc(100vh - 56px);
-          max-width: 860px;
-          margin: 0 auto;
-          padding: 0;
-        }
-        .agent-header {
-          padding: 24px 0 16px;
-          flex-shrink: 0;
-        }
-        .agent-messages {
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 8px 0 16px;
-        }
-        .agent-bubble {
-          max-width: 78%;
-          padding: 14px 18px;
-          border-radius: 4px;
-          font-size: 14px;
-          line-height: 1.65;
-          animation: fadeUp 0.25s ease;
-        }
-        .agent-bubble.user {
-          align-self: flex-end;
-          background: var(--accent);
-          color: var(--black);
-          border-radius: 4px 4px 1px 4px;
-        }
-        .agent-bubble.assistant {
-          align-self: flex-start;
-          background: var(--panel);
-          border: 1px solid var(--border);
-          color: var(--text);
-          border-radius: 4px 4px 4px 1px;
-        }
-        .agent-bubble.confirmation {
-          background: #3ec9c915;
-          border-color: var(--accent);
-        }
-        .agent-confirm-bar {
-          background: var(--charcoal);
-          border: 1px solid var(--accent);
-          border-radius: 4px;
-          padding: 14px 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          animation: fadeUp 0.25s ease;
-          flex-shrink: 0;
-          margin-bottom: 8px;
-        }
-        .agent-input-row {
-          display: flex;
-          gap: 10px;
-          padding: 12px 0 20px;
-          flex-shrink: 0;
-          border-top: 1px solid var(--border);
-        }
-        .agent-input {
-          flex: 1;
-          background: var(--panel);
-          border: 1px solid var(--border);
-          border-radius: 3px;
-          color: var(--text);
-          font-family: 'DM Sans', sans-serif;
-          font-size: 14px;
-          padding: 12px 16px;
-          outline: none;
-          transition: border-color 0.2s;
-          resize: none;
-          min-height: 46px;
-          max-height: 120px;
-        }
-        .agent-input:focus { border-color: var(--accent); }
-        .agent-send-btn {
-          background: var(--accent);
-          color: var(--black);
-          border: none;
-          border-radius: 3px;
-          font-family: 'Bebas Neue', sans-serif;
-          font-size: 16px;
-          letter-spacing: 1px;
-          padding: 0 22px;
-          cursor: pointer;
-          transition: opacity 0.2s;
-          flex-shrink: 0;
-        }
-        .agent-send-btn:hover { opacity: 0.85; }
-        .agent-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .agent-suggestions {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-bottom: 10px;
-          flex-shrink: 0;
-        }
-        .agent-chip {
-          background: var(--charcoal);
-          border: 1px solid var(--border);
-          border-radius: 20px;
-          padding: 5px 14px;
-          font-size: 12px;
-          color: var(--muted);
-          cursor: pointer;
-          transition: all 0.15s;
-          white-space: nowrap;
-        }
-        .agent-chip:hover { border-color: var(--accent); color: var(--accent); }
-        .agent-typing {
-          display: flex;
-          gap: 5px;
-          align-items: center;
-          padding: 14px 18px;
-          background: var(--panel);
-          border: 1px solid var(--border);
-          border-radius: 4px;
-          width: fit-content;
-          animation: fadeUp 0.2s ease;
-        }
-        .agent-dot {
-          width: 7px; height: 7px;
-          border-radius: 50%;
-          background: var(--accent);
-          animation: pulse 1.2s infinite;
-        }
-        .agent-dot:nth-child(2) { animation-delay: 0.2s; }
-        .agent-dot:nth-child(3) { animation-delay: 0.4s; }
-      `}</style>
-
-      <div className="agent-wrap">
-        <div className="agent-header">
-          <div className="bebas page-title" style={{fontSize:36}}>🤖 AI AGENT</div>
-          <div className="page-subtitle">Ask me anything about your clients, schedule, or packages</div>
-        </div>
-
-        <div className="agent-messages">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`agent-bubble ${m.role} ${m.isConfirmation ? "confirmation" : ""}`}
-              dangerouslySetInnerHTML={{ __html: formatMessage(m.content) }}
-            />
-          ))}
-          {loading && (
-            <div className="agent-typing">
-              <div className="agent-dot" />
-              <div className="agent-dot" />
-              <div className="agent-dot" />
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {pendingAction && !loading && (
-          <div className="agent-confirm-bar">
-            <div style={{fontSize:13, color:"var(--text)"}}>
-              <span style={{color:"var(--accent)", fontWeight:700}}>⚡ Action ready</span> — confirm to apply this change to your gym data
-            </div>
-            <div style={{display:"flex", gap:8, flexShrink:0}}>
-              <button className="btn-secondary" style={{fontSize:12, padding:"8px 16px"}} onClick={cancelAction}>Cancel</button>
-              <button className="btn-primary" style={{width:"auto", fontSize:14, padding:"8px 20px"}} onClick={confirmAction}>✓ Confirm</button>
-            </div>
-          </div>
-        )}
-
-        {messages.length <= 1 && (
-          <div className="agent-suggestions">
-            {SUGGESTIONS.map((s, i) => (
-              <div key={i} className="agent-chip" onClick={() => { setInput(s); }}>
-                {s}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="agent-input-row">
-          <textarea
-            className="agent-input"
-            placeholder="Ask me anything… e.g. 'Add Sarah to the 8am session on March 3'"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-            rows={1}
-          />
-          <button className="agent-send-btn" onClick={send} disabled={loading || !input.trim()}>
-            SEND
-          </button>
-        </div>
-      </div>
-    </>
   );
 }
 
@@ -3034,6 +2621,235 @@ function TrainerProgress({ clients }) {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+// ─── AI Agent ─────────────────────────────────────────────────────────────────
+function AIAgent({ clients, sessions, setSessions }) {
+  const [messages, setMessages] = useState([
+    { role: "assistant", text: "Hi! I'm your gym assistant. I can help you manage your schedule and clients. Try asking me to clear past sessions, show stats, or anything else about your gym data." }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+  const executeAction = async (action, params) => {
+    switch(action) {
+      case "clear_past_sessions": {
+        // Keep sessions but remove all clientIds from past sessions
+        const updated = sessions.map(s => {
+          if (s.date && s.date < todayStr) return { ...s, clientIds: [] };
+          return s;
+        });
+        const pastSessions = updated.filter(s => s.date && s.date < todayStr);
+        // Batch update in Supabase
+        for (let i = 0; i < pastSessions.length; i += 50) {
+          const batch = pastSessions.slice(i, i+50);
+          for (const s of batch) {
+            await sbFetch(`sessions?id=eq.${s.id}`, "PATCH", { clientIds: [] });
+          }
+        }
+        setSessions(updated);
+        const count = pastSessions.length;
+        return `✓ Cleared client names from ${count} past session${count!==1?"s":""}. Time slots kept.`;
+      }
+      case "clear_week_sessions": {
+        const weekStr = params?.week || "";
+        const updated = sessions.map(s => {
+          if (s.date && s.date >= weekStr && s.date < params?.weekEnd) return { ...s, clientIds: [] };
+          return s;
+        });
+        const cleared = updated.filter(s => s.date && s.date >= weekStr && s.date < params?.weekEnd);
+        for (const s of cleared) {
+          await sbFetch(`sessions?id=eq.${s.id}`, "PATCH", { clientIds: [] });
+        }
+        setSessions(updated);
+        return `✓ Cleared ${cleared.length} sessions for the selected week.`;
+      }
+      case "show_stats": {
+        const totalClients = clients.length;
+        const activeClients = clients.filter(c=>c.active).length;
+        const upcomingSessions = sessions.filter(s=>s.date>=todayStr && s.clientIds.length>0).length;
+        const pastSessions = sessions.filter(s=>s.date<todayStr && s.clientIds.length>0).length;
+        return `📊 Stats:
+• ${totalClients} total clients (${activeClients} active)
+• ${upcomingSessions} upcoming booked sessions
+• ${pastSessions} past sessions with bookings`;
+      }
+      case "list_clients": {
+        const sorted = [...clients].sort((a,b)=>a.name.localeCompare(b.name));
+        return `👥 ${sorted.length} clients:
+${sorted.map(c=>`• ${c.name}${c.active?"":" (inactive)"}`).join("
+")}`;
+      }
+      default:
+        return null;
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", text: userMsg }]);
+    setLoading(true);
+
+    try {
+      // Build context about the gym data
+      const upcomingSessions = sessions.filter(s=>s.date>=todayStr).length;
+      const pastSessions = sessions.filter(s=>s.date<todayStr).length;
+      const bookedPast = sessions.filter(s=>s.date<todayStr && s.clientIds.length>0).length;
+
+      const systemPrompt = `You are an AI assistant for a gym scheduling app. You help the trainer manage their gym.
+
+Current gym data:
+- ${clients.length} clients (${clients.filter(c=>c.active).length} active)
+- ${sessions.length} total sessions
+- ${upcomingSessions} upcoming sessions
+- ${pastSessions} past sessions (${bookedPast} had bookings)
+- Today: ${todayStr}
+
+You can execute the following actions by responding with a JSON block like this:
+<action>{"type":"action_name","params":{}}</action>
+
+Available actions:
+- clear_past_sessions — removes all client names from past sessions (keeps time slots)
+- show_stats — shows gym statistics
+- list_clients — lists all clients
+
+For anything else, just respond conversationally and helpfully.
+Always explain what you are doing before executing an action.
+Keep responses concise.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [
+            ...messages.filter(m=>m.role!=="system").map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.text })),
+            { role: "user", content: userMsg }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      const rawText = data.content?.[0]?.text || "Sorry, I couldn't process that.";
+
+      // Check for action tags
+      const actionMatch = rawText.match(/<action>(.*?)<\/action>/s);
+      let displayText = rawText.replace(/<action>.*?<\/action>/s, "").trim();
+      let actionResult = null;
+
+      if (actionMatch) {
+        try {
+          const actionData = JSON.parse(actionMatch[1]);
+          actionResult = await executeAction(actionData.type, actionData.params);
+        } catch(e) {
+          actionResult = "⚠️ Action failed: " + e.message;
+        }
+      }
+
+      const finalText = actionResult ? `${displayText}
+
+${actionResult}` : displayText;
+      setMessages(prev => [...prev, { role: "assistant", text: finalText }]);
+    } catch(e) {
+      setMessages(prev => [...prev, { role: "assistant", text: "⚠️ Error connecting to AI. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">AI AGENT</div>
+        <div className="page-subtitle">Ask me to manage your schedule, clients and data</div>
+      </div>
+
+      <div className="section" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 160px)"}}>
+        {/* Suggestion chips */}
+        <div style={{padding:"12px 20px",borderBottom:"1px solid var(--border)",display:"flex",gap:8,flexWrap:"wrap"}}>
+          {[
+            "Clear all past session bookings",
+            "Show me gym stats",
+            "List all clients",
+          ].map(s => (
+            <div key={s} onClick={()=>{ setInput(s); }} style={{
+              padding:"6px 14px",borderRadius:20,fontSize:12,cursor:"pointer",
+              border:"1px solid var(--accent)",color:"var(--accent)",
+              background:"transparent",userSelect:"none",transition:"all 0.15s"
+            }}>{s}</div>
+          ))}
+        </div>
+
+        {/* Messages */}
+        <div style={{flex:1,overflowY:"auto",padding:"20px"}}>
+          {messages.map((m, i) => (
+            <div key={i} style={{
+              display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",
+              marginBottom:16
+            }}>
+              {m.role==="assistant" && (
+                <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0,marginRight:10,marginTop:2}}>🤖</div>
+              )}
+              <div style={{
+                maxWidth:"75%",padding:"12px 16px",borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
+                background:m.role==="user"?"var(--accent)":"var(--charcoal)",
+                color:m.role==="user"?"var(--black)":"var(--text)",
+                fontSize:13,lineHeight:1.6,whiteSpace:"pre-wrap",
+                border:m.role==="assistant"?"1px solid var(--border)":"none"
+              }}>{m.text}</div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
+              <div style={{padding:"12px 16px",borderRadius:"12px 12px 12px 2px",background:"var(--charcoal)",border:"1px solid var(--border)",fontSize:13,color:"var(--muted)"}}>
+                Thinking...
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div style={{padding:"16px 20px",borderTop:"1px solid var(--border)",display:"flex",gap:10}}>
+          <input
+            value={input}
+            onChange={e=>setInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMessage()}
+            placeholder="Ask me anything about your gym..."
+            disabled={loading}
+            style={{
+              flex:1,padding:"12px 16px",fontSize:14,
+              background:"var(--charcoal)",border:"1px solid var(--border)",
+              borderRadius:4,color:"var(--text)",outline:"none"
+            }}
+          />
+          <button
+            className="btn-primary"
+            style={{width:"auto",padding:"12px 20px",fontSize:14,opacity:loading?0.5:1}}
+            onClick={sendMessage}
+            disabled={loading}
+          >Send</button>
+        </div>
+      </div>
     </>
   );
 }
