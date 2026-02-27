@@ -2402,6 +2402,8 @@ function TrainerProgress({ clients, sessions }) {
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [currentSessionClients, setCurrentSessionClients] = useState([]);
+  const [sessionDate, setSessionDate] = useState("");
+  const [sessionTime, setSessionTime] = useState("");
 
   const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
@@ -2546,9 +2548,41 @@ function TrainerProgress({ clients, sessions }) {
 
       {/* Client search bar */}
       <div className="section">
-        <div className="section-header"><span className="section-title">Search Client</span></div>
+        <div className="section-header"><span className="section-title">Select Clients</span></div>
         <div className="section-body">
-          <div style={{position:"relative",maxWidth:360}}>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+          {/* Date + Time session picker */}
+          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+            <input
+              type="date"
+              value={sessionDate}
+              onChange={e=>setSessionDate(e.target.value)}
+              style={{padding:"10px 12px",background:"var(--charcoal)",border:"2px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:13,outline:"none"}}
+            />
+            <select
+              value={sessionTime}
+              onChange={e=>setSessionTime(e.target.value)}
+              style={{padding:"10px 12px",background:"var(--charcoal)",border:"2px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:13,outline:"none"}}
+            >
+              <option value="">-- Time --</option>
+              {TIMES.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+            <button
+              className="btn-primary"
+              style={{width:"auto",padding:"10px 16px",fontSize:13,whiteSpace:"nowrap"}}
+              onClick={()=>{
+                if (!sessionDate || !sessionTime) return;
+                const session = sessions.find(s => s.date===sessionDate && s.time===sessionTime);
+                if (!session || session.clientIds.length===0) return;
+                const sessionClients = clients.filter(c=>session.clientIds.includes(c.id));
+                sessionClients.forEach(c=>{
+                  if (!openClients.find(x=>x.id===c.id)) setOpenClients(prev=>[...prev,c]);
+                });
+                setActiveClientId(sessionClients[0]?.id||null);
+              }}
+            >Load Session</button>
+          </div>
+          <div style={{position:"relative",flex:1,minWidth:200}}>
             <input
               value={search}
               onChange={e=>{ setSearch(e.target.value); setShowDropdown(true); }}
@@ -2608,6 +2642,7 @@ function TrainerProgress({ clients, sessions }) {
                 </div>
               );
             })()}
+          </div>
           </div>
           {openClients.length > 0 && (
             <div style={{marginTop:12,fontSize:13,color:"var(--muted)"}}>
