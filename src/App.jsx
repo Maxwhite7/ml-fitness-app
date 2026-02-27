@@ -2556,30 +2556,40 @@ function TrainerProgress({ clients, sessions }) {
             <input
               type="date"
               value={sessionDate}
-              onChange={e=>setSessionDate(e.target.value)}
+              onChange={e=>{ setSessionDate(e.target.value); setSessionTime(""); }}
               style={{padding:"10px 12px",background:"var(--charcoal)",border:"2px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:13,outline:"none"}}
             />
-            <select
-              value={sessionTime}
-              onChange={e=>setSessionTime(e.target.value)}
-              style={{padding:"10px 12px",background:"var(--charcoal)",border:"2px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:13,outline:"none"}}
-            >
-              <option value="">-- Time --</option>
-              {TIMES.map(t=><option key={t} value={t}>{t}</option>)}
-            </select>
-            <button
-              className="btn-primary"
-              style={{width:"auto",padding:"10px 16px",fontSize:13,whiteSpace:"nowrap"}}
-              onClick={()=>{
-                if (!sessionDate || !sessionTime) return;
-                const session = sessions.find(s => s.date===sessionDate && s.time===sessionTime);
-                if (!session || session.clientIds.length===0) return;
-                const sessionClients = clients.filter(c=>session.clientIds.includes(c.id));
-                // Replace all open clients with only this session's clients
-                setOpenClients(sessionClients);
-                setActiveClientId(sessionClients[0]?.id||null);
-              }}
-            >Load Session</button>
+            {/* Only show times that have sessions on the selected day */}
+            {sessionDate && (() => {
+              const dayTimes = sessions
+                .filter(s => s.date === sessionDate && s.clientIds.length > 0)
+                .map(s => s.time)
+                .sort((a,b) => {
+                  const toMin = t => { const [tp,ap] = t.split(" "); let [h,m] = tp.split(":").map(Number); if(ap==="PM"&&h!==12)h+=12; if(ap==="AM"&&h===12)h=0; return h*60+m; };
+                  return toMin(a)-toMin(b);
+                });
+              if (dayTimes.length === 0) return <span style={{fontSize:12,color:"var(--muted)",padding:"0 8px"}}>No sessions this day</span>;
+              return (
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {dayTimes.map(t => (
+                    <div key={t} onClick={()=>{
+                      setSessionTime(t);
+                      const session = sessions.find(s => s.date===sessionDate && s.time===t);
+                      if (!session || session.clientIds.length===0) return;
+                      const sessionClients = clients.filter(c=>session.clientIds.includes(c.id));
+                      setOpenClients(sessionClients);
+                      setActiveClientId(sessionClients[0]?.id||null);
+                    }} style={{
+                      padding:"8px 14px",borderRadius:4,cursor:"pointer",fontSize:13,fontWeight:600,
+                      border:`2px solid ${sessionTime===t?"var(--accent)":"var(--border)"}`,
+                      background:sessionTime===t?"var(--accent)":"var(--charcoal)",
+                      color:sessionTime===t?"var(--black)":"var(--text)",
+                      transition:"all 0.15s",userSelect:"none"
+                    }}>{t}</div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
           <div style={{position:"relative",flex:1,minWidth:200}}>
             <input
