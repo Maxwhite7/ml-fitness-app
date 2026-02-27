@@ -2764,7 +2764,8 @@ Keep responses concise.`;
 ${actionResult}` : displayText;
       setMessages(prev => [...prev, { role: "assistant", text: finalText }]);
     } catch(e) {
-      setMessages(prev => [...prev, { role: "assistant", text: "⚠️ Error connecting to AI. Please try again." }]);
+      console.error("Agent error:", e);
+      setMessages(prev => [...prev, { role: "assistant", text: "⚠️ Error: " + e.message }]);
     }
     setLoading(false);
   };
