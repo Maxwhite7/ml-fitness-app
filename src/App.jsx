@@ -2689,6 +2689,26 @@ function AIAgent({ clients, sessions, setSessions }) {
         const lines = sorted.map(c=>"• " + c.name + (c.active?"":" (inactive)")).join("\n");
         return "👥 " + sorted.length + " clients:\n" + lines;
       }
+      case "update_progress": {
+        const { clientName, exercise, sets, reps, weight, muscleGroup } = params;
+        // Find client by name (fuzzy match)
+        const client = clients.find(c => c.name.toLowerCase().includes(clientName.toLowerCase()));
+        if (!client) return `⚠️ Could not find client "${clientName}".`;
+        const updatedAt = new Date().toLocaleDateString();
+        const row = {
+          clientId: client.id,
+          exercise,
+          sets: sets || "",
+          reps: reps || "",
+          weight: weight || "",
+          notes: "",
+          updatedAt
+        };
+        await sbFetch(`progress?on_conflict=clientId,exercise`, "POST", [row], {
+          Prefer: "resolution=merge-duplicates,return=minimal"
+        });
+        return `✓ Updated ${client.name} — ${exercise}: ${sets ? sets+" sets" : ""} ${reps ? reps+" reps" : ""} ${weight ? weight+"lbs" : ""}`.trim();
+      }
       default:
         return null;
     }
@@ -2723,9 +2743,21 @@ Available actions:
 - clear_past_sessions — removes all client names from past sessions (keeps time slots)
 - show_stats — shows gym statistics
 - list_clients — lists all clients
+- update_progress — updates sets/reps/weight for a client exercise
 
+For update_progress, use this format:
+<action>{"type":"update_progress","params":{"clientName":"Asma","exercise":"Bench Press","sets":"3","reps":"10","weight":"100","muscleGroup":"Chest"}}</action>
+
+When the trainer says something like "Asma bench press flat 10 reps 100 lbs", extract:
+- clientName: the client's name
+- exercise: the exercise name (map casual names to proper ones e.g. "bench press flat" → "Bench Press")
+- sets: number of sets (if mentioned)
+- reps: number of reps
+- weight: weight in lbs
+- muscleGroup: the muscle group (Chest, Back, Shoulders, Biceps, Triceps, Legs, Core, Cardio)
+
+Always confirm what you saved after executing.
 For anything else, just respond conversationally and helpfully.
-Always explain what you are doing before executing an action.
 Keep responses concise.`;
 
       const response = await fetch("/api/chat", {
@@ -2784,6 +2816,7 @@ ${actionResult}` : displayText;
             "Clear all past session bookings",
             "Show me gym stats",
             "List all clients",
+            "Asma bench press 3 sets 10 reps 100 lbs",
           ].map(s => (
             <div key={s} onClick={()=>{ setInput(s); }} style={{
               padding:"6px 14px",borderRadius:20,fontSize:12,cursor:"pointer",
