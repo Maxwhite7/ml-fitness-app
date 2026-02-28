@@ -1821,9 +1821,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     const clientId = modal.id;
     setModal(null);
     deleteClient(clientId);
-    // Delete from Supabase using the id field
-    const result = await sbFetch(`clients?id=eq.${clientId}`, "DELETE");
-    console.log("Delete result:", result, "for id:", clientId);
+    await store.remove("gym_clients", clientId);
   };
 
   const clientSessions = (id) => sessions.filter(s=>s.clientIds.includes(id)).length;
