@@ -1160,7 +1160,16 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
   const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
   const epochMonday = new Date("2026-02-23T00:00:00");
   const _now = new Date(); _now.setHours(0,0,0,0);
-  const currentWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
+  const autoWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
+  const [currentWeekIdx, setCurrentWeekIdx] = useState(autoWeekIdx);
+  useEffect(() => {
+    sbFetch("settings?key=eq.activeWeekIdx").then(rows => {
+      if (rows && rows[0]?.value !== undefined) {
+        const saved = parseInt(rows[0].value);
+        if (!isNaN(saved) && saved >= 0 && saved < NUM_WEEKS) setCurrentWeekIdx(saved);
+      }
+    });
+  }, []);
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
     { id:"clients", icon:"👥", label:"Clients" },
@@ -1179,7 +1188,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>saveClients(clients.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
-        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} library={library} setLibrary={setLibrary} /></div>
+        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
         <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} /></div>
       </div>
@@ -3284,7 +3293,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
 const NUM_WEEKS = 6;
 const WEEK_LABELS = ["Week 1","Week 2","Week 3","Week 4","Week 5","Week 6"];
 
-function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, library, setLibrary }) {
+function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentWeekIdx, autoWeekIdx, library, setLibrary }) {
   const [activeTab, setActiveTab] = useState("library"); // "library" | "week-0".."week-5"
   const [loading, setLoading] = useState(true);
   const [searchLib, setSearchLib] = useState("");
@@ -3534,17 +3543,17 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, library, se
       {/* WEEK PLAN TAB */}
       {activeWeekIdx !== null && (
         <div style={{padding:"20px 24px"}}>
-          {isCurrentWeek && (
-            <div style={{
-              padding:"10px 16px",marginBottom:16,borderRadius:4,
-              background:"#22c55e18",border:"1px solid var(--green)",
-              fontSize:13,color:"var(--green)",fontWeight:600
-            }}>
-              🟢 This is the current active week
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              {isCurrentWeek
+                ? <div style={{padding:"6px 14px",borderRadius:4,background:"#22c55e18",border:"1px solid var(--green)",fontSize:13,color:"var(--green)",fontWeight:600}}>🟢 Active Week</div>
+                : <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>{ setCurrentWeekIdx(activeWeekIdx); sbFetch("settings","POST",[{key:"activeWeekIdx",value:String(activeWeekIdx)}],{Prefer:"resolution=merge-duplicates,return=minimal"}); }}>Set as Active Week</button>
+              }
+              {autoWeekIdx !== currentWeekIdx && (
+                <span style={{fontSize:11,color:"var(--muted)"}}>Auto would be Week {autoWeekIdx+1}</span>
+              )}
             </div>
-          )}
-          <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center"}}>
-            <span style={{fontSize:13,color:"var(--muted)"}}>{currentPlan.length} exercises in this week plan</span>
+            <span style={{fontSize:13,color:"var(--muted)"}}>{currentPlan.length} exercises</span>
           </div>
           {currentPlan.length === 0 ? (
             <div style={{textAlign:"center",padding:"48px 0",color:"var(--muted)"}}>
