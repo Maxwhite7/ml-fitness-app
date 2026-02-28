@@ -1181,7 +1181,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
-        <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} /></div>
+        <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} /></div>
       </div>
     </div>
   );
@@ -3689,9 +3689,9 @@ function TrainerAnalytics({ clients, sessions }) {
 }
 
 // ─── AI Agent ─────────────────────────────────────────────────────────────────
-function AIAgent({ clients, sessions, setSessions }) {
+function AIAgent({ clients, sessions, setSessions, library }) {
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! I'm your gym assistant. I can help you manage your schedule and clients. Try asking me to clear past sessions, show stats, or anything else about your gym data." }
+    { role: "assistant", text: "Hi! I'm your gym assistant. I can help you manage your schedule, clients, and workouts. Try asking me to generate a workout, update progress, or anything else about your gym!" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -3784,6 +3784,12 @@ function AIAgent({ clients, sessions, setSessions }) {
         });
         return `✓ Updated ${client.name} — ${exercise}: ${sets ? sets+" sets" : ""} ${reps ? reps+" reps" : ""} ${weight ? weight+"lbs" : ""}`.trim();
       }
+      case "generate_workout": {
+        const { title, focus, exercises } = params;
+        if (!exercises || exercises.length === 0) return "⚠️ No exercises in the workout.";
+        // Return a special workout object that will be rendered as a card
+        return { __type: "workout", title: title || "Custom Workout", focus: focus || "", exercises };
+      }
       default:
         return null;
     }
@@ -3802,6 +3808,10 @@ function AIAgent({ clients, sessions, setSessions }) {
       const pastSessions = sessions.filter(s=>s.date<todayStr).length;
       const bookedPast = sessions.filter(s=>s.date<todayStr && s.clientIds.length>0).length;
 
+      const libraryStr = library ? Object.entries(library).map(([group, exs]) =>
+        `${group}: ${exs.filter(e=>!e.startsWith("—")).join(", ")}`
+      ).join("\n") : "";
+
       const systemPrompt = `You are an AI assistant for a gym scheduling app. You help the trainer manage their gym.
 
 Current gym data:
@@ -3810,6 +3820,9 @@ Current gym data:
 - ${upcomingSessions} upcoming sessions
 - ${pastSessions} past sessions (${bookedPast} had bookings)
 - Today: ${todayStr}
+
+Exercise library (use ONLY these exercises when generating workouts):
+${libraryStr}
 
 You can execute the following actions by responding with a JSON block like this:
 <action>{"type":"action_name","params":{}}</action>
@@ -3820,6 +3833,12 @@ Available actions:
 - list_clients — lists all clients
 - update_progress — updates sets/reps/weight for a client exercise
 - add_session — adds a new session to the schedule
+- generate_workout — generates a structured workout plan
+
+For generate_workout, use this format:
+<action>{"type":"generate_workout","params":{"title":"Full Body Strength","focus":"Chest, Back, Shoulders","exercises":[{"exercise":"Flat Bench Press","sets":"4","reps":"8-10","weight":"","notes":"Focus on form"},{"exercise":"Wide Grip Lat Pulldown","sets":"3","reps":"10-12","weight":"","notes":""}]}}</action>
+
+When asked to generate a workout, ONLY use exercises that exist in the exercise library above. Pick appropriate exercises for the requested muscle groups or goal. Include sets, reps, and any coaching notes.
 
 For update_progress, use this format:
 <action>{"type":"update_progress","params":{"clientName":"Asma","exercise":"Bench Press","sets":"3","reps":"10","weight":"100","muscleGroup":"Chest"}}</action>
@@ -3841,7 +3860,7 @@ When the trainer says something like "add a session Monday March 10 at 7am", ext
 
 Today is ${todayStr}. Use this to resolve relative dates like "next Monday", "this Friday" etc.
 
-Always confirm what you saved after executing.
+Always confirm what you did after executing an action.
 For anything else, just respond conversationally and helpfully.
 Keep responses concise.`;
 
@@ -3876,10 +3895,14 @@ Keep responses concise.`;
         }
       }
 
-      const finalText = actionResult ? `${displayText}
+      const isWorkout = actionResult && typeof actionResult === "object" && actionResult.__type === "workout";
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        text: isWorkout ? (displayText || "Here's your workout!") : (actionResult ? `${displayText}
 
-${actionResult}` : displayText;
-      setMessages(prev => [...prev, { role: "assistant", text: finalText }]);
+${actionResult}` : displayText),
+        workout: isWorkout ? actionResult : null
+      }]);
     } catch(e) {
       console.error("Agent error:", e);
       setMessages(prev => [...prev, { role: "assistant", text: "⚠️ Error: " + e.message }]);
@@ -3898,11 +3921,11 @@ ${actionResult}` : displayText;
         {/* Suggestion chips */}
         <div style={{padding:"12px 20px",borderBottom:"1px solid var(--border)",display:"flex",gap:8,flexWrap:"wrap"}}>
           {[
+            "Generate a full body workout",
+            "Generate a chest and back workout",
+            "Generate a leg day workout",
             "Clear all past session bookings",
             "Show me gym stats",
-            "List all clients",
-            "Asma bench press 3 sets 10 reps 100 lbs",
-            "Add a session Monday at 7am",
           ].map(s => (
             <div key={s} onClick={()=>{ setInput(s); }} style={{
               padding:"6px 14px",borderRadius:20,fontSize:12,cursor:"pointer",
@@ -3922,13 +3945,57 @@ ${actionResult}` : displayText;
               {m.role==="assistant" && (
                 <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0,marginRight:10,marginTop:2}}>🤖</div>
               )}
-              <div style={{
-                maxWidth:"75%",padding:"12px 16px",borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
-                background:m.role==="user"?"var(--accent)":"var(--charcoal)",
-                color:m.role==="user"?"var(--black)":"var(--text)",
-                fontSize:13,lineHeight:1.6,whiteSpace:"pre-wrap",
-                border:m.role==="assistant"?"1px solid var(--border)":"none"
-              }}>{m.text}</div>
+              <div style={{maxWidth:m.workout?"520px":"75%"}}>
+                {m.text && (
+                  <div style={{
+                    padding:"12px 16px",borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
+                    background:m.role==="user"?"var(--accent)":"var(--charcoal)",
+                    color:m.role==="user"?"var(--black)":"var(--text)",
+                    fontSize:13,lineHeight:1.6,whiteSpace:"pre-wrap",
+                    border:m.role==="assistant"?"1px solid var(--border)":"none",
+                    marginBottom:m.workout?8:0
+                  }}>{m.text}</div>
+                )}
+                {m.workout && (() => {
+                  const w = m.workout;
+                  return (
+                    <div style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:10,overflow:"hidden",boxShadow:"0 4px 20px rgba(62,201,201,0.1)"}}>
+                      {/* Workout header */}
+                      <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"16px 20px",borderBottom:"1px solid var(--accent)"}}>
+                        <div className="bebas" style={{fontSize:22,color:"var(--accent)",letterSpacing:1}}>{w.title}</div>
+                        {w.focus && <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Focus: {w.focus}</div>}
+                        <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>{w.exercises.length} exercises</div>
+                      </div>
+                      {/* Exercise list */}
+                      <div style={{padding:"12px 0"}}>
+                        {w.exercises.map((ex, idx) => (
+                          <div key={idx} style={{
+                            display:"flex",alignItems:"flex-start",gap:12,
+                            padding:"10px 20px",
+                            borderBottom:idx < w.exercises.length-1 ? "1px solid var(--border)" : "none"
+                          }}>
+                            <div style={{
+                              width:28,height:28,borderRadius:"50%",
+                              background:"var(--accent)",color:"var(--black)",
+                              display:"flex",alignItems:"center",justifyContent:"center",
+                              fontSize:12,fontWeight:700,flexShrink:0,marginTop:1
+                            }}>{idx+1}</div>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
+                              <div style={{display:"flex",gap:12,marginTop:4}}>
+                                {ex.sets && <span style={{fontSize:11,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
+                                {ex.reps && <span style={{fontSize:11,color:"var(--muted)"}}>× {ex.reps} reps</span>}
+                                {ex.weight && <span style={{fontSize:11,color:"var(--muted)"}}>@ {ex.weight}</span>}
+                              </div>
+                              {ex.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>{ex.notes}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           ))}
           {loading && (
