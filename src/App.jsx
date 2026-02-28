@@ -1161,6 +1161,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"clients", icon:"👥", label:"Clients" },
     { id:"availability", icon:"📋", label:"Availability" },
     { id:"progress", icon:"💪", label:"Progress" },
+    { id:"exercises", icon:"🏋️", label:"Exercises" },
     { id:"agent", icon:"🤖", label:"AI Agent" },
   ];
 
@@ -1172,6 +1173,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} />}
         {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
         {tab === "progress" && <TrainerProgress clients={clients} sessions={sessions} />}
+        {tab === "exercises" && <TrainerExercises />}
         {tab === "agent" && <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} />}
       </div>
     </div>
@@ -2929,6 +2931,248 @@ function TrainerProgress({ clients, sessions }) {
               <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={addCustomExercise}>Add</button>
             </div>
           </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Trainer Exercises ────────────────────────────────────────────────────────
+const ALL_EXERCISES_DEFAULT = {
+  "Chest": [
+    "Flat Bench Press","Incline Bench Press","Close Grip Bench Press",
+    "Flat Dumbbell Press (1/2) (Alt/Together) (Ball/Ground)",
+    "Incline Dumbbell Press (1/2/Together) (Alt) (Ball/Ground)",
+    "Cable Punch","Landmine Chest (Knees)","Machine Press Corner","Plate Press (Incline/Flat)",
+    "Flat Dumbbell Fly","Incline Dumbbell Fly","Cables From Top With Stomach On Bench",
+    "Cables Crossover From Top (1/2)","Cables Crossover From Middle (1/2)","Cables Crossover From Under (1/2)",
+    "Plate Squeeze Up & Down","Push Up On Bench Holding Top Bench","Dips","Walk Out Push Ups","Max Push Ups"
+  ],
+  "Back": ["Pull Ups","Lat Pulldown","Seated Row","Bent Over Row","Single Arm Row","Face Pull","Deadlift","Good Morning","Hyperextension"],
+  "Shoulders": ["Overhead Press","Lateral Raise","Front Raise","Arnold Press","Rear Delt Fly","Upright Row","Shrugs","Cable Lateral Raise"],
+  "Biceps": ["Barbell Curl","Dumbbell Curl","Hammer Curl","Preacher Curl","Cable Curl","Concentration Curl","Incline Curl"],
+  "Triceps": ["Tricep Pushdown","Skull Crusher","Overhead Tricep Extension","Close Grip Bench","Dips","Tricep Kickback","Diamond Push Ups"],
+  "Legs": ["Squat","Leg Press","Lunges","Romanian Deadlift","Leg Curl","Leg Extension","Calf Raise","Hack Squat","Bulgarian Split Squat"],
+  "Core": ["Plank","Crunches","Russian Twist","Leg Raise","Ab Wheel","Cable Crunch","Side Plank","Mountain Climbers","Hanging Knee Raise"],
+  "Cardio": ["Treadmill Run","Bike","Rowing Machine","Jump Rope","Stairmaster","HIIT","Sled Push","Battle Ropes"]
+};
+
+const NUM_WEEKS = 6;
+const WEEK_LABELS = ["Week 1","Week 2","Week 3","Week 4","Week 5","Week 6"];
+
+function TrainerExercises() {
+  const [activeTab, setActiveTab] = useState("library"); // "library" | "week-0".."week-5"
+  const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
+  const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[])); // array of 6 arrays of exercise names
+  const [loading, setLoading] = useState(true);
+  const [searchLib, setSearchLib] = useState("");
+  const [activeGroup, setActiveGroup] = useState("Chest");
+  const [newExName, setNewExName] = useState("");
+  const [newExGroup, setNewExGroup] = useState("Chest");
+  const [weekOffset, setWeekOffset] = useState(0); // which 6-week cycle we're in
+
+  // Compute current week index (0-5) based on a fixed epoch Monday
+  const epochMonday = new Date("2026-02-23T00:00:00"); // first Monday of week 1
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diffDays = Math.floor((today - epochMonday) / (1000*60*60*24));
+  const currentWeekIdx = ((Math.floor(diffDays / 7)) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
+
+  useEffect(() => {
+    // Load from Supabase
+    sbFetch("exercise_library?select=*").then(rows => {
+      if (rows && rows.length > 0) {
+        const built = {};
+        rows.forEach(r => {
+          if (!built[r.group]) built[r.group] = [];
+          built[r.group].push(r.exercise);
+        });
+        setLibrary(built);
+      }
+    });
+    sbFetch("exercise_week_plans?select=*&order=weekIdx.asc,position.asc").then(rows => {
+      if (rows && rows.length > 0) {
+        const plans = Array.from({length:NUM_WEEKS}, ()=>[]);
+        rows.forEach(r => { if (plans[r.weekIdx]) plans[r.weekIdx].push(r.exercise); });
+        setWeekPlans(plans);
+      }
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  }, []);
+
+  const saveWeekPlan = async (weekIdx, newPlan) => {
+    const updated = weekPlans.map((p,i)=>i===weekIdx?newPlan:p);
+    setWeekPlans(updated);
+    // Delete and reinsert
+    await sbFetch(`exercise_week_plans?weekIdx=eq.${weekIdx}`, "DELETE");
+    if (newPlan.length > 0) {
+      const rows = newPlan.map((exercise,position)=>({ weekIdx, exercise, position }));
+      await sbFetch("exercise_week_plans", "POST", rows, { Prefer: "return=minimal" });
+    }
+  };
+
+  const addToWeek = async (weekIdx, exercise) => {
+    if (weekPlans[weekIdx].includes(exercise)) return;
+    await saveWeekPlan(weekIdx, [...weekPlans[weekIdx], exercise]);
+  };
+
+  const removeFromWeek = async (weekIdx, exercise) => {
+    await saveWeekPlan(weekIdx, weekPlans[weekIdx].filter(e=>e!==exercise));
+  };
+
+  const addToLibrary = async () => {
+    if (!newExName.trim()) return;
+    const name = newExName.trim();
+    const updated = { ...library, [newExGroup]: [...(library[newExGroup]||[]), name] };
+    setLibrary(updated);
+    await sbFetch("exercise_library", "POST", [{ group: newExGroup, exercise: name }], { Prefer: "return=minimal" });
+    setNewExName("");
+  };
+
+  const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.map(e => ({ exercise: e, group })));
+
+  const filteredLib = searchLib
+    ? allExercises.filter(x => x.exercise.toLowerCase().includes(searchLib.toLowerCase()))
+    : (library[activeGroup]||[]).map(e => ({ exercise: e, group: activeGroup }));
+
+  const activeWeekIdx = activeTab.startsWith("week-") ? parseInt(activeTab.split("-")[1]) : null;
+  const currentPlan = activeWeekIdx !== null ? weekPlans[activeWeekIdx] : [];
+  const isCurrentWeek = activeWeekIdx === currentWeekIdx;
+
+  if (loading) return <div style={{padding:40,color:"var(--muted)",textAlign:"center"}}>Loading...</div>;
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">EXERCISES</div>
+        <div className="page-subtitle">Exercise library and 6-week rotation plans</div>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{display:"flex",gap:4,padding:"0 24px",borderBottom:"1px solid var(--border)",flexWrap:"wrap"}}>
+        {[{id:"library",label:"📚 Library"}, ...WEEK_LABELS.map((l,i)=>({id:`week-${i}`,label:l}))].map(t => {
+          const isActive = activeTab === t.id;
+          const isWeekTab = t.id.startsWith("week-");
+          const wIdx = isWeekTab ? parseInt(t.id.split("-")[1]) : -1;
+          const isCurrent = wIdx === currentWeekIdx;
+          return (
+            <div key={t.id} onClick={()=>setActiveTab(t.id)} style={{
+              padding:"10px 18px",cursor:"pointer",fontSize:13,fontWeight:600,
+              borderBottom:isActive?"3px solid var(--accent)":"3px solid transparent",
+              color:isActive?"var(--accent)":isCurrent?"var(--green)":"var(--muted)",
+              position:"relative",userSelect:"none",transition:"color 0.15s",
+              background:"transparent"
+            }}>
+              {t.label}
+              {isCurrent && <span style={{position:"absolute",top:6,right:6,width:6,height:6,borderRadius:"50%",background:"var(--green)"}}/>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* LIBRARY TAB */}
+      {activeTab === "library" && (
+        <div style={{display:"flex",height:"calc(100vh - 200px)",overflow:"hidden"}}>
+          {/* Left: muscle group nav */}
+          {!searchLib && (
+            <div style={{width:140,borderRight:"1px solid var(--border)",overflowY:"auto",flexShrink:0}}>
+              {Object.keys(library).map(g => (
+                <div key={g} onClick={()=>setActiveGroup(g)} style={{
+                  padding:"12px 16px",cursor:"pointer",fontSize:13,fontWeight:activeGroup===g?700:400,
+                  borderLeft:activeGroup===g?"3px solid var(--accent)":"3px solid transparent",
+                  color:activeGroup===g?"var(--accent)":"var(--muted)",
+                  background:activeGroup===g?"var(--charcoal)":"transparent"
+                }}>{g}</div>
+              ))}
+            </div>
+          )}
+          {/* Right: exercise list */}
+          <div style={{flex:1,overflowY:"auto",padding:"16px 20px"}}>
+            {/* Search + Add */}
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+              <input
+                value={searchLib}
+                onChange={e=>setSearchLib(e.target.value)}
+                placeholder="Search exercises..."
+                style={{flex:1,minWidth:160,padding:"8px 12px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",outline:"none"}}
+              />
+              <input value={newExName} onChange={e=>setNewExName(e.target.value)} placeholder="New exercise name..."
+                style={{flex:1,minWidth:140,padding:"8px 12px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",outline:"none"}}
+              />
+              <select value={newExGroup} onChange={e=>setNewExGroup(e.target.value)}
+                style={{padding:"8px 10px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)"}}>
+                {Object.keys(library).map(g=><option key={g}>{g}</option>)}
+              </select>
+              <button className="btn-primary" style={{width:"auto",padding:"8px 16px",fontSize:13}} onClick={addToLibrary}>+ Add</button>
+            </div>
+            {/* Exercise list with add-to-week buttons */}
+            {filteredLib.map(({exercise, group}) => (
+              <div key={exercise} style={{
+                display:"flex",alignItems:"center",justifyContent:"space-between",
+                padding:"10px 14px",marginBottom:4,borderRadius:4,
+                background:"var(--charcoal)",border:"1px solid var(--border)"
+              }}>
+                <div>
+                  <span style={{fontSize:13,fontWeight:500}}>{exercise}</span>
+                  {searchLib && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{group}</span>}
+                </div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {WEEK_LABELS.map((wl,wi)=>(
+                    <div key={wi} onClick={()=>addToWeek(wi, exercise)} style={{
+                      padding:"3px 8px",borderRadius:3,fontSize:11,cursor:"pointer",fontWeight:600,
+                      background:weekPlans[wi].includes(exercise)?(wi===currentWeekIdx?"var(--green)":"var(--accent)"):"var(--panel)",
+                      color:weekPlans[wi].includes(exercise)?"var(--black)":"var(--muted)",
+                      border:`1px solid ${weekPlans[wi].includes(exercise)?(wi===currentWeekIdx?"var(--green)":"var(--accent)"):"var(--border)"}`,
+                      opacity:weekPlans[wi].includes(exercise)?1:0.7
+                    }}>{wi+1}</div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* WEEK PLAN TAB */}
+      {activeWeekIdx !== null && (
+        <div style={{padding:"20px 24px"}}>
+          {isCurrentWeek && (
+            <div style={{
+              padding:"10px 16px",marginBottom:16,borderRadius:4,
+              background:"#22c55e18",border:"1px solid var(--green)",
+              fontSize:13,color:"var(--green)",fontWeight:600
+            }}>
+              🟢 This is the current active week
+            </div>
+          )}
+          <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center"}}>
+            <span style={{fontSize:13,color:"var(--muted)"}}>{currentPlan.length} exercises in this week plan</span>
+          </div>
+          {currentPlan.length === 0 ? (
+            <div style={{textAlign:"center",padding:"48px 0",color:"var(--muted)"}}>
+              <div style={{fontSize:32,marginBottom:8}}>📋</div>
+              <div>No exercises yet. Go to the Library tab and click the week number buttons to add exercises.</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {currentPlan.map(exercise => {
+                const group = allExercises.find(x=>x.exercise===exercise)?.group || "";
+                return (
+                  <div key={exercise} style={{
+                    display:"flex",alignItems:"center",gap:8,
+                    padding:"10px 14px",borderRadius:4,
+                    background:isCurrentWeek?"#22c55e18":"var(--charcoal)",
+                    border:`2px solid ${isCurrentWeek?"var(--green)":"var(--border)"}`,
+                  }}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:isCurrentWeek?"var(--green)":"var(--text)"}}>{exercise}</div>
+                      <div style={{fontSize:11,color:"var(--muted)"}}>{group}</div>
+                    </div>
+                    <div onClick={()=>removeFromWeek(activeWeekIdx, exercise)} style={{cursor:"pointer",color:"var(--muted)",fontSize:16,marginLeft:4}}>✕</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </>
