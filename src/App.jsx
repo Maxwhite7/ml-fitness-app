@@ -1894,13 +1894,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                         }}
                       >🔗 Copy Link</span>
                     )}
-                    {c.email && (
-                      <span
-                        className="badge"
-                        style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
-                        onClick={e=>{e.stopPropagation(); onPreviewClient(c);}}
-                      >👁 View</span>
-                    )}
+                    <span
+                      className="badge"
+                      style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
+                      onClick={e=>{e.stopPropagation(); onPreviewClient(c);}}
+                    >👁 View Account</span>
                   </td>
                 </tr>
               );
