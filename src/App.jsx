@@ -1902,7 +1902,17 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   </td>
                 </tr>
               );
-            })}
+              };
+              return (
+                <>
+                  {active.map(c => renderRow(c))}
+                  {inactive.length > 0 && (
+                    <tr><td colSpan={7} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>INACTIVE THIS WEEK</td></tr>
+                  )}
+                  {inactive.map(c => renderRow(c))}
+                </>
+              );
+            })()}
           </tbody>
         </table>
       </div>
@@ -2118,10 +2128,15 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
             </tr>
           </thead>
           <tbody>
-            {[...clients].sort((a,b)=>a.name.localeCompare(b.name)).map(c => {
+            {(() => {
+              const sorted = [...clients].sort((a,b)=>a.name.localeCompare(b.name));
+              const active = sorted.filter(c => !(Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey));
+              const inactive = sorted.filter(c => (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey));
+              const renderRow = (c) => {
               const a = clientAvail(c.id);
+              const isPausedRow = (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey);
               return (
-                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>setSelectedClient(c)}>
+                <tr key={c.id} style={{cursor:"pointer",opacity:isPausedRow?0.5:1}} onClick={()=>setSelectedClient(c)}>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <div className="user-avatar" style={{fontSize:11,background:selectedClient?.id===c.id?"var(--accent)":"var(--panel)",border:"1px solid var(--accent)",color:selectedClient?.id===c.id?"var(--black)":"var(--accent)"}}>
