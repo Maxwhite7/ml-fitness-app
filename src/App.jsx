@@ -2847,44 +2847,6 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
           </div>
           <div className="section-body" style={{padding:0}}>
 
-            {/* This Week exercises pinned at top */}
-            {currentWeekPlan.length > 0 && (
-              <div style={{padding:"16px 20px",borderBottom:"1px solid var(--border)",background:"#3ec9c906"}}>
-                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",fontWeight:700,marginBottom:10}}>
-                  📅 This Week ({currentWeekPlan.length})
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {currentWeekPlan.map(exercise => {
-                    const checked = isChecked(exercise);
-                    return (
-                      <div key={exercise} onClick={()=>toggleCheck(exercise)} style={{
-                        display:"flex",alignItems:"center",gap:12,
-                        padding:"10px 14px",borderRadius:4,cursor:"pointer",
-                        background:checked?"#22c55e15":"var(--charcoal)",
-                        border:`1px solid ${checked?"var(--green)":"var(--border)"}`,
-                        transition:"all 0.15s",userSelect:"none"
-                      }}>
-                        <div style={{
-                          width:20,height:20,borderRadius:4,flexShrink:0,
-                          border:`2px solid ${checked?"var(--green)":"var(--muted)"}`,
-                          background:checked?"var(--green)":"transparent",
-                          display:"flex",alignItems:"center",justifyContent:"center",
-                          fontSize:12,color:"var(--black)",fontWeight:700,transition:"all 0.15s"
-                        }}>{checked?"✓":""}</div>
-                        <span style={{
-                          fontSize:13,fontWeight:600,flex:1,
-                          color:checked?"var(--green)":"var(--text)",
-                          textDecoration:checked?"line-through":"none",
-                          transition:"all 0.15s"
-                        }}>{exercise}</span>
-                        {checked && <span style={{fontSize:11,color:"var(--green)",fontWeight:700}}>Done</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Muscle group anchor nav */}
             <div style={{display:"flex",flexWrap:"wrap",gap:0,borderBottom:"1px solid var(--border)",position:"sticky",top:0,background:"var(--panel)",zIndex:10}}>
               {Object.keys(MUSCLE_GROUPS).map(group => {
@@ -2917,11 +2879,16 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {allExercisesForGroup(activeGroup).map(exercise => {
+                  {(() => {
+                    const allEx = allExercisesForGroup(activeGroup);
+                    const weekOnes = allEx.filter(e => !e.startsWith("—") && currentWeekPlan.includes(e));
+                    const rest = allEx.filter(e => e.startsWith("—") || !currentWeekPlan.includes(e));
+                    const sorted = weekOnes.length > 0 ? [...weekOnes, ...rest] : allEx;
+                    return sorted.map(exercise => {
                     // Section header divider
                     if (exercise.startsWith("—")) return (
                       <tr key={exercise}>
-                        <td colSpan={4} style={{
+                        <td colSpan={5} style={{
                           padding:"10px 12px 4px",fontSize:11,fontWeight:700,
                           color:"var(--accent)",letterSpacing:2,
                           borderTop:"1px solid var(--border)",background:"transparent"
@@ -2930,14 +2897,28 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
                     );
                     const d = clientProgressData[exercise] || {};
                     const isWeekExercise = currentWeekPlan.includes(exercise);
+                    const checked = isChecked(exercise);
                     return (
                       <tr key={exercise} style={{
-                        background:isWeekExercise?"#3ec9c918":hasData(exercise)?"#3ec9c908":"transparent",
-                        borderLeft:isWeekExercise?"3px solid var(--accent)":"3px solid transparent"
+                        background:checked?"#22c55e12":isWeekExercise?"#3ec9c918":hasData(exercise)?"#3ec9c908":"transparent",
+                        borderLeft:checked?"3px solid var(--green)":isWeekExercise?"3px solid var(--accent)":"3px solid transparent"
                       }}>
-                        <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400,color:isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)"}}>
-                          {exercise}
-
+                        <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400}}>
+                          <div style={{display:"flex",alignItems:"center",gap:10}}>
+                            {isWeekExercise && (
+                              <div onClick={()=>toggleCheck(exercise)} style={{
+                                width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
+                                border:`2px solid ${checked?"var(--green)":"var(--muted)"}`,
+                                background:checked?"var(--green)":"transparent",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
+                              }}>{checked?"✓":""}</div>
+                            )}
+                            <span style={{
+                              color:checked?"var(--green)":isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)",
+                              textDecoration:checked?"line-through":"none"
+                            }}>{exercise}</span>
+                          </div>
                         </td>
                         {["sets","reps","weight"].map(field => (
                           <td key={field} style={{textAlign:"center"}}>
@@ -2996,7 +2977,8 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
                         </td>
                       </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             </div>
