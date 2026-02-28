@@ -2377,7 +2377,20 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
 
 // ─── Trainer Progress ─────────────────────────────────────────────────────────
 const MUSCLE_GROUPS = {
-  "Chest": ["Bench Press","Incline Bench Press","Decline Bench Press","Push-Ups","Cable Fly","Dumbbell Fly","Chest Dip"],
+  "Chest": [
+    "— PRESS —",
+    "Flat Bench Press","Incline Bench Press","Close Grip Bench Press",
+    "Flat Dumbbell Press (1/2) (Alt/Together) (Ball/Ground)",
+    "Incline Dumbbell Press (1/2/Together) (Alt) (Ball/Ground)",
+    "Cable Punch","Landmine Chest (Knees)","Machine Press Corner","Plate Press (Incline/Flat)",
+    "— FLY —",
+    "Flat Dumbbell Fly","Incline Dumbbell Fly",
+    "Cables From Top With Stomach On Bench",
+    "Cables Crossover From Top (1/2)","Cables Crossover From Middle (1/2)","Cables Crossover From Under (1/2)",
+    "Plate Squeeze Up & Down",
+    "— BODYWEIGHT —",
+    "Push Up On Bench Holding Top Bench","Dips","Walk Out Push Ups","Max Push Ups"
+  ],
   "Back": ["Pull-Ups","Lat Pulldown","Barbell Row","Dumbbell Row","Seated Cable Row","Deadlift","Back Extension","Face Pull"],
   "Shoulders": ["Overhead Press","Dumbbell Lateral Raise","Front Raise","Rear Delt Fly","Arnold Press","Upright Row","Shrugs"],
   "Biceps": ["Barbell Curl","Dumbbell Curl","Hammer Curl","Incline Curl","Concentration Curl","Cable Curl","Preacher Curl"],
@@ -2502,6 +2515,7 @@ function TrainerProgress({ clients, sessions }) {
   };
 
   const hasData = (exercise) => {
+    if (exercise.startsWith("—")) return false;
     const d = (progressData[clientKey] || {})[exercise];
     return d && (d.sets || d.reps || d.weight);
   };
@@ -2728,6 +2742,16 @@ function TrainerProgress({ clients, sessions }) {
                 </thead>
                 <tbody>
                   {allExercisesForGroup(activeGroup).map(exercise => {
+                    // Section header divider
+                    if (exercise.startsWith("—")) return (
+                      <tr key={exercise}>
+                        <td colSpan={4} style={{
+                          padding:"10px 12px 4px",fontSize:11,fontWeight:700,
+                          color:"var(--accent)",letterSpacing:2,
+                          borderTop:"1px solid var(--border)",background:"transparent"
+                        }}>{exercise.replace(/—/g,"").trim()}</td>
+                      </tr>
+                    );
                     const d = clientProgressData[exercise] || {};
                     return (
                       <tr key={exercise} style={{background:hasData(exercise)?"#3ec9c908":"transparent"}}>
