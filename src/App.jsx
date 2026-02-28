@@ -3176,7 +3176,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                     <table style={{width:"100%",borderCollapse:"collapse"}}>
                       <thead>
                         <tr style={{borderBottom:"1px solid var(--border)"}}>
-                          {["Date","Sets","Reps","Weight"].map(h=>(
+                          {["Date","Sets","Reps","Weight",""].map(h=>(
                             <th key={h} style={{padding:"8px 16px",textAlign:"center",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase"}}>{h}</th>
                           ))}
                         </tr>
@@ -3188,6 +3188,31 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                             <td style={{padding:"12px 16px",fontSize:15,fontWeight:700,textAlign:"center",color:"var(--text)"}}>{e.sets||"—"}</td>
                             <td style={{padding:"12px 16px",fontSize:15,fontWeight:700,textAlign:"center",color:"var(--accent)"}}>{e.reps||"—"}</td>
                             <td style={{padding:"12px 16px",fontSize:15,fontWeight:700,textAlign:"center",color:"var(--text)"}}>{e.weight?e.weight+" lbs":"—"}</td>
+                            <td style={{padding:"12px 8px",textAlign:"center"}}>
+                              <div onClick={async()=>{
+                                if (!window.confirm("Delete this entry?")) return;
+                                const histKey = historyDrawer.clientId + ":" + historyDrawer.exercise;
+                                // Remove from local state (match by index in reversed array)
+                                const allEntries = historyData[histKey] || [];
+                                const reversedIdx = allEntries.length - 1 - ([...entries].reverse().indexOf(e));
+                                // If entry has an id, delete from Supabase
+                                if (e.id) {
+                                  await sbFetch(`progress_history?id=eq.${e.id}`, "DELETE");
+                                }
+                                setHistoryData(prev => ({
+                                  ...prev,
+                                  [histKey]: prev[histKey].filter((_,idx) => idx !== reversedIdx)
+                                }));
+                              }} style={{
+                                display:"inline-flex",alignItems:"center",justifyContent:"center",
+                                width:24,height:24,borderRadius:4,cursor:"pointer",
+                                color:"var(--muted)",fontSize:14,fontWeight:700,
+                                border:"1px solid transparent",transition:"all 0.15s"
+                              }}
+                              onMouseEnter={e=>{ e.currentTarget.style.color="var(--red)"; e.currentTarget.style.borderColor="var(--red)"; e.currentTarget.style.background="#ef444415"; }}
+                              onMouseLeave={e=>{ e.currentTarget.style.color="var(--muted)"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.background="transparent"; }}
+                              >✕</div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
