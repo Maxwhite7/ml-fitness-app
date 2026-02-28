@@ -2860,18 +2860,6 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
               })}
             </div>
 
-            {/* Current week banner */}
-            {currentWeekPlan.length > 0 && (
-              <div style={{
-                margin:"12px 20px 0",padding:"10px 14px",borderRadius:4,
-                background:"#3ec9c912",border:"1px solid var(--accent)",
-                display:"flex",alignItems:"center",gap:10,fontSize:12,color:"var(--accent)"
-              }}>
-                <span style={{fontSize:16}}>📅</span>
-                <span><strong>This week's exercises</strong> ({currentWeekPlan.length} total) are highlighted in teal with a <strong>THIS WEEK</strong> badge.</span>
-              </div>
-            )}
-
             {/* Active muscle group only */}
             <div style={{padding:"0 20px 40px"}}>
               <table className="table" style={{marginBottom:0}}>
