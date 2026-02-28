@@ -2940,21 +2940,114 @@ function TrainerProgress({ clients, sessions }) {
 // ─── Trainer Exercises ────────────────────────────────────────────────────────
 const ALL_EXERCISES_DEFAULT = {
   "Chest": [
+    "— PRESS —",
     "Flat Bench Press","Incline Bench Press","Close Grip Bench Press",
     "Flat Dumbbell Press (1/2) (Alt/Together) (Ball/Ground)",
     "Incline Dumbbell Press (1/2/Together) (Alt) (Ball/Ground)",
     "Cable Punch","Landmine Chest (Knees)","Machine Press Corner","Plate Press (Incline/Flat)",
+    "— FLY —",
     "Flat Dumbbell Fly","Incline Dumbbell Fly","Cables From Top With Stomach On Bench",
     "Cables Crossover From Top (1/2)","Cables Crossover From Middle (1/2)","Cables Crossover From Under (1/2)",
-    "Plate Squeeze Up & Down","Push Up On Bench Holding Top Bench","Dips","Walk Out Push Ups","Max Push Ups"
+    "Plate Squeeze Up & Down",
+    "— BODYWEIGHT —",
+    "Push Up On Bench Holding Top Bench","Dips","Walk Out Push Ups","Max Push Ups"
   ],
-  "Back": ["Pull Ups","Lat Pulldown","Seated Row","Bent Over Row","Single Arm Row","Face Pull","Deadlift","Good Morning","Hyperextension"],
-  "Shoulders": ["Overhead Press","Lateral Raise","Front Raise","Arnold Press","Rear Delt Fly","Upright Row","Shrugs","Cable Lateral Raise"],
-  "Biceps": ["Barbell Curl","Dumbbell Curl","Hammer Curl","Preacher Curl","Cable Curl","Concentration Curl","Incline Curl"],
-  "Triceps": ["Tricep Pushdown","Skull Crusher","Overhead Tricep Extension","Close Grip Bench","Dips","Tricep Kickback","Diamond Push Ups"],
-  "Legs": ["Squat","Leg Press","Lunges","Romanian Deadlift","Leg Curl","Leg Extension","Calf Raise","Hack Squat","Bulgarian Split Squat"],
-  "Core": ["Plank","Crunches","Russian Twist","Leg Raise","Ab Wheel","Cable Crunch","Side Plank","Mountain Climbers","Hanging Knee Raise"],
-  "Cardio": ["Treadmill Run","Bike","Rowing Machine","Jump Rope","Stairmaster","HIIT","Sled Push","Battle Ropes"]
+  "Back": [
+    "— TOP ROW —",
+    "Wide Grip Lat Pulldown","Double Handle Sitting On Ground","Chin Up Grip","Triangle","Single Handle","Sideways Single Hand",
+    "— MIDDLE ROW —",
+    "Single Handle Row","Triangle Row","Long Bar Row","Small Bar","Machine Row","Corner Back Row Machine",
+    "— BOTTOM ROW —",
+    "Landmine Row (1/2)","Single Dumbbell Row Bench","Double Dumbbell Row","Barbell Row",
+    "Single Handle Leaning Forward On Bench","Standing Row From Low (Triangle/Small Bar/Single Handle)",
+    "— BODYWEIGHT/LAT/LOWER BACK —",
+    "Straight Arm Lat Pulldown (1/2) (Bands)","Chin Up (Reg/Negative/Hold)","Lower Back Bench",
+    "Airplanes","TRX Row (1/2)","Barbell Reverse Row","Barbell Hold"
+  ],
+  "Shoulders": [
+    "— OVERHEAD —",
+    "Regular/Arnold Dumbbell Press (Seated/Standing/1)","Overhead Z Bar","Barbell Overhead","Landmine Overhead",
+    "Plate Overhead","Overhead Press 1 Dumbbell Other Holds","Triangle Cable",
+    "— LATERAL —",
+    "Dumbbell Lateral (Seated/Standing/1)","Handle Lateral","Band Lateral","Lat To Front Down","Around The World","Down The Rack Lateral",
+    "— FRONT —",
+    "Dumbbells Front (1/2 Alternating)","Handle Front","Band Front","Front To Lat Down",
+    "Seated Arms Shoulder Height Lift Above Head With Ropes Cables","Incline Bench Front Raise",
+    "Z Bar Front","Plate Front","Down The Rack Front",
+    "— REAR —",
+    "Bent Over Handle","Standing Handle Rear (1/2)","Band Rear (1/2)","TRX Rear","Dumbbells Rear","Down The Rack Rear","Ropes Rear",
+    "— MIX —",
+    "Bike Arms Only (Circuit)","Superman","Dumbbell/Barbell Traps","Move Weight Side To Side On Hands",
+    "Push Up Position Shoulders","Rotator Cuff Dumbbell","Small Openings Small Band","Forearm Attachment",
+    "Steering Wheel Plate","Hold Weights High Push Forward & Back","On Stomach Push Dumbbell Forward",
+    "Dumbbell Circle","Traps","Up & Down From Plank","Walk Outs/Bear Crawls",
+    "Hold 1 Dumbbell Lateral Push Overhead Other Arm","Shoulder Taps"
+  ],
+  "Triceps": [
+    "Behind The Head Any Cable Attachment","Z Bar Behind Head","1/2 Dumbbell Behind Head",
+    "Bench Dip","Any Cable Attachment Pulldown","1/2 Dumbbell/Cable/Bands Kickback",
+    "Z Bar Or Dumbbell Skull Crushers","TRX Triceps","Tricep Push Up","Close Grip Bench Press",
+    "Bench Push Up At The End","All Tricep Exercises With Bands"
+  ],
+  "Biceps": [
+    "Incline Bench Curl","Regular Standing Curl","Standing Sideways Curl Single Arm Elevated",
+    "Barbell/Z Bar/Plate Curl","Concentrated Curl Cable","Cable Curl (Rope/Bar/Handle)",
+    "TRX Curl","Z Bar Curls","Single Dumbbell Curl Hold End","Sideways Cone Curl",
+    "Band Curls","Long Bar Curl Behind Head"
+  ],
+  "Core": [
+    "Reverse Crunch/Leg Raises","Regular Crunches","Bike Abs","Russian Twist Ground",
+    "Side Abs Bench Or Standing Dumbbell","Weighted Plank","Ball Front To Back",
+    "Side Abs Cable On TP","Crunch Black Bench","Alternating Leg Raises","Wipers",
+    "Side Abs Rotation Cable","Glider Abs (In & Out/Pike)","Lift Legs Over Block","Side Crunch",
+    "Hold Weight Over Head Crisscross/Scissors","Weighted Crunches","Touch Each Heel Ground",
+    "Russian Twist Black Bench","Side Plank (Dips)","Plank Side To Side","Alternating Scissors Crunches",
+    "In & Out Sitting","Ceiling Crunches","Leg Raises Black Bench","Plank On Ball","Spider Plank",
+    "Circle Abs","Push Up Position Roll Ball Forward And Back","Plank Side Dips","Single Leg Crunch",
+    "Plank Forward And Back","Block Crunch Tap Behind Head","Landmine Rotations","10 LBS Abs Crunch",
+    "Star Abs","Infinity Block","V Crunch","Angel Crunches"
+  ],
+  "Legs": [
+    "— SQUATS —",
+    "Regular Squats","Barbell Squats","Box Squats Deep Sitting TP","Front Squat Using Z Bar",
+    "Hack Squat","Landmine Squats","Jump Squat TRX","Bodyweight Squat Circuit","Elevated Heels Squats",
+    "Band Squat Open & Close","Squat Lift Band","Pulses Sumo Stance",
+    "— LUNGES —",
+    "Bulgarian Lunges","Side Lunges (Glider/Step/Stay Open)","Glider Side Lunge Alternating",
+    "Landmine Lunges","TRX Single Leg Lunge","Curtsy Lunge","Lunge Holding Rack",
+    "Stay Low Tap Each Side Lunge Position",
+    "— DEADLIFT —",
+    "Regular Barbell Deadlift","Stiff Leg Deadlift Dumbbell","Single Leg Deadlift",
+    "Sumo Deadlift Barbell","Hex Bar Deadlift","Regular Dumbbell Deadlift",
+    "— HAMSTRINGS/GLUTES —",
+    "Leg Curls","Ball/Glider Hamstrings","Glider Hamstrings","Hip Thrust (Barbell/BW)",
+    "Single Leg Hip Thrust","Dumbbell Hamstring Laying On Bench","On Ground Keep Butt Up Move Leg Up & Down",
+    "— CALVES/INNER/OUTER —",
+    "Leg Press Calves","Calf Raises","Cable Inner Thigh","Inner Thigh Circuit (Ball/Gliders/Side To Side)",
+    "Ankle Strap (Inner/Outer/Back)","Lay Sideways","Side Band Raise Clamshell",
+    "Laying Sideways Open Band Then Middle","Band Sideways Open",
+    "— OTHER —",
+    "Leg Press","Single Leg Press","Leg Extensions","Step Ups","Wall Sit (Weighted/Band)",
+    "Pistol Squat From Bench Or TRX","Cable Back Kick","Alternating Band 3 Points",
+    "From Knees Up & Down Jump","Landmine Sumo Pulses","Reverse Bridge On TP",
+    "On Knees Move Forward & Back","On Knees 1 Leg Up In Back Pulse Bands",
+    "Bands Walk Front To Back","1 Foot Hexagone","Barbell Lunges",
+    "10 Calories Legs Only Bike","Circles Bands","Plank Jacks Banded"
+  ],
+  "Cardio": [
+    "Ski","Rower","Bike","Skipping Rope Motion","Kettlebell Swing",
+    "Jump Side To Side BattleRope","Squat Kick Alternating","Jump Squats","Seal Jacks",
+    "Football Drill","Burpee","Hexagone Trio Jump","Lunge Position Quick Knee Up Hop",
+    "Skaters","Jump On Board Squat Versions","Hold Bench Hop Side To Side",
+    "Step Up On Bench Go Side To Side","Squat Press Overhead","Snatch","Battlerope Plank",
+    "Mountain Climber (Gliders)","Half Burpees",
+    "Battlerope From Knees Split Squat/Russian Twist","Quick Feet Open & Close",
+    "High Knees","Lunge To Front Kick","Slam Ball (Sideways/Knees)","High Jump",
+    "Jumping Jack Dumbbell","On Hands Hop Side To Side","Squats To Overhead Press",
+    "Seated To High Jump","In & Out On Hand + Jump Hexagone","Spot Squat To Jump Squats",
+    "BattleRopes (Russian Twist/Bosu/1 Arm Squat/Slams/Waves/Side To Side Jump/Side To Side Board/Knees Split Squat/Up & Down/Ski)",
+    "Farmers Walk"
+  ]
 };
 
 const NUM_WEEKS = 6;
@@ -3028,10 +3121,10 @@ function TrainerExercises() {
     setNewExName("");
   };
 
-  const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.map(e => ({ exercise: e, group })));
+  const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.filter(e=>!e.startsWith("—")).map(e => ({ exercise: e, group })));
 
   const filteredLib = searchLib
-    ? allExercises.filter(x => x.exercise.toLowerCase().includes(searchLib.toLowerCase()))
+    ? allExercises.filter(x => !x.exercise.startsWith("—") && x.exercise.toLowerCase().includes(searchLib.toLowerCase()))
     : (library[activeGroup]||[]).map(e => ({ exercise: e, group: activeGroup }));
 
   const activeWeekIdx = activeTab.startsWith("week-") ? parseInt(activeTab.split("-")[1]) : null;
@@ -3105,29 +3198,38 @@ function TrainerExercises() {
               <button className="btn-primary" style={{width:"auto",padding:"8px 16px",fontSize:13}} onClick={addToLibrary}>+ Add</button>
             </div>
             {/* Exercise list with add-to-week buttons */}
-            {filteredLib.map(({exercise, group}) => (
-              <div key={exercise} style={{
-                display:"flex",alignItems:"center",justifyContent:"space-between",
-                padding:"10px 14px",marginBottom:4,borderRadius:4,
-                background:"var(--charcoal)",border:"1px solid var(--border)"
-              }}>
-                <div>
-                  <span style={{fontSize:13,fontWeight:500}}>{exercise}</span>
-                  {searchLib && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{group}</span>}
+            {filteredLib.map(({exercise, group}) => {
+              if (exercise.startsWith("—")) return (
+                <div key={exercise} style={{
+                  padding:"8px 4px 4px",fontSize:11,fontWeight:700,
+                  color:"var(--accent)",letterSpacing:2,
+                  borderTop:"1px solid var(--border)",marginTop:8,marginBottom:2
+                }}>{exercise.replace(/—/g,"").trim()}</div>
+              );
+              return (
+                <div key={exercise} style={{
+                  display:"flex",alignItems:"center",justifyContent:"space-between",
+                  padding:"10px 14px",marginBottom:4,borderRadius:4,
+                  background:"var(--charcoal)",border:"1px solid var(--border)"
+                }}>
+                  <div>
+                    <span style={{fontSize:13,fontWeight:500}}>{exercise}</span>
+                    {searchLib && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{group}</span>}
+                  </div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {WEEK_LABELS.map((wl,wi)=>(
+                      <div key={wi} onClick={()=>addToWeek(wi, exercise)} style={{
+                        padding:"3px 8px",borderRadius:3,fontSize:11,cursor:"pointer",fontWeight:600,
+                        background:weekPlans[wi].includes(exercise)?(wi===currentWeekIdx?"var(--green)":"var(--accent)"):"var(--panel)",
+                        color:weekPlans[wi].includes(exercise)?"var(--black)":"var(--muted)",
+                        border:`1px solid ${weekPlans[wi].includes(exercise)?(wi===currentWeekIdx?"var(--green)":"var(--accent)"):"var(--border)"}`,
+                        opacity:weekPlans[wi].includes(exercise)?1:0.7
+                      }}>{wi+1}</div>
+                    ))}
+                  </div>
                 </div>
-                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                  {WEEK_LABELS.map((wl,wi)=>(
-                    <div key={wi} onClick={()=>addToWeek(wi, exercise)} style={{
-                      padding:"3px 8px",borderRadius:3,fontSize:11,cursor:"pointer",fontWeight:600,
-                      background:weekPlans[wi].includes(exercise)?(wi===currentWeekIdx?"var(--green)":"var(--accent)"):"var(--panel)",
-                      color:weekPlans[wi].includes(exercise)?"var(--black)":"var(--muted)",
-                      border:`1px solid ${weekPlans[wi].includes(exercise)?(wi===currentWeekIdx?"var(--green)":"var(--accent)"):"var(--border)"}`,
-                      opacity:weekPlans[wi].includes(exercise)?1:0.7
-                    }}>{wi+1}</div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
