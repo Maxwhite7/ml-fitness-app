@@ -2851,25 +2851,20 @@ function TrainerProgress({ clients, sessions }) {
               })}
             </div>
 
-            {/* All muscle groups shown at once */}
+            {/* Active muscle group only */}
             <div style={{padding:"0 20px 40px"}}>
-              {Object.keys(MUSCLE_GROUPS).map(group => {
-                const groupExercises = allExercisesForGroup(group);
-                return (
-                  <div key={group} id={"pg-group-"+group} style={{marginTop:24}}>
-                    <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:8,paddingBottom:6,borderBottom:"2px solid var(--accent)"}}>{group}</div>
-                    <table className="table" style={{marginBottom:0}}>
-                      <thead>
-                        <tr>
-                          <th style={{width:"40%"}}>Exercise</th>
-                          <th style={{textAlign:"center"}}>Sets</th>
-                          <th style={{textAlign:"center"}}>Reps</th>
-                          <th style={{textAlign:"center"}}>Weight (lbs)</th>
-                          <th style={{textAlign:"center"}}>History</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                  {groupExercises.map(exercise => {
+              <table className="table" style={{marginBottom:0}}>
+                <thead>
+                  <tr>
+                    <th style={{width:"40%"}}>Exercise</th>
+                    <th style={{textAlign:"center"}}>Sets</th>
+                    <th style={{textAlign:"center"}}>Reps</th>
+                    <th style={{textAlign:"center"}}>Weight (lbs)</th>
+                    <th style={{textAlign:"center"}}>History</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allExercisesForGroup(activeGroup).map(exercise => {
                     // Section header divider
                     if (exercise.startsWith("—")) return (
                       <tr key={exercise}>
@@ -2944,11 +2939,8 @@ function TrainerProgress({ clients, sessions }) {
                       </tr>
                     );
                   })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
