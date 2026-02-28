@@ -2194,23 +2194,32 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>{a?.date||"—"}</td>
                   <td onClick={e=>e.stopPropagation()}>
-                    <div
-                      onClick={async()=>{
-                        const updated = clients.map(x => x.id===c.id ? {...x, active:!c.active} : x);
-                        await saveClients(updated, {...c, active:!c.active});
-                      }}
-                      style={{
-                        display:"inline-flex",alignItems:"center",gap:6,
-                        padding:"4px 10px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,
-                        background:c.active?"#4cff9120":"#ffffff10",
-                        color:c.active?"var(--green)":"var(--muted)",
-                        border:`1px solid ${c.active?"var(--green)":"var(--border)"}`,
-                        transition:"all 0.15s",userSelect:"none"
-                      }}
-                    >
-                      <div style={{width:7,height:7,borderRadius:"50%",background:c.active?"var(--green)":"var(--muted)"}} />
-                      {c.active ? "Active" : "Inactive"}
-                    </div>
+                    {(() => {
+                      const pausedWeeks = Array.isArray(c.pausedWeeks) ? c.pausedWeeks : [];
+                      const isPaused = pausedWeeks.includes(currentWeekKey);
+                      return (
+                        <div
+                          onClick={async()=>{
+                            const newPaused = isPaused
+                              ? pausedWeeks.filter(w => w !== currentWeekKey)
+                              : [...pausedWeeks, currentWeekKey];
+                            const updated = clients.map(x => x.id===c.id ? {...x, pausedWeeks:newPaused} : x);
+                            await saveClients(updated, {...c, pausedWeeks:newPaused});
+                          }}
+                          style={{
+                            display:"inline-flex",alignItems:"center",gap:6,
+                            padding:"4px 10px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,
+                            background:isPaused?"#ffffff10":"#4cff9120",
+                            color:isPaused?"var(--muted)":"var(--green)",
+                            border:`1px solid ${isPaused?"var(--border)":"var(--green)"}`,
+                            transition:"all 0.15s",userSelect:"none"
+                          }}
+                        >
+                          <div style={{width:7,height:7,borderRadius:"50%",background:isPaused?"var(--muted)":"var(--green)"}} />
+                          {isPaused ? "Inactive" : "Active"}
+                        </div>
+                      );
+                    })()}
                   </td>
                 </tr>
               );
