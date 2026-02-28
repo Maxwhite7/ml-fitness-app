@@ -1902,8 +1902,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   </td>
                 </tr>
               );
-            });
-            })()}
+            })}
           </tbody>
         </table>
       </div>
@@ -2245,7 +2244,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                   </td>
                 </tr>
               );
-            })}
+              });
+            })()}
           </tbody>
         </table>
       </div>
