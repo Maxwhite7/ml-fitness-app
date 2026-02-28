@@ -1902,16 +1902,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   </td>
                 </tr>
               );
-              };
-              return (
-                <>
-                  {active.map(c => renderRow(c))}
-                  {inactive.length > 0 && (
-                    <tr><td colSpan={7} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>INACTIVE THIS WEEK</td></tr>
-                  )}
-                  {inactive.map(c => renderRow(c))}
-                </>
-              );
+            });
             })()}
           </tbody>
         </table>
@@ -2129,14 +2120,26 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
           </thead>
           <tbody>
             {(() => {
-              const sorted = [...clients].sort((a,b)=>a.name.localeCompare(b.name));
-              const active = sorted.filter(c => !(Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey));
-              const inactive = sorted.filter(c => (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey));
-              const renderRow = (c) => {
-              const a = clientAvail(c.id);
-              const isPausedRow = (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey);
+              const sorted = [...clients].sort((a,b) => a.name.localeCompare(b.name));
+              const activeClients = sorted.filter(c => !(Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey));
+              const inactiveClients = sorted.filter(c => (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey));
+              const rows = [
+                ...activeClients,
+                ...(inactiveClients.length > 0 ? ["__divider__"] : []),
+                ...inactiveClients
+              ];
+              return rows.map(c => {
+                if (c === "__divider__") return (
+                  <tr key="divider">
+                    <td colSpan={7} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>
+                      INACTIVE THIS WEEK
+                    </td>
+                  </tr>
+                );
+              const avRow = clientAvail(c.id);
+              const isInactive = (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey);
               return (
-                <tr key={c.id} style={{cursor:"pointer",opacity:isPausedRow?0.5:1}} onClick={()=>setSelectedClient(c)}>
+                <tr key={c.id} style={{cursor:"pointer", opacity:isInactive?0.5:1}} onClick={()=>setSelectedClient(c)}>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <div className="user-avatar" style={{fontSize:11,background:selectedClient?.id===c.id?"var(--accent)":"var(--panel)",border:"1px solid var(--accent)",color:selectedClient?.id===c.id?"var(--black)":"var(--accent)"}}>
@@ -2146,8 +2149,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                     </div>
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>
-                    {a ? (() => {
-                      const formatted = a.slots.slice(0,3).map(s => {
+                    {avRow ? (() => {
+                      const formatted = avRow.slots.slice(0,3).map(s => {
                         const parts = s.split(" ");
                         if (parts[0].includes("-")) {
                           const d = new Date(parts[0]+"T12:00:00");
@@ -2156,26 +2159,26 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                         }
                         return s;
                       });
-                      return formatted.join(", ") + (a.slots.length>3?` +${a.slots.length-3} more`:"");
+                      return formatted.join(", ") + (avRow.slots.length>3?` +${avRow.slots.length-3} more`:"");
                     })() : <span style={{color:"var(--border)"}}>—</span>}
                   </td>
                   <td>
-                    {a?.trainingsWanted > 0 ? (
+                    {avRow?.trainingsWanted > 0 ? (
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
                         <div style={{
                           width:32,height:32,borderRadius:"50%",
                           background:"var(--accent)",color:"var(--black)",
                           display:"flex",alignItems:"center",justifyContent:"center",
                           fontSize:16,fontWeight:700
-                        }}>{a.trainingsWanted}</div>
-                        <span style={{fontSize:12,color:"var(--muted)"}}>session{a.trainingsWanted>1?"s":""}</span>
+                        }}>{avRow.trainingsWanted}</div>
+                        <span style={{fontSize:12,color:"var(--muted)"}}>session{avRow.trainingsWanted>1?"s":""}</span>
                       </div>
                     ) : <span style={{color:"var(--border)"}}>—</span>}
                   </td>
                   <td onClick={e=>e.stopPropagation()}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      {a ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
-                      {a && (
+                      {avRow ? <span className="badge badge-green">Submitted</span> : <span className="badge badge-muted">Pending</span>}
+                      {avRow && (
                         <span
                           className="badge"
                           style={{cursor:"pointer",fontSize:10,background:"#ef444420",color:"var(--red)",border:"1px solid var(--red)"}}
@@ -2211,7 +2214,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                       );
                     })()}
                   </td>
-                  <td style={{color:"var(--muted)",fontSize:12}}>{a?.date||"—"}</td>
+                  <td style={{color:"var(--muted)",fontSize:12}}>{avRow?.date||"—"}</td>
                   <td onClick={e=>e.stopPropagation()}>
                     {(() => {
                       const pausedWeeks = Array.isArray(c.pausedWeeks) ? c.pausedWeeks : [];
