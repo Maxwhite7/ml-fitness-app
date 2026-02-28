@@ -1165,6 +1165,12 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"agent", icon:"🤖", label:"AI Agent" },
   ];
 
+  // Shared week plan state — lifted so Progress and Exercises stay in sync
+  const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
+  const epochMonday = new Date("2026-02-23T00:00:00");
+  const _now = new Date(); _now.setHours(0,0,0,0);
+  const currentWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
+
   return (
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
@@ -1172,8 +1178,8 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
         <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
-        <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} /></div>
-        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises /></div>
+        <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} /></div>
+        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} /></div>
         <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} /></div>
       </div>
     </div>
@@ -2492,7 +2498,7 @@ const ALL_EXERCISES_DEFAULT = {
 
 const MUSCLE_GROUPS = ALL_EXERCISES_DEFAULT;
 
-function TrainerProgress({ clients, sessions }) {
+function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
   const [openClients, setOpenClients] = useState([]); // array of client objects, max 7
   const [activeClientId, setActiveClientId] = useState(null); // which tab is active
   const [progressData, setProgressData] = useState({}); // keyed by clientId
@@ -2511,6 +2517,9 @@ function TrainerProgress({ clients, sessions }) {
   const [sessionTime, setSessionTime] = useState("");
   const [historyData, setHistoryData] = useState({}); // keyed by clientId+exercise
   const [historyDrawer, setHistoryDrawer] = useState(null); // {exercise, clientId}
+
+  // currentWeekPlan comes directly from shared weekPlans prop — always live
+  const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
 
   const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
@@ -2851,6 +2860,18 @@ function TrainerProgress({ clients, sessions }) {
               })}
             </div>
 
+            {/* Current week banner */}
+            {currentWeekPlan.length > 0 && (
+              <div style={{
+                margin:"12px 20px 0",padding:"10px 14px",borderRadius:4,
+                background:"#3ec9c912",border:"1px solid var(--accent)",
+                display:"flex",alignItems:"center",gap:10,fontSize:12,color:"var(--accent)"
+              }}>
+                <span style={{fontSize:16}}>📅</span>
+                <span><strong>This week's exercises</strong> ({currentWeekPlan.length} total) are highlighted in teal with a <strong>THIS WEEK</strong> badge.</span>
+              </div>
+            )}
+
             {/* Active muscle group only */}
             <div style={{padding:"0 20px 40px"}}>
               <table className="table" style={{marginBottom:0}}>
@@ -2876,10 +2897,15 @@ function TrainerProgress({ clients, sessions }) {
                       </tr>
                     );
                     const d = clientProgressData[exercise] || {};
+                    const isWeekExercise = currentWeekPlan.includes(exercise);
                     return (
-                      <tr key={exercise} style={{background:hasData(exercise)?"#3ec9c908":"transparent"}}>
-                        <td style={{fontWeight:hasData(exercise)?600:400,color:hasData(exercise)?"var(--text)":"var(--muted)"}}>
+                      <tr key={exercise} style={{
+                        background:isWeekExercise?"#3ec9c918":hasData(exercise)?"#3ec9c908":"transparent",
+                        borderLeft:isWeekExercise?"3px solid var(--accent)":"3px solid transparent"
+                      }}>
+                        <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400,color:isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)"}}>
                           {exercise}
+                          {isWeekExercise && <span style={{marginLeft:8,fontSize:10,fontWeight:700,color:"var(--accent)",background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:3,padding:"1px 5px",letterSpacing:1}}>THIS WEEK</span>}
                         </td>
                         {["sets","reps","weight"].map(field => (
                           <td key={field} style={{textAlign:"center"}}>
@@ -3024,22 +3050,15 @@ function TrainerProgress({ clients, sessions }) {
 const NUM_WEEKS = 6;
 const WEEK_LABELS = ["Week 1","Week 2","Week 3","Week 4","Week 5","Week 6"];
 
-function TrainerExercises() {
+function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
   const [activeTab, setActiveTab] = useState("library"); // "library" | "week-0".."week-5"
   const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
-  const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[])); // array of 6 arrays of exercise names
   const [loading, setLoading] = useState(true);
   const [searchLib, setSearchLib] = useState("");
   const [activeGroup, setActiveGroup] = useState("Chest");
   const [newExName, setNewExName] = useState("");
   const [newExGroup, setNewExGroup] = useState("Chest");
   const [weekOffset, setWeekOffset] = useState(0); // which 6-week cycle we're in
-
-  // Compute current week index (0-5) based on a fixed epoch Monday
-  const epochMonday = new Date("2026-02-23T00:00:00"); // first Monday of week 1
-  const today = new Date(); today.setHours(0,0,0,0);
-  const diffDays = Math.floor((today - epochMonday) / (1000*60*60*24));
-  const currentWeekIdx = ((Math.floor(diffDays / 7)) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
 
   useEffect(() => {
     // Load from Supabase
