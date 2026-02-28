@@ -2473,7 +2473,8 @@ function TrainerProgress({ clients, sessions }) {
 
   const handleCellClick = (exercise, field, currentVal) => {
     setEditCell({ exercise, field });
-    setEditValue(currentVal || "");
+    // Default sets to 3 if empty
+    setEditValue(currentVal || (field === "sets" ? "3" : ""));
   };
 
   const handleCellSave = async () => {
@@ -2737,14 +2738,15 @@ function TrainerProgress({ clients, sessions }) {
                           <td key={field} style={{textAlign:"center"}}>
                             {editCell?.exercise===exercise && editCell?.field===field ? (
                               <input
-                                type="number"
+                                type="text"
                                 value={editValue}
                                 autoFocus
                                 onChange={e=>setEditValue(e.target.value)}
                                 onBlur={handleCellSave}
                                 onKeyDown={e=>{ if(e.key==="Enter") handleCellSave(); if(e.key==="Escape") setEditCell(null); }}
+                                placeholder={editCell?.field==="sets"?"3":editCell?.field==="reps"?"8-10-12":"lbs"}
                                 style={{
-                                  width:70,textAlign:"center",background:"var(--charcoal)",
+                                  width:90,textAlign:"center",background:"var(--charcoal)",
                                   border:"1px solid var(--accent)",borderRadius:2,
                                   color:"var(--text)",padding:"4px",fontSize:13
                                 }}
