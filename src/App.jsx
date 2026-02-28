@@ -2112,7 +2112,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
               <th>Available Times</th>
               <th>Sessions Wanted</th>
               <th>Availability</th>
-              <th>Next Week</th>
+              <th>Booked</th>
               <th>Submitted</th>
               <th>Active</th>
             </tr>
@@ -2174,22 +2174,26 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                       )}
                     </div>
                   </td>
-                  <td>
+                  <td onClick={e=>e.stopPropagation()}>
                     {(() => {
-                      if (!a) return <span className="badge badge-muted">—</span>;
-                      // Check if client is in any session next week
-                      const monday = currentMonday;
-                      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-                      const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-                      const isNextWeek = s => {
-                        if (!s.date) return false;
-                        const sd = new Date(s.date+"T12:00:00");
-                        return sd >= monday && sd <= sunday;
-                      };
-                      const booked = sessions.some(s => isNextWeek(s) && s.clientIds.includes(c.id));
-                      return booked
-                        ? <span className="badge badge-green">✓ Booked</span>
-                        : <span className="badge" style={{background:"#ef444420",color:"var(--red)",border:"1px solid var(--red)"}}>✗ Not Booked</span>;
+                      const sunday = new Date(currentMonday); sunday.setDate(currentMonday.getDate() + 6);
+                      const dkFn = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                      const inWeek = s => { if (!s.date) return false; const sd = new Date(s.date+"T12:00:00"); return sd >= currentMonday && sd <= sunday; };
+                      const bookedSessions = sessions.filter(s => inWeek(s) && s.clientIds.includes(c.id));
+                      const booked = bookedSessions.length > 0;
+                      return (
+                        <div style={{
+                          display:"inline-flex",alignItems:"center",gap:6,
+                          padding:"5px 12px",borderRadius:20,fontSize:12,fontWeight:600,
+                          background:booked?"#22c55e20":"#ef444415",
+                          color:booked?"var(--green)":"var(--red)",
+                          border:`1px solid ${booked?"var(--green)":"var(--red)"}`,
+                          whiteSpace:"nowrap"
+                        }}>
+                          <div style={{width:7,height:7,borderRadius:"50%",background:booked?"var(--green)":"var(--red)"}} />
+                          {booked ? `✓ Booked (${bookedSessions.length})` : "✗ Not Booked"}
+                        </div>
+                      );
                     })()}
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>{a?.date||"—"}</td>
