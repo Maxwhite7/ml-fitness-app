@@ -2777,91 +2777,13 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
         <div className="section-body">
           <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
           {/* Date + Time session picker */}
-          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,position:"relative"}}>
-            {/* Custom calendar trigger */}
-            {(() => {
-              const [calOpen, setCalOpen] = React.useState(false);
-              const [calMonth, setCalMonth] = React.useState(() => {
-                const d = sessionDate ? new Date(sessionDate+"T12:00:00") : new Date();
-                return new Date(d.getFullYear(), d.getMonth(), 1);
-              });
-              const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-              const DAY_HDRS = ["Mo","Tu","We","Th","Fr","Sa","Su"];
-              const firstDow = (calMonth.getDay()+6)%7; // 0=Mon
-              const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0).getDate();
-              const dk = (y,m,d) => `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-              const todayStr = dk(...(()=>{const n=new Date();return[n.getFullYear(),n.getMonth()+1,n.getDate()]})());
-              // Dates that have sessions
-              const sessionDates = new Set(sessions.map(s=>s.date).filter(Boolean));
-              const displayDate = sessionDate
-                ? new Date(sessionDate+"T12:00:00").toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})
-                : "Pick a date";
-              return (
-                <div style={{position:"relative"}}>
-                  <div onClick={()=>setCalOpen(o=>!o)} style={{
-                    display:"flex",alignItems:"center",gap:8,
-                    padding:"10px 14px",borderRadius:4,cursor:"pointer",
-                    background:"var(--charcoal)",border:`2px solid ${calOpen?"var(--accent)":"var(--border)"}`,
-                    color:sessionDate?"var(--text)":"var(--muted)",fontSize:13,fontWeight:500,
-                    userSelect:"none",whiteSpace:"nowrap",transition:"border-color 0.15s"
-                  }}>
-                    <span style={{fontSize:16}}>📅</span>
-                    {displayDate}
-                  </div>
-                  {calOpen && (
-                    <div style={{
-                      position:"absolute",top:"calc(100% + 8px)",left:0,zIndex:400,
-                      background:"var(--panel)",border:"1px solid var(--border)",borderRadius:8,
-                      boxShadow:"0 16px 48px rgba(0,0,0,0.5)",padding:16,width:280
-                    }} onClick={e=>e.stopPropagation()}>
-                      {/* Month nav */}
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                        <div onClick={()=>setCalMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1))} style={{cursor:"pointer",color:"var(--muted)",fontSize:18,padding:"0 8px",userSelect:"none"}}>‹</div>
-                        <div style={{fontWeight:700,fontSize:14,color:"var(--text)"}}>{MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}</div>
-                        <div onClick={()=>setCalMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1))} style={{cursor:"pointer",color:"var(--muted)",fontSize:18,padding:"0 8px",userSelect:"none"}}>›</div>
-                      </div>
-                      {/* Day headers */}
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:4}}>
-                        {DAY_HDRS.map(h=><div key={h} style={{textAlign:"center",fontSize:11,color:"var(--muted)",fontWeight:600,padding:"2px 0"}}>{h}</div>)}
-                      </div>
-                      {/* Day cells */}
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
-                        {Array.from({length:firstDow}).map((_,i)=><div key={"e"+i}/>)}
-                        {Array.from({length:daysInMonth},(_,i)=>i+1).map(day=>{
-                          const dateStr = dk(calMonth.getFullYear(),calMonth.getMonth()+1,day);
-                          const isSelected = dateStr === sessionDate;
-                          const isToday = dateStr === todayStr;
-                          const hasSessions = sessionDates.has(dateStr);
-                          return (
-                            <div key={day} onClick={()=>{ setSessionDate(dateStr); setSessionTime(""); setCalOpen(false); }} style={{
-                              position:"relative",textAlign:"center",padding:"6px 2px",borderRadius:6,
-                              cursor:"pointer",fontSize:13,fontWeight:isSelected?700:400,
-                              background:isSelected?"var(--accent)":isToday?"#3ec9c920":"transparent",
-                              color:isSelected?"var(--black)":isToday?"var(--accent)":"var(--text)",
-                              border:`1px solid ${isSelected?"var(--accent)":isToday?"var(--accent)":"transparent"}`,
-                              transition:"all 0.1s"
-                            }}>
-                              {day}
-                              {hasSessions && !isSelected && (
-                                <div style={{position:"absolute",bottom:2,left:"50%",transform:"translateX(-50%)",width:4,height:4,borderRadius:"50%",background:"var(--accent)"}}/>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {sessionDate && (
-                        <div onClick={()=>{setSessionDate("");setSessionTime("");setCalOpen(false);}} style={{
-                          marginTop:12,textAlign:"center",fontSize:12,color:"var(--muted)",cursor:"pointer",
-                          padding:"6px",borderTop:"1px solid var(--border)"
-                        }}>Clear</div>
-                      )}
-                    </div>
-                  )}
-                  {/* Close on outside click */}
-                  {calOpen && <div style={{position:"fixed",inset:0,zIndex:399}} onClick={()=>setCalOpen(false)}/>}
-                </div>
-              );
-            })()}
+          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+            <input
+              type="date"
+              value={sessionDate}
+              onChange={e=>{ setSessionDate(e.target.value); setSessionTime(""); }}
+              style={{padding:"10px 12px",background:"var(--charcoal)",border:"2px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:13,outline:"none"}}
+            />
             {/* Only show times that have sessions on the selected day */}
             {sessionDate && (() => {
               const dayTimes = sessions
