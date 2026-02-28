@@ -1167,6 +1167,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"availability", icon:"📋", label:"Availability" },
     { id:"progress", icon:"💪", label:"Progress" },
     { id:"exercises", icon:"🏋️", label:"Exercises" },
+    { id:"analytics", icon:"📊", label:"Analytics" },
     { id:"agent", icon:"🤖", label:"AI Agent" },
   ];
 
@@ -1179,6 +1180,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} library={library} setLibrary={setLibrary} /></div>
+        <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
         <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} /></div>
       </div>
     </div>
@@ -3524,6 +3526,164 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, library, se
           })()}
         </div>
       )}
+    </>
+  );
+}
+
+// ─── Trainer Analytics ────────────────────────────────────────────────────────
+function TrainerAnalytics({ clients, sessions }) {
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  // ── helpers ──
+  const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const todayStr = dk(now);
+
+  // All sessions with a date
+  const dated = sessions.filter(s => s.date);
+
+  // Sessions in selected month
+  const monthKey = `${selectedYear}-${String(selectedMonth+1).padStart(2,"0")}`;
+  const monthSessions = dated.filter(s => s.date.startsWith(monthKey));
+
+  // Per-day buckets for the month
+  const daysInMonth = new Date(selectedYear, selectedMonth+1, 0).getDate();
+  const dayData = Array.from({length:daysInMonth}, (_,i) => {
+    const d = String(i+1).padStart(2,"0");
+    const dateStr = `${monthKey}-${d}`;
+    const daySessions = monthSessions.filter(s => s.date === dateStr);
+    const totalSlots = daySessions.reduce((acc,s) => acc + 7, 0); // max 7 per session
+    const booked = daySessions.reduce((acc,s) => acc + s.clientIds.length, 0);
+    const open = daySessions.reduce((acc,s) => acc + Math.max(0, 7 - s.clientIds.length), 0);
+    return { day: i+1, dateStr, sessions: daySessions.length, booked, open, totalSlots };
+  }).filter(d => d.sessions > 0);
+
+  // Monthly totals
+  const totalSessions = monthSessions.length;
+  const totalBooked = monthSessions.reduce((a,s) => a+s.clientIds.length, 0);
+  const totalOpen = monthSessions.reduce((a,s) => a + Math.max(0, 7-s.clientIds.length), 0);
+  const totalCapacity = totalSessions * 7;
+  const fillPct = totalCapacity > 0 ? Math.round((totalBooked/totalCapacity)*100) : 0;
+
+  // Sessions remaining (future)
+  const futureSessions = dated.filter(s => s.date >= todayStr);
+  const futureBooked = futureSessions.reduce((a,s) => a+s.clientIds.length, 0);
+  const futureOpen = futureSessions.reduce((a,s) => a+Math.max(0,7-s.clientIds.length), 0);
+
+  // Client stats: sessions used vs total
+  const clientStats = [...clients]
+    .filter(c => c.active)
+    .map(c => ({
+      name: c.name.split(" ")[0],
+      used: c.sessionsUsed || 0,
+      total: c.sessionsTotal || 0,
+      left: Math.max(0, (c.sessionsTotal||0) - (c.sessionsUsed||0)),
+      pct: c.sessionsTotal > 0 ? Math.round(((c.sessionsUsed||0)/c.sessionsTotal)*100) : 0
+    }))
+    .sort((a,b) => b.pct - a.pct);
+
+  // Months with data for nav
+  const monthsWithData = [...new Set(dated.map(s => s.date.slice(0,7)))].sort();
+
+  // Chart max for scaling
+  const maxDayBooked = dayData.length > 0 ? Math.max(...dayData.map(d=>d.booked)) : 1;
+
+  const StatCard = ({label, value, sub, color="#3ec9c9"}) => (
+    <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:8,padding:"20px 24px",flex:1,minWidth:140}}>
+      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>{label}</div>
+      <div style={{fontSize:34,fontWeight:700,color,lineHeight:1}}>{value}</div>
+      {sub && <div style={{fontSize:12,color:"var(--muted)",marginTop:6}}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">ANALYTICS</div>
+        <div className="page-subtitle">Session trends, capacity, and client progress</div>
+      </div>
+
+      {/* Month selector */}
+      <div style={{padding:"0 24px 20px",display:"flex",alignItems:"center",gap:8}}>
+        <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>{
+          let m = selectedMonth-1; let y = selectedYear;
+          if(m<0){m=11;y--;}
+          setSelectedMonth(m); setSelectedYear(y);
+        }}>‹</button>
+        <span className="bebas" style={{fontSize:20,color:"var(--text)",minWidth:160,textAlign:"center"}}>{MONTHS[selectedMonth]} {selectedYear}</span>
+        <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>{
+          let m = selectedMonth+1; let y = selectedYear;
+          if(m>11){m=0;y++;}
+          setSelectedMonth(m); setSelectedYear(y);
+        }}>›</button>
+        <button className="btn-secondary" style={{padding:"6px 12px",fontSize:11,marginLeft:8}} onClick={()=>{setSelectedMonth(now.getMonth());setSelectedYear(now.getFullYear());}}>Today</button>
+      </div>
+
+      {/* Stat cards */}
+      <div style={{padding:"0 24px 24px",display:"flex",gap:12,flexWrap:"wrap"}}>
+        <StatCard label="Total Sessions" value={totalSessions} sub={`${daysInMonth} day month`} />
+        <StatCard label="Booked Spots" value={totalBooked} sub={`of ${totalCapacity} capacity`} color="var(--green)" />
+        <StatCard label="Open Spots" value={totalOpen} sub="available" color="var(--accent)" />
+        <StatCard label="Fill Rate" value={`${fillPct}%`} sub="of capacity filled" color={fillPct>=80?"var(--green)":fillPct>=50?"var(--accent)":"var(--red)"} />
+        <StatCard label="Future Open" value={futureOpen} sub={`${futureBooked} booked ahead`} color="var(--muted)" />
+      </div>
+
+      {/* Bar chart: booked per day */}
+      {dayData.length > 0 && (
+        <div style={{margin:"0 24px 24px",background:"var(--charcoal)",borderRadius:8,border:"1px solid var(--border)",padding:"20px 20px 12px"}}>
+          <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>Bookings Per Session Day</div>
+          <div style={{display:"flex",alignItems:"flex-end",gap:6,height:120,overflowX:"auto",paddingBottom:4}}>
+            {dayData.map(d => {
+              const bookedH = Math.round((d.booked/maxDayBooked)*100);
+              const openH = Math.round((d.open/maxDayBooked)*100);
+              const isToday = d.dateStr === todayStr;
+              return (
+                <div key={d.day} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:32,flex:1}}>
+                  <div style={{fontSize:9,color:"var(--muted)",marginBottom:2}}>{d.booked}/{d.booked+d.open}</div>
+                  <div style={{display:"flex",flexDirection:"column",justifyContent:"flex-end",height:90,gap:1,width:"100%"}}>
+                    <div style={{height:`${bookedH}%`,background:isToday?"var(--green)":"var(--accent)",borderRadius:"3px 3px 0 0",minHeight:d.booked>0?3:0,transition:"height 0.3s"}}/>
+                    <div style={{height:`${openH}%`,background:"var(--border)",borderRadius:"3px 3px 0 0",minHeight:d.open>0?3:0}}/>
+                  </div>
+                  <div style={{fontSize:9,color:isToday?"var(--green)":"var(--muted)",fontWeight:isToday?700:400}}>{d.day}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",gap:16,marginTop:10,justifyContent:"flex-end"}}>
+            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--muted)"}}><div style={{width:10,height:10,borderRadius:2,background:"var(--accent)"}}/> Booked</div>
+            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--muted)"}}><div style={{width:10,height:10,borderRadius:2,background:"var(--border)"}}/> Open</div>
+          </div>
+        </div>
+      )}
+
+      {/* Client sessions remaining */}
+      <div style={{margin:"0 24px 24px",background:"var(--charcoal)",borderRadius:8,border:"1px solid var(--border)",padding:"20px"}}>
+        <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>Client Package Usage</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {clientStats.map(c => (
+            <div key={c.name} style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{width:90,fontSize:12,fontWeight:600,color:"var(--text)",flexShrink:0,textOverflow:"ellipsis",overflow:"hidden",whiteSpace:"nowrap"}}>{c.name}</div>
+              <div style={{flex:1,height:10,background:"var(--panel)",borderRadius:5,overflow:"hidden",position:"relative"}}>
+                <div style={{
+                  position:"absolute",left:0,top:0,height:"100%",borderRadius:5,
+                  width:`${c.pct}%`,
+                  background:c.pct>=90?"var(--red)":c.pct>=70?"var(--accent)":"var(--green)",
+                  transition:"width 0.4s"
+                }}/>
+              </div>
+              <div style={{width:70,fontSize:11,color:"var(--muted)",textAlign:"right",flexShrink:0}}>{c.used}/{c.total} <span style={{color:c.left===0?"var(--red)":"var(--muted)"}}>({c.left} left)</span></div>
+            </div>
+          ))}
+          {clientStats.length === 0 && <div style={{color:"var(--muted)",fontSize:13}}>No active clients.</div>}
+        </div>
+        <div style={{display:"flex",gap:16,marginTop:14,justifyContent:"flex-end"}}>
+          {[["var(--green)","< 70% used"],["var(--accent)","70–90% used"],["var(--red)","> 90% used"]].map(([color,label])=>(
+            <div key={label} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--muted)"}}><div style={{width:10,height:10,borderRadius:2,background:color}}/>{label}</div>
+          ))}
+        </div>
+      </div>
     </>
   );
 }
