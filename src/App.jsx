@@ -1169,12 +1169,12 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
-        {tab === "schedule" && <TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} />}
-        {tab === "clients" && <TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} />}
-        {tab === "availability" && <TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} />}
-        {tab === "progress" && <TrainerProgress clients={clients} sessions={sessions} />}
-        {tab === "exercises" && <TrainerExercises />}
-        {tab === "agent" && <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} />}
+        <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
+        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
+        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
+        <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} /></div>
+        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises /></div>
+        <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} /></div>
       </div>
     </div>
   );
@@ -3554,9 +3554,9 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="CLIENT" />
       <div className="main-content" style={{overflowY:"auto"}}>
-        {tab === "schedule" && <ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} />}
-        {tab === "availability" && <ClientAvailability client={client} />}
-        {tab === "account" && <ClientAccount client={client} sessionsLeft={sessionsLeft} />}
+        <div style={{display:tab==="schedule"?"":"none"}}><ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} /></div>
+        <div style={{display:tab==="availability"?"":"none"}}><ClientAvailability client={client} /></div>
+        <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
     </div>
   );
