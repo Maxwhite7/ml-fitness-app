@@ -2619,26 +2619,35 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
 
   const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
-  // Detect clients in current session
+  // Detect clients in current session — runs every minute via timer
   useEffect(() => {
-    const now = new Date();
-    const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    const currentHour = now.getHours();
-    // Find session happening now (within the hour)
-    const currentSession = sessions.find(s => {
-      if (s.date !== todayKey) return false;
-      if (!s.time) return false;
-      const [timePart, ampm] = s.time.split(" ");
-      let [h] = timePart.split(":").map(Number);
-      if (ampm === "PM" && h !== 12) h += 12;
-      if (ampm === "AM" && h === 12) h = 0;
-      // Match only the session whose hour is the current hour
-      return h === currentHour;
-    });
-    if (currentSession && currentSession.clientIds.length > 0) {
-      const presentClients = clients.filter(c => currentSession.clientIds.includes(c.id));
-      setCurrentSessionClients(presentClients);
-    }
+    const detect = () => {
+      const now = new Date();
+      const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+      const currentHour = now.getHours();
+      const currentMin = now.getMinutes();
+      const currentTotalMins = currentHour * 60 + currentMin;
+      const currentSession = sessions.find(s => {
+        if (s.date !== todayKey) return false;
+        if (!s.time) return false;
+        const [timePart, ampm] = s.time.split(" ");
+        let [h] = timePart.split(":").map(Number);
+        if (ampm === "PM" && h !== 12) h += 12;
+        if (ampm === "AM" && h === 12) h = 0;
+        const sessionStart = h * 60;
+        const sessionEnd = sessionStart + 60; // session lasts 1 hour
+        return currentTotalMins >= sessionStart && currentTotalMins < sessionEnd;
+      });
+      if (currentSession && currentSession.clientIds.length > 0) {
+        const presentClients = clients.filter(c => currentSession.clientIds.includes(c.id));
+        setCurrentSessionClients(presentClients);
+      } else {
+        setCurrentSessionClients([]);
+      }
+    };
+    detect();
+    const interval = setInterval(detect, 60000); // re-check every minute
+    return () => clearInterval(interval);
   }, [sessions, clients]);
 
   const clientKey = activeClientId;
