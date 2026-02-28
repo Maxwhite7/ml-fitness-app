@@ -3057,47 +3057,130 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
         </div>
       )}
 
-      {/* History Drawer */}
-      {historyDrawer && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setHistoryDrawer(null)}>
-          <div className="modal" style={{maxWidth:480}}>
-            <div className="modal-header">
-              <div className="bebas modal-title">📋 {historyDrawer.exercise} — History</div>
-              <button className="modal-close" onClick={()=>setHistoryDrawer(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              {(() => {
-                const histKey = historyDrawer.clientId + ":" + historyDrawer.exercise;
-                const entries = historyData[histKey] || [];
-                if (entries.length === 0) return (
-                  <div style={{textAlign:"center",color:"var(--muted)",padding:"24px 0",fontSize:14}}>No history yet. Fill in sets/reps/weight and click ✓ Log to save an entry.</div>
-                );
-                return (
-                  <table style={{width:"100%",borderCollapse:"collapse"}}>
-                    <thead>
-                      <tr style={{borderBottom:"1px solid var(--border)"}}>
-                        {["Date","Sets","Reps","Weight"].map(h=>(
-                          <th key={h} style={{padding:"8px 12px",textAlign:"center",fontSize:12,fontWeight:600,color:"var(--muted)"}}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {entries.map((e,i)=>(
-                        <tr key={i} style={{borderBottom:"1px solid var(--border)",background:i===0?"#3ec9c910":"transparent"}}>
-                          <td style={{padding:"10px 12px",fontSize:13,color:"var(--muted)",textAlign:"center"}}>{e.date}</td>
-                          <td style={{padding:"10px 12px",fontSize:14,fontWeight:600,textAlign:"center"}}>{e.sets||"—"}</td>
-                          <td style={{padding:"10px 12px",fontSize:14,fontWeight:600,textAlign:"center",color:"var(--accent)"}}>{e.reps||"—"}</td>
-                          <td style={{padding:"10px 12px",fontSize:14,fontWeight:600,textAlign:"center"}}>{e.weight?e.weight+" lbs":"—"}</td>
+      {/* History Drawer — full-screen panel */}
+      {historyDrawer && (() => {
+        const histKey = historyDrawer.clientId + ":" + historyDrawer.exercise;
+        const entries = (historyData[histKey] || []).slice().reverse(); // oldest first for chart
+        const latest = entries.length > 0 ? entries[entries.length - 1] : null;
+        const chartData = entries.filter(e => e.weight && !isNaN(parseFloat(e.weight))).map(e => ({
+          date: e.date ? e.date.slice(5) : "",
+          weight: parseFloat(e.weight),
+          sets: e.sets,
+          reps: e.reps
+        }));
+        const maxWeight = chartData.length > 0 ? Math.max(...chartData.map(d=>d.weight)) : 0;
+        const minWeight = chartData.length > 0 ? Math.min(...chartData.map(d=>d.weight)) : 0;
+        const clientName = openClients.find(c=>c.id===historyDrawer.clientId)?.name || "";
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}
+            onClick={e=>e.target===e.currentTarget&&setHistoryDrawer(null)}>
+            <div style={{
+              background:"var(--panel)",borderRadius:8,width:"100%",maxWidth:860,maxHeight:"90vh",
+              display:"flex",flexDirection:"column",overflow:"hidden",
+              border:"1px solid var(--border)",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"
+            }}>
+              {/* Header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 28px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+                <div>
+                  <div className="bebas" style={{fontSize:26,color:"var(--text)",letterSpacing:1}}>{historyDrawer.exercise}</div>
+                  <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{clientName} · {entries.length} session{entries.length!==1?"s":""} logged</div>
+                </div>
+                {latest && (
+                  <div style={{display:"flex",gap:20,marginRight:40}}>
+                    {[["Last Sets",latest.sets],["Last Reps",latest.reps],["Last Weight",latest.weight?(latest.weight+" lbs"):null]].map(([label,val])=>val?(
+                      <div key={label} style={{textAlign:"center"}}>
+                        <div style={{fontSize:22,fontWeight:700,color:"var(--accent)"}}>{val}</div>
+                        <div style={{fontSize:11,color:"var(--muted)",textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+                      </div>
+                    ):null)}
+                  </div>
+                )}
+                <button className="modal-close" style={{fontSize:22}} onClick={()=>setHistoryDrawer(null)}>✕</button>
+              </div>
+
+              <div style={{overflowY:"auto",flex:1,padding:"24px 28px"}}>
+                {entries.length === 0 ? (
+                  <div style={{textAlign:"center",color:"var(--muted)",padding:"60px 0"}}>
+                    <div style={{fontSize:48,marginBottom:12}}>📋</div>
+                    <div style={{fontSize:16,fontWeight:600,marginBottom:6}}>No history yet</div>
+                    <div style={{fontSize:13}}>Fill in sets / reps / weight and click ✓ Log to save an entry.</div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Weight chart */}
+                    {chartData.length > 1 && (
+                      <div style={{marginBottom:28}}>
+                        <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12}}>Weight Progress</div>
+                        <div style={{height:160,position:"relative",background:"var(--charcoal)",borderRadius:6,padding:"16px 16px 32px",border:"1px solid var(--border)"}}>
+                          <svg width="100%" height="100%" viewBox={`0 0 ${chartData.length*2} 100`} preserveAspectRatio="none" style={{overflow:"visible"}}>
+                            <defs>
+                              <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#3ec9c9" stopOpacity="0.3"/>
+                                <stop offset="100%" stopColor="#3ec9c9" stopOpacity="0"/>
+                              </linearGradient>
+                            </defs>
+                            {chartData.length > 1 && (() => {
+                              const range = maxWeight - minWeight || 1;
+                              const pts = chartData.map((d,i) => {
+                                const x = (i/(chartData.length-1))*100;
+                                const y = 90 - ((d.weight - minWeight)/range)*80;
+                                return `${x},${y}`;
+                              });
+                              const areaPath = `M${pts[0]} ` + pts.slice(1).map(p=>`L${p}`).join(" ") + ` L100,100 L0,100 Z`;
+                              const linePath = `M${pts[0]} ` + pts.slice(1).map(p=>`L${p}`).join(" ");
+                              return (
+                                <>
+                                  <path d={areaPath} fill="url(#wGrad)" />
+                                  <path d={linePath} fill="none" stroke="#3ec9c9" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                  {chartData.map((d,i) => {
+                                    const [x,y] = pts[i].split(",");
+                                    return <circle key={i} cx={x} cy={y} r="3" fill="#3ec9c9" vectorEffect="non-scaling-stroke" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                          {/* X axis labels */}
+                          <div style={{position:"absolute",bottom:6,left:16,right:16,display:"flex",justifyContent:"space-between"}}>
+                            {chartData.filter((_,i)=>i===0||i===chartData.length-1||(chartData.length>4&&i===Math.floor(chartData.length/2))).map((d,i)=>(
+                              <div key={i} style={{fontSize:10,color:"var(--muted)"}}>{d.date}</div>
+                            ))}
+                          </div>
+                          {/* Y axis labels */}
+                          <div style={{position:"absolute",top:16,left:4,fontSize:9,color:"var(--muted)"}}>{maxWeight}lbs</div>
+                          <div style={{position:"absolute",bottom:32,left:4,fontSize:9,color:"var(--muted)"}}>{minWeight}lbs</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* History table */}
+                    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12}}>Session Log</div>
+                    <table style={{width:"100%",borderCollapse:"collapse"}}>
+                      <thead>
+                        <tr style={{borderBottom:"1px solid var(--border)"}}>
+                          {["Date","Sets","Reps","Weight"].map(h=>(
+                            <th key={h} style={{padding:"8px 16px",textAlign:"center",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase"}}>{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
+                      </thead>
+                      <tbody>
+                        {[...entries].reverse().map((e,i)=>(
+                          <tr key={i} style={{borderBottom:"1px solid var(--border)",background:i===0?"#3ec9c910":"transparent",transition:"background 0.1s"}}>
+                            <td style={{padding:"12px 16px",fontSize:13,color:"var(--muted)",textAlign:"center"}}>{e.date||"—"}</td>
+                            <td style={{padding:"12px 16px",fontSize:15,fontWeight:700,textAlign:"center",color:"var(--text)"}}>{e.sets||"—"}</td>
+                            <td style={{padding:"12px 16px",fontSize:15,fontWeight:700,textAlign:"center",color:"var(--accent)"}}>{e.reps||"—"}</td>
+                            <td style={{padding:"12px 16px",fontSize:15,fontWeight:700,textAlign:"center",color:"var(--text)"}}>{e.weight?e.weight+" lbs":"—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Add Exercise Modal */}
       {addExercise && (
