@@ -1862,7 +1862,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>openEdit(c)}>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div className="user-avatar" style={{background: left===0?"var(--red)":"var(--accent)",fontSize:11}}>
+                      <div className="user-avatar" style={{background:"var(--accent)",fontSize:11}}>
                         {c.name.split(" ").map(x=>x[0]).join("")}
                       </div>
                       <span style={{fontWeight:500,color:"var(--accent)",textDecoration:"underline",textDecorationColor:"transparent",transition:"text-decoration-color 0.15s"}}
