@@ -3827,12 +3827,13 @@ function ClientAvailability({ client }) {
   // Build list of upcoming Mondays (next 4 weeks)
   const getUpcomingWeeks = () => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const dow = today.getDay();
-    const daysUntilMon = dow === 0 ? 1 : 8 - dow;
+    const dow = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    // Always jump to NEXT Monday (never current week)
+    const daysUntilNextMon = dow === 1 ? 7 : (8 - dow) % 7 || 7;
     const weeks = [];
     for (let w = 0; w < 4; w++) {
       const monday = new Date(today);
-      monday.setDate(today.getDate() + daysUntilMon + w * 7);
+      monday.setDate(today.getDate() + daysUntilNextMon + w * 7);
       weeks.push(monday);
     }
     return weeks;
