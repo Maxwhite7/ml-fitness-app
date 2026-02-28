@@ -2230,12 +2230,10 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
 
       {/* Split screen panel when client selected */}
       {selectedClient && (() => {
-        // Build next week dates Mon-Sat
-        const today2 = new Date(); today2.setHours(0,0,0,0);
-        const dow = today2.getDay();
-        const daysUntilMon = dow === 0 ? 1 : 8 - dow;
-        const monday = new Date(today2); monday.setDate(today2.getDate() + daysUntilMon);
+        // Use the currently selected week (currentMonday) — matches what trainer has selected
+        const monday = currentMonday;
         const weekDates = Array.from({length:6}, (_,i) => { const d = new Date(monday); d.setDate(monday.getDate()+i); return d; });
+        const today2 = new Date(); today2.setHours(0,0,0,0);
         const dk2 = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
         const DAY_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
         const MON_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -2265,7 +2263,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                 <div>
                   <div className="bebas" style={{fontSize:20,color:"var(--text)"}}>{selectedClient.name}</div>
                   <div style={{fontSize:11,color:"var(--muted)"}}>
-                    {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"} · Next week schedule
+                    {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"} · {weekLabel(currentMonday)}
                   </div>
                 </div>
               </div>
@@ -2318,7 +2316,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
 
               {/* RIGHT — next week schedule */}
               <div style={{flex:1,overflowY:"auto",padding:"20px 20px"}}>
-                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>Next Week — Click to Assign</div>
+                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>{weekLabel(currentMonday)} — Click to Assign</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
                   {weekDates.map(d => {
                     const dk = dk2(d);
