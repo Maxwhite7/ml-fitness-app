@@ -1176,7 +1176,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
-        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>setClients(prev=>prev.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
+        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>saveClients(clients.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} /></div>
@@ -3116,6 +3116,8 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
     await saveWeekPlan(weekIdx, weekPlans[weekIdx].filter(e=>e!==exercise));
   };
 
+  const [editingExercise, setEditingExercise] = useState(null); // { exercise, group, newName }
+
   const addToLibrary = async () => {
     if (!newExName.trim()) return;
     const name = newExName.trim();
@@ -3123,6 +3125,40 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
     setLibrary(updated);
     await sbFetch("exercise_library", "POST", [{ group: newExGroup, exercise: name }], { Prefer: "return=minimal" });
     setNewExName("");
+  };
+
+  const renameExercise = async (group, oldName, newName) => {
+    newName = newName.trim();
+    if (!newName || newName === oldName) { setEditingExercise(null); return; }
+    // Update library state
+    const updated = { ...library, [group]: library[group].map(e => e === oldName ? newName : e) };
+    setLibrary(updated);
+    // Update week plans state
+    const updatedPlans = weekPlans.map(plan => plan.map(e => e === oldName ? newName : e));
+    setWeekPlans(updatedPlans);
+    setEditingExercise(null);
+    // Supabase: rename in exercise_library
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+    // Supabase: rename in exercise_week_plans
+    await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+    // Supabase: rename in progress table
+    await sbFetch(`progress?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+    // Supabase: rename in progress_history table
+    await sbFetch(`progress_history?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+  };
+
+  const removeExercise = async (group, exercise) => {
+    if (!window.confirm(`Remove "${exercise}" from the library? This will also remove it from all week plans.`)) return;
+    // Update library state
+    const updated = { ...library, [group]: library[group].filter(e => e !== exercise) };
+    setLibrary(updated);
+    // Update week plans state
+    const updatedPlans = weekPlans.map(plan => plan.filter(e => e !== exercise));
+    setWeekPlans(updatedPlans);
+    // Supabase: remove from exercise_library
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
+    // Supabase: remove from exercise_week_plans
+    await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
   };
 
   const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.filter(e=>!e.startsWith("—")).map(e => ({ exercise: e, group })));
@@ -3216,11 +3252,11 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
                   padding:"10px 14px",marginBottom:4,borderRadius:4,
                   background:"var(--charcoal)",border:"1px solid var(--border)"
                 }}>
-                  <div>
+                  <div style={{flex:1,minWidth:0}}>
                     <span style={{fontSize:13,fontWeight:500}}>{exercise}</span>
                     {searchLib && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{group}</span>}
                   </div>
-                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
                     {WEEK_LABELS.map((wl,wi)=>{
                       const isIn = weekPlans[wi].includes(exercise);
                       return (
@@ -3232,10 +3268,50 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
                         }}>{isIn ? "✓" : ""}{wi+1}</div>
                       );
                     })}
+                    <div style={{width:1,height:16,background:"var(--border)",margin:"0 2px"}} />
+                    <div onClick={()=>setEditingExercise({exercise,group,newName:exercise})} title="Rename" style={{
+                      padding:"3px 8px",borderRadius:3,fontSize:12,cursor:"pointer",
+                      background:"var(--panel)",border:"1px solid var(--border)",color:"var(--muted)",
+                      transition:"color 0.15s"
+                    }}>✏️</div>
+                    <div onClick={()=>removeExercise(group,exercise)} title="Remove" style={{
+                      padding:"3px 8px",borderRadius:3,fontSize:12,cursor:"pointer",
+                      background:"var(--panel)",border:"1px solid var(--border)",color:"var(--muted)",
+                      transition:"color 0.15s"
+                    }}>✕</div>
                   </div>
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Exercise Modal */}
+      {editingExercise && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setEditingExercise(null)}>
+          <div className="modal" style={{maxWidth:380}}>
+            <div className="modal-header">
+              <div className="bebas modal-title">RENAME EXERCISE</div>
+              <button className="modal-close" onClick={()=>setEditingExercise(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <label>Exercise Name</label>
+                <input
+                  autoFocus
+                  value={editingExercise.newName}
+                  onChange={e=>setEditingExercise(prev=>({...prev,newName:e.target.value}))}
+                  onKeyDown={e=>{ if(e.key==="Enter") renameExercise(editingExercise.group,editingExercise.exercise,editingExercise.newName); if(e.key==="Escape") setEditingExercise(null); }}
+                />
+              </div>
+              <div style={{fontSize:12,color:"var(--muted)"}}>Group: {editingExercise.group}</div>
+              <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>This will also update the name in all week plans and client progress records.</div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={()=>setEditingExercise(null)}>Cancel</button>
+              <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={()=>renameExercise(editingExercise.group,editingExercise.exercise,editingExercise.newName)}>Save</button>
+            </div>
           </div>
         </div>
       )}
