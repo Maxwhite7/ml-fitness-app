@@ -1157,6 +1157,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient }) {
   const [tab, setTab] = useState("schedule");
   const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
+  const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
   const epochMonday = new Date("2026-02-23T00:00:00");
   const _now = new Date(); _now.setHours(0,0,0,0);
   const currentWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
@@ -1176,8 +1177,8 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
         <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>saveClients(clients.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
-        <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} /></div>
-        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} /></div>
+        <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
+        <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} /></div>
       </div>
     </div>
@@ -2496,7 +2497,7 @@ const ALL_EXERCISES_DEFAULT = {
 
 const MUSCLE_GROUPS = ALL_EXERCISES_DEFAULT;
 
-function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
+function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library }) {
   const [openClients, setOpenClients] = useState([]); // array of client objects, max 7
   const [activeClientId, setActiveClientId] = useState(null); // which tab is active
   const [progressData, setProgressData] = useState({}); // keyed by clientId
@@ -2562,7 +2563,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
   }, [clientKey]);
 
   const allExercisesForGroup = (group) => {
-    const base = MUSCLE_GROUPS[group] || [];
+    const base = (library || ALL_EXERCISES_DEFAULT)[group] || [];
     const custom = (customExercises[clientKey] || {})[group] || [];
     return [...base, ...custom];
   };
@@ -2845,7 +2846,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
 
             {/* Muscle group anchor nav */}
             <div style={{display:"flex",flexWrap:"wrap",gap:0,borderBottom:"1px solid var(--border)",position:"sticky",top:0,background:"var(--panel)",zIndex:10}}>
-              {Object.keys(MUSCLE_GROUPS).map(group => {
+              {Object.keys(library || ALL_EXERCISES_DEFAULT).map(group => {
                 const exercises = allExercisesForGroup(group);
                 const filled = exercises.filter(e => !e.startsWith("—") && hasData(e)).length;
                 return (
@@ -3039,7 +3040,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
               <div className="form-row">
                 <label>Muscle Group</label>
                 <select value={newExerciseGroup} onChange={e=>setNewExerciseGroup(e.target.value)}>
-                  {Object.keys(MUSCLE_GROUPS).map(g => <option key={g} value={g}>{g}</option>)}
+                  {Object.keys(library || ALL_EXERCISES_DEFAULT).map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
             </div>
@@ -3059,9 +3060,8 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
 const NUM_WEEKS = 6;
 const WEEK_LABELS = ["Week 1","Week 2","Week 3","Week 4","Week 5","Week 6"];
 
-function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
+function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, library, setLibrary }) {
   const [activeTab, setActiveTab] = useState("library"); // "library" | "week-0".."week-5"
-  const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
   const [loading, setLoading] = useState(true);
   const [searchLib, setSearchLib] = useState("");
   const [activeGroup, setActiveGroup] = useState("Chest");
