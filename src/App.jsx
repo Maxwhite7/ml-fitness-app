@@ -2597,7 +2597,25 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
   const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
   const isChecked = (exercise) => !!checkedExercises[checkKey(exercise)];
-  const toggleCheck = (exercise) => setCheckedExercises(prev => ({ ...prev, [checkKey(exercise)]: !prev[checkKey(exercise)] }));
+  const toggleCheck = async (exercise) => {
+    const alreadyChecked = isChecked(exercise);
+    setCheckedExercises(prev => ({ ...prev, [checkKey(exercise)]: !alreadyChecked }));
+    if (!alreadyChecked) {
+      // Log entry with whatever data exists, or just mark as done
+      const d = (progressData[clientKey] || {})[exercise] || {};
+      const entry = {
+        clientId: clientKey,
+        exercise,
+        sets: d.sets || "",
+        reps: d.reps || "",
+        weight: d.weight || "",
+        date: new Date().toLocaleDateString()
+      };
+      const histKey = clientKey + ":" + exercise;
+      setHistoryData(prev => ({ ...prev, [histKey]: [...(prev[histKey] || []), entry] }));
+      await sbFetch(`progress_history`, "POST", [entry], { Prefer: "return=minimal" });
+    }
+  };
 
   const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
