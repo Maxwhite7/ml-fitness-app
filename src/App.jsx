@@ -2280,38 +2280,77 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
 
               {/* LEFT — client availability + history */}
               <div style={{width:320,borderRight:"1px solid var(--border)",overflowY:"auto",padding:"20px 20px",flexShrink:0}}>
-                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>Submitted Availability</div>
-                {!avail ? (
-                  <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">No availability submitted yet.</div></div>
-                ) : sortedDays.length === 0 ? (
-                  <div style={{color:"var(--muted)",fontSize:13}}>No slots selected.</div>
-                ) : sortedDays.map(day => (
-                  <div key={day} style={{marginBottom:16}}>
-                    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>
-                      {day.includes("-") ? (() => { const d2 = new Date(day+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${MON_SHORT[d2.getMonth()]} ${d2.getDate()}`; })() : day}
+                {/* Booked sessions this week */}
+                {(() => {
+                  const bookedThisWeek = sessions.filter(s =>
+                    s.clientIds.includes(selectedClient.id) &&
+                    weekDates.some(d => dk2(d) === s.date)
+                  ).sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time));
+                  if (bookedThisWeek.length === 0) return (
+                    <div style={{marginBottom:20}}>
+                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginBottom:8}}>Booked This Week</div>
+                      <div style={{color:"var(--muted)",fontSize:12}}>No sessions booked yet.</div>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                      {slotsByDay[day].map(slot => {
-                        const time = slot.split(" ").slice(1).join(" ");
-                        const matchingSessions = sessionsForSlot(slot);
-                        const anyAssigned = matchingSessions.some(s => s.clientIds.includes(selectedClient.id));
+                  );
+                  // Group by date
+                  const byDate = {};
+                  bookedThisWeek.forEach(s => { if(!byDate[s.date]) byDate[s.date]=[]; byDate[s.date].push(s); });
+                  return (
+                    <div style={{marginBottom:20}}>
+                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginBottom:8}}>Booked This Week ({bookedThisWeek.length})</div>
+                      {Object.entries(byDate).sort(([a],[b])=>a<b?-1:1).map(([date, daySess]) => {
+                        const d2obj = new Date(date+"T12:00:00");
                         return (
-                          <div key={slot} style={{
-                            padding:"8px 12px",borderRadius:2,fontSize:12,
-                            background: anyAssigned ? "#3ec9c920" : "var(--charcoal)",
-                            border:`1px solid ${anyAssigned?"var(--accent)":"var(--border)"}`,
-                            color: anyAssigned ? "var(--accent)" : "var(--text)"
-                          }}>
-                            {time} {anyAssigned && "✓"}
-                            {matchingSessions.length === 0 && <span style={{fontSize:10,color:"var(--muted)",marginLeft:8}}>no session</span>}
+                          <div key={date} style={{marginBottom:10}}>
+                            <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>{DAY_SHORT[d2obj.getDay()]} {MON_SHORT[d2obj.getMonth()]} {d2obj.getDate()}</div>
+                            {daySess.map(s => (
+                              <div key={s.id} onClick={()=>toggleAssign(s)} style={{
+                                display:"flex",alignItems:"center",justifyContent:"space-between",
+                                padding:"7px 10px",borderRadius:2,marginBottom:3,cursor:"pointer",
+                                background:"#3ec9c920",border:"1px solid var(--accent)",fontSize:12,color:"var(--accent)"
+                              }}>
+                                <span>✓ {s.time}</span>
+                                <span style={{fontSize:10,color:"var(--muted)"}}>Remove</span>
+                              </div>
+                            ))}
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                ))}
+                  );
+                })()}
 
-
+                {/* Submitted availability */}
+                {avail && sortedDays.length > 0 && (
+                  <>
+                    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>Submitted Availability</div>
+                    {sortedDays.map(day => (
+                      <div key={day} style={{marginBottom:12}}>
+                        <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>
+                          {day.includes("-") ? (() => { const d2 = new Date(day+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${MON_SHORT[d2.getMonth()]} ${d2.getDate()}`; })() : day}
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                          {slotsByDay[day].map(slot => {
+                            const time = slot.split(" ").slice(1).join(" ");
+                            const matchingSessions = sessionsForSlot(slot);
+                            const anyAssigned = matchingSessions.some(s => s.clientIds.includes(selectedClient.id));
+                            return (
+                              <div key={slot} style={{
+                                padding:"6px 10px",borderRadius:2,fontSize:12,
+                                background: anyAssigned ? "#3ec9c920" : "var(--charcoal)",
+                                border:`1px solid ${anyAssigned?"var(--accent)":"var(--border)"}`,
+                                color: anyAssigned ? "var(--accent)" : "var(--text)"
+                              }}>
+                                {time} {anyAssigned && "✓"}
+                                {matchingSessions.length === 0 && <span style={{fontSize:10,color:"var(--muted)",marginLeft:8}}>no session</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
 
               {/* RIGHT — next week schedule */}
@@ -2346,37 +2385,26 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                               const expanded = expandedSession === s.id;
                               const assignedNames = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : "?"; });
                               return (
-                                <div key={s.id} style={{borderRadius:2,overflow:"hidden",border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"var(--charcoal)"}}>
-                                  {/* Header row */}
-                                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",cursor:"pointer",userSelect:"none"}}
-                                    onClick={()=>setExpandedSession(expanded ? null : s.id)}
-                                  >
+                                <div key={s.id}
+                                  onClick={()=>{ if(!full) toggleAssign(s); }}
+                                  style={{
+                                    borderRadius:2,overflow:"hidden",cursor:full?"default":"pointer",
+                                    border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,
+                                    background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"var(--charcoal)",
+                                    transition:"all 0.15s"
+                                  }}>
+                                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
                                     <div>
                                       <div style={{fontWeight:600,fontSize:11,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
                                       <div style={{fontSize:10,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
                                     </div>
-                                    <div style={{fontSize:10,color:assigned?"var(--black)":"var(--muted)"}}>{expanded?"▲":"▼"}</div>
+                                    {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
                                   </div>
-                                  {/* Expanded names */}
-                                  {expanded && (
-                                    <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"6px 8px",background:"rgba(0,0,0,0.15)"}}>
-                                      {assignedNames.length === 0 ? (
-                                        <div style={{fontSize:10,color:"var(--muted)",fontStyle:"italic"}}>No clients yet</div>
-                                      ) : assignedNames.map((name,i) => (
-                                        <div key={i} style={{fontSize:10,color:assigned?"var(--black)":"var(--text)",padding:"2px 0"}}>{name}</div>
+                                  {assignedNames.length > 0 && (
+                                    <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"4px 8px",background:"rgba(0,0,0,0.15)"}}>
+                                      {assignedNames.map((name,i) => (
+                                        <div key={i} style={{fontSize:10,color:assigned?"var(--black)":"var(--text)",padding:"1px 0"}}>{name}</div>
                                       ))}
-                                      {!full && (
-                                        <div
-                                          onClick={e=>{e.stopPropagation();toggleAssign(s);}}
-                                          style={{
-                                            marginTop:6,padding:"4px 0",textAlign:"center",borderRadius:2,fontSize:10,cursor:"pointer",
-                                            background:assigned?"rgba(0,0,0,0.2)":"var(--accent)",
-                                            color:assigned?"var(--black)":"var(--black)",fontWeight:600
-                                          }}
-                                        >
-                                          {assigned ? "Remove" : "+ Assign"}
-                                        </div>
-                                      )}
                                     </div>
                                   )}
                                 </div>
