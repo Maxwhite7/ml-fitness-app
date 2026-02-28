@@ -2654,15 +2654,28 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
 
   useEffect(() => {
     if (!clientKey) return;
-    // Only load if not already loaded
-    if (progressData[clientKey]) return;
-    sbFetch(`progress?select=*&clientId=eq.${clientKey}`).then(rows => {
+    // Load progress data
+    if (!progressData[clientKey]) {
+      sbFetch(`progress?select=*&clientId=eq.${clientKey}`).then(rows => {
+        if (!rows || !Array.isArray(rows)) return;
+        const built = {};
+        rows.forEach(row => { built[row.exercise] = { sets: row.sets||"", reps: row.reps||"", weight: row.weight||"", notes: row.notes||"", updatedAt: row.updatedAt||"" }; });
+        setProgressData(prev => ({ ...prev, [clientKey]: built }));
+      });
+    }
+    // Load today's checked exercises from history
+    const todayLocale = new Date().toLocaleDateString();
+    sbFetch(`progress_history?select=exercise&clientId=eq.${clientKey}&date=eq.${encodeURIComponent(todayLocale)}`).then(rows => {
       if (!rows || !Array.isArray(rows)) return;
-      const built = {};
-      rows.forEach(row => { built[row.exercise] = { sets: row.sets||"", reps: row.reps||"", weight: row.weight||"", notes: row.notes||"", updatedAt: row.updatedAt||"" }; });
-      setProgressData(prev => ({ ...prev, [clientKey]: built }));
+      const newChecked = {};
+      rows.forEach(row => {
+        const key = `${clientKey}:${row.exercise}:${todayKey}`;
+        newChecked[key] = true;
+      });
+      if (Object.keys(newChecked).length > 0) {
+        setCheckedExercises(prev => ({ ...prev, ...newChecked }));
+      }
     });
-    // Custom exercises disabled - all exercises come from MUSCLE_GROUPS library
   }, [clientKey]);
 
   const allExercisesForGroup = (group) => {
