@@ -2517,9 +2517,15 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
   const [sessionTime, setSessionTime] = useState("");
   const [historyData, setHistoryData] = useState({}); // keyed by clientId+exercise
   const [historyDrawer, setHistoryDrawer] = useState(null); // {exercise, clientId}
+  const [checkedExercises, setCheckedExercises] = useState({}); // keyed by "clientId:exercise:dateKey"
 
   // currentWeekPlan comes directly from shared weekPlans prop — always live
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
+
+  const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
+  const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
+  const isChecked = (exercise) => !!checkedExercises[checkKey(exercise)];
+  const toggleCheck = (exercise) => setCheckedExercises(prev => ({ ...prev, [checkKey(exercise)]: !prev[checkKey(exercise)] }));
 
   const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
@@ -2841,6 +2847,44 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
           </div>
           <div className="section-body" style={{padding:0}}>
 
+            {/* This Week exercises pinned at top */}
+            {currentWeekPlan.length > 0 && (
+              <div style={{padding:"16px 20px",borderBottom:"1px solid var(--border)",background:"#3ec9c906"}}>
+                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",fontWeight:700,marginBottom:10}}>
+                  📅 This Week ({currentWeekPlan.length})
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {currentWeekPlan.map(exercise => {
+                    const checked = isChecked(exercise);
+                    return (
+                      <div key={exercise} onClick={()=>toggleCheck(exercise)} style={{
+                        display:"flex",alignItems:"center",gap:12,
+                        padding:"10px 14px",borderRadius:4,cursor:"pointer",
+                        background:checked?"#22c55e15":"var(--charcoal)",
+                        border:`1px solid ${checked?"var(--green)":"var(--border)"}`,
+                        transition:"all 0.15s",userSelect:"none"
+                      }}>
+                        <div style={{
+                          width:20,height:20,borderRadius:4,flexShrink:0,
+                          border:`2px solid ${checked?"var(--green)":"var(--muted)"}`,
+                          background:checked?"var(--green)":"transparent",
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:12,color:"var(--black)",fontWeight:700,transition:"all 0.15s"
+                        }}>{checked?"✓":""}</div>
+                        <span style={{
+                          fontSize:13,fontWeight:600,flex:1,
+                          color:checked?"var(--green)":"var(--text)",
+                          textDecoration:checked?"line-through":"none",
+                          transition:"all 0.15s"
+                        }}>{exercise}</span>
+                        {checked && <span style={{fontSize:11,color:"var(--green)",fontWeight:700}}>Done</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Muscle group anchor nav */}
             <div style={{display:"flex",flexWrap:"wrap",gap:0,borderBottom:"1px solid var(--border)",position:"sticky",top:0,background:"var(--panel)",zIndex:10}}>
               {Object.keys(MUSCLE_GROUPS).map(group => {
@@ -2893,7 +2937,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
                       }}>
                         <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400,color:isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)"}}>
                           {exercise}
-                          {isWeekExercise && <span style={{marginLeft:8,fontSize:10,fontWeight:700,color:"var(--accent)",background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:3,padding:"1px 5px",letterSpacing:1}}>THIS WEEK</span>}
+
                         </td>
                         {["sets","reps","weight"].map(field => (
                           <td key={field} style={{textAlign:"center"}}>
