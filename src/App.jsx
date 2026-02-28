@@ -3327,27 +3327,43 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, library, se
               <div style={{fontSize:32,marginBottom:8}}>📋</div>
               <div>No exercises yet. Go to the Library tab and click the week number buttons to add exercises.</div>
             </div>
-          ) : (
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {currentPlan.map(exercise => {
-                const group = allExercises.find(x=>x.exercise===exercise)?.group || "";
-                return (
-                  <div key={exercise} style={{
-                    display:"flex",alignItems:"center",gap:8,
-                    padding:"10px 14px",borderRadius:4,
-                    background:isCurrentWeek?"#22c55e18":"var(--charcoal)",
-                    border:`2px solid ${isCurrentWeek?"var(--green)":"var(--border)"}`,
-                  }}>
-                    <div>
-                      <div style={{fontSize:13,fontWeight:600,color:isCurrentWeek?"var(--green)":"var(--text)"}}>{exercise}</div>
-                      <div style={{fontSize:11,color:"var(--muted)"}}>{group}</div>
+          ) : (() => {
+            // Group exercises by muscle group, preserving library order
+            const groupOrder = Object.keys(library || ALL_EXERCISES_DEFAULT);
+            const grouped = {};
+            currentPlan.forEach(exercise => {
+              const group = allExercises.find(x=>x.exercise===exercise)?.group || "Other";
+              if (!grouped[group]) grouped[group] = [];
+              grouped[group].push(exercise);
+            });
+            const sortedGroups = groupOrder.filter(g => grouped[g]);
+            return (
+              <div style={{display:"flex",flexDirection:"column",gap:20}}>
+                {sortedGroups.map(group => (
+                  <div key={group}>
+                    <div style={{
+                      fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:2,
+                      color:isCurrentWeek?"var(--green)":"var(--accent)",
+                      marginBottom:8,paddingBottom:6,borderBottom:`1px solid var(--border)`
+                    }}>{group}</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {grouped[group].map(exercise => (
+                        <div key={exercise} style={{
+                          display:"flex",alignItems:"center",justifyContent:"space-between",
+                          padding:"10px 14px",borderRadius:4,
+                          background:isCurrentWeek?"#22c55e18":"var(--charcoal)",
+                          border:`1px solid ${isCurrentWeek?"var(--green)":"var(--border)"}`,
+                        }}>
+                          <div style={{fontSize:13,fontWeight:600,color:isCurrentWeek?"var(--green)":"var(--text)"}}>{exercise}</div>
+                          <div onClick={()=>removeFromWeek(activeWeekIdx, exercise)} style={{cursor:"pointer",color:"var(--muted)",fontSize:16,marginLeft:16}}>✕</div>
+                        </div>
+                      ))}
                     </div>
-                    <div onClick={()=>removeFromWeek(activeWeekIdx, exercise)} style={{cursor:"pointer",color:"var(--muted)",fontSize:16,marginLeft:4}}>✕</div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
     </>
