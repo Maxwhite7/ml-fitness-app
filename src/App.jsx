@@ -1176,7 +1176,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
         <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>saveClients(clients.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
-        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
+        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} /></div>
@@ -1961,7 +1961,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
   );
 }
 
-function TrainerAvailability({ clients, sessions, saveSessions }) {
+function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
   const [avails, setAvails] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [assignFeedback, setAssignFeedback] = useState("");
@@ -2114,6 +2114,7 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
               <th>Availability</th>
               <th>Next Week</th>
               <th>Submitted</th>
+              <th>Active</th>
             </tr>
           </thead>
           <tbody>
@@ -2192,6 +2193,25 @@ function TrainerAvailability({ clients, sessions, saveSessions }) {
                     })()}
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>{a?.date||"—"}</td>
+                  <td onClick={e=>e.stopPropagation()}>
+                    <div
+                      onClick={async()=>{
+                        const updated = clients.map(x => x.id===c.id ? {...x, active:!c.active} : x);
+                        await saveClients(updated, {...c, active:!c.active});
+                      }}
+                      style={{
+                        display:"inline-flex",alignItems:"center",gap:6,
+                        padding:"4px 10px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,
+                        background:c.active?"#4cff9120":"#ffffff10",
+                        color:c.active?"var(--green)":"var(--muted)",
+                        border:`1px solid ${c.active?"var(--green)":"var(--border)"}`,
+                        transition:"all 0.15s",userSelect:"none"
+                      }}
+                    >
+                      <div style={{width:7,height:7,borderRadius:"50%",background:c.active?"var(--green)":"var(--muted)"}} />
+                      {c.active ? "Active" : "Inactive"}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
