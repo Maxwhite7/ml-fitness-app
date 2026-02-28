@@ -3071,14 +3071,22 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
 
   useEffect(() => {
     // Load from Supabase
-    sbFetch("exercise_library?select=*").then(rows => {
+    sbFetch("exercise_library?select=*").then(async rows => {
       if (rows && rows.length > 0) {
-        const built = {};
+        // Merge Supabase rows into defaults — defaults always stay, extras get appended
+        const merged = {};
+        Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, exs]) => { merged[group] = [...exs]; });
         rows.forEach(r => {
-          if (!built[r.group]) built[r.group] = [];
-          built[r.group].push(r.exercise);
+          if (!merged[r.group]) merged[r.group] = [];
+          if (!merged[r.group].includes(r.exercise)) merged[r.group].push(r.exercise);
         });
-        setLibrary(built);
+        setLibrary(merged);
+      } else {
+        // Seed defaults into Supabase so future adds persist correctly
+        const seedRows = Object.entries(ALL_EXERCISES_DEFAULT).flatMap(([group, exs]) =>
+          exs.filter(e => !e.startsWith("—")).map(exercise => ({ group, exercise }))
+        );
+        await sbFetch("exercise_library", "POST", seedRows, { Prefer: "return=minimal" });
       }
     });
     sbFetch("exercise_week_plans?select=*&order=weekIdx.asc,position.asc").then(rows => {
