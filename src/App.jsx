@@ -1156,6 +1156,10 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 // ─── Trainer App ──────────────────────────────────────────────────────────────
 function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient }) {
   const [tab, setTab] = useState("schedule");
+  const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
+  const epochMonday = new Date("2026-02-23T00:00:00");
+  const _now = new Date(); _now.setHours(0,0,0,0);
+  const currentWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
     { id:"clients", icon:"👥", label:"Clients" },
@@ -1164,12 +1168,6 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"exercises", icon:"🏋️", label:"Exercises" },
     { id:"agent", icon:"🤖", label:"AI Agent" },
   ];
-
-  // Shared week plan state — lifted so Progress and Exercises stay in sync
-  const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
-  const epochMonday = new Date("2026-02-23T00:00:00");
-  const _now = new Date(); _now.setHours(0,0,0,0);
-  const currentWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
 
   return (
     <div className="app-shell">
@@ -2517,11 +2515,9 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
   const [sessionTime, setSessionTime] = useState("");
   const [historyData, setHistoryData] = useState({}); // keyed by clientId+exercise
   const [historyDrawer, setHistoryDrawer] = useState(null); // {exercise, clientId}
-  const [checkedExercises, setCheckedExercises] = useState({}); // keyed by "clientId:exercise:dateKey"
+  const [checkedExercises, setCheckedExercises] = useState({});
 
-  // currentWeekPlan comes directly from shared weekPlans prop — always live
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
-
   const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
   const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
   const isChecked = (exercise) => !!checkedExercises[checkKey(exercise)];
@@ -2885,99 +2881,98 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx }) {
                     const rest = allEx.filter(e => e.startsWith("—") || !currentWeekPlan.includes(e));
                     const sorted = weekOnes.length > 0 ? [...weekOnes, ...rest] : allEx;
                     return sorted.map(exercise => {
-                    // Section header divider
-                    if (exercise.startsWith("—")) return (
-                      <tr key={exercise}>
-                        <td colSpan={5} style={{
-                          padding:"10px 12px 4px",fontSize:11,fontWeight:700,
-                          color:"var(--accent)",letterSpacing:2,
-                          borderTop:"1px solid var(--border)",background:"transparent"
-                        }}>{exercise.replace(/—/g,"").trim()}</td>
-                      </tr>
-                    );
-                    const d = clientProgressData[exercise] || {};
-                    const isWeekExercise = currentWeekPlan.includes(exercise);
-                    const checked = isChecked(exercise);
-                    return (
-                      <tr key={exercise} style={{
-                        background:checked?"#22c55e12":isWeekExercise?"#3ec9c918":hasData(exercise)?"#3ec9c908":"transparent",
-                        borderLeft:checked?"3px solid var(--green)":isWeekExercise?"3px solid var(--accent)":"3px solid transparent"
-                      }}>
-                        <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400}}>
-                          <div style={{display:"flex",alignItems:"center",gap:10}}>
-                            {isWeekExercise && (
-                              <div onClick={()=>toggleCheck(exercise)} style={{
-                                width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
-                                border:`2px solid ${checked?"var(--green)":"var(--muted)"}`,
-                                background:checked?"var(--green)":"transparent",
-                                display:"flex",alignItems:"center",justifyContent:"center",
-                                fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
-                              }}>{checked?"✓":""}</div>
-                            )}
-                            <span style={{
-                              color:checked?"var(--green)":isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)",
-                              textDecoration:checked?"line-through":"none"
-                            }}>{exercise}</span>
-                          </div>
-                        </td>
-                        {["sets","reps","weight"].map(field => (
-                          <td key={field} style={{textAlign:"center"}}>
-                            {editCell?.exercise===exercise && editCell?.field===field ? (
-                              <input
-                                type="text"
-                                value={editValue}
-                                autoFocus
-                                onChange={e=>setEditValue(e.target.value)}
-                                onBlur={handleCellSave}
-                                onKeyDown={e=>{ if(e.key==="Enter") handleCellSave(); if(e.key==="Escape") setEditCell(null); }}
-                                placeholder={editCell?.field==="sets"?"3":editCell?.field==="reps"?"8-10-12":"lbs"}
-                                style={{
-                                  width:90,textAlign:"center",background:"var(--charcoal)",
-                                  border:"1px solid var(--accent)",borderRadius:2,
-                                  color:"var(--text)",padding:"4px",fontSize:13
-                                }}
-                              />
-                            ) : (
-                              <div
-                                onClick={()=>handleCellClick(exercise, field, d[field])}
-                                style={{
-                                  cursor:"pointer",padding:"6px 8px",borderRadius:2,
-                                  minWidth:50,display:"inline-block",
-                                  background:d[field]?"var(--charcoal)":"transparent",
-                                  border:`1px solid ${d[field]?"var(--border)":"transparent"}`,
-                                  color:d[field]?"var(--text)":"var(--border)",
-                                  fontSize:13,transition:"all 0.1s"
-                                }}
-                                title="Click to edit"
-                              >
-                                {d[field] || "—"}
-                              </div>
-                            )}
+                      if (exercise.startsWith("—")) return (
+                        <tr key={exercise}>
+                          <td colSpan={5} style={{
+                            padding:"10px 12px 4px",fontSize:11,fontWeight:700,
+                            color:"var(--accent)",letterSpacing:2,
+                            borderTop:"1px solid var(--border)",background:"transparent"
+                          }}>{exercise.replace(/—/g,"").trim()}</td>
+                        </tr>
+                      );
+                      const d = clientProgressData[exercise] || {};
+                      const isWeekExercise = currentWeekPlan.includes(exercise);
+                      const checked = isChecked(exercise);
+                      return (
+                        <tr key={exercise} style={{
+                          background:checked?"#22c55e12":isWeekExercise?"#3ec9c918":hasData(exercise)?"#3ec9c908":"transparent",
+                          borderLeft:checked?"3px solid var(--green)":isWeekExercise?"3px solid var(--accent)":"3px solid transparent"
+                        }}>
+                          <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400}}>
+                            <div style={{display:"flex",alignItems:"center",gap:10}}>
+                              {isWeekExercise && (
+                                <div onClick={()=>toggleCheck(exercise)} style={{
+                                  width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
+                                  border:`2px solid ${checked?"var(--green)":"var(--muted)"}`,
+                                  background:checked?"var(--green)":"transparent",
+                                  display:"flex",alignItems:"center",justifyContent:"center",
+                                  fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
+                                }}>{checked?"✓":""}</div>
+                              )}
+                              <span style={{
+                                color:checked?"var(--green)":isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)",
+                                textDecoration:checked?"line-through":"none"
+                              }}>{exercise}</span>
+                            </div>
                           </td>
-                        ))}
-                        <td style={{textAlign:"center"}}>
-                          <div style={{display:"flex",gap:4,justifyContent:"center",alignItems:"center"}}>
-                            {hasData(exercise) && (
+                          {["sets","reps","weight"].map(field => (
+                            <td key={field} style={{textAlign:"center"}}>
+                              {editCell?.exercise===exercise && editCell?.field===field ? (
+                                <input
+                                  type="text"
+                                  value={editValue}
+                                  autoFocus
+                                  onChange={e=>setEditValue(e.target.value)}
+                                  onBlur={handleCellSave}
+                                  onKeyDown={e=>{ if(e.key==="Enter") handleCellSave(); if(e.key==="Escape") setEditCell(null); }}
+                                  placeholder={editCell?.field==="sets"?"3":editCell?.field==="reps"?"8-10-12":"lbs"}
+                                  style={{
+                                    width:90,textAlign:"center",background:"var(--charcoal)",
+                                    border:"1px solid var(--accent)",borderRadius:2,
+                                    color:"var(--text)",padding:"4px",fontSize:13
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  onClick={()=>handleCellClick(exercise, field, d[field])}
+                                  style={{
+                                    cursor:"pointer",padding:"6px 8px",borderRadius:2,
+                                    minWidth:50,display:"inline-block",
+                                    background:d[field]?"var(--charcoal)":"transparent",
+                                    border:`1px solid ${d[field]?"var(--border)":"transparent"}`,
+                                    color:d[field]?"var(--text)":"var(--border)",
+                                    fontSize:13,transition:"all 0.1s"
+                                  }}
+                                  title="Click to edit"
+                                >
+                                  {d[field] || "—"}
+                                </div>
+                              )}
+                            </td>
+                          ))}
+                          <td style={{textAlign:"center"}}>
+                            <div style={{display:"flex",gap:4,justifyContent:"center",alignItems:"center"}}>
+                              {hasData(exercise) && (
+                                <div
+                                  onClick={()=>handleLogEntry(exercise)}
+                                  title="Save as new entry"
+                                  style={{
+                                    padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,fontWeight:700,
+                                    background:"var(--green)",color:"var(--black)"
+                                  }}>✓ Log</div>
+                              )}
                               <div
-                                onClick={()=>handleLogEntry(exercise)}
-                                title="Save as new entry"
+                                onClick={()=>loadHistory(exercise)}
+                                title="View history"
                                 style={{
-                                  padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,fontWeight:700,
-                                  background:"var(--green)",color:"var(--black)"
-                                }}>✓ Log</div>
-                            )}
-                            <div
-                              onClick={()=>loadHistory(exercise)}
-                              title="View history"
-                              style={{
-                                padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,
-                                background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)"
-                              }}>📋</div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  });
+                                  padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,
+                                  background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)"
+                                }}>📋</div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
                   })()}
                 </tbody>
               </table>
@@ -3116,7 +3111,31 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
     await saveWeekPlan(weekIdx, weekPlans[weekIdx].filter(e=>e!==exercise));
   };
 
-  const [editingExercise, setEditingExercise] = useState(null); // { exercise, group, newName }
+  const [editingExercise, setEditingExercise] = useState(null);
+
+  const renameExercise = async (group, oldName, newName) => {
+    newName = newName.trim();
+    if (!newName || newName === oldName) { setEditingExercise(null); return; }
+    const updated = { ...library, [group]: library[group].map(e => e === oldName ? newName : e) };
+    setLibrary(updated);
+    const updatedPlans = weekPlans.map(plan => plan.map(e => e === oldName ? newName : e));
+    setWeekPlans(updatedPlans);
+    setEditingExercise(null);
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+    await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+    await sbFetch(`progress?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+    await sbFetch(`progress_history?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
+  };
+
+  const removeExercise = async (group, exercise) => {
+    if (!window.confirm(`Remove "${exercise}" from the library? This will also remove it from all week plans.`)) return;
+    const updated = { ...library, [group]: library[group].filter(e => e !== exercise) };
+    setLibrary(updated);
+    const updatedPlans = weekPlans.map(plan => plan.filter(e => e !== exercise));
+    setWeekPlans(updatedPlans);
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
+    await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
+  };
 
   const addToLibrary = async () => {
     if (!newExName.trim()) return;
@@ -3125,40 +3144,6 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
     setLibrary(updated);
     await sbFetch("exercise_library", "POST", [{ group: newExGroup, exercise: name }], { Prefer: "return=minimal" });
     setNewExName("");
-  };
-
-  const renameExercise = async (group, oldName, newName) => {
-    newName = newName.trim();
-    if (!newName || newName === oldName) { setEditingExercise(null); return; }
-    // Update library state
-    const updated = { ...library, [group]: library[group].map(e => e === oldName ? newName : e) };
-    setLibrary(updated);
-    // Update week plans state
-    const updatedPlans = weekPlans.map(plan => plan.map(e => e === oldName ? newName : e));
-    setWeekPlans(updatedPlans);
-    setEditingExercise(null);
-    // Supabase: rename in exercise_library
-    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
-    // Supabase: rename in exercise_week_plans
-    await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
-    // Supabase: rename in progress table
-    await sbFetch(`progress?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
-    // Supabase: rename in progress_history table
-    await sbFetch(`progress_history?exercise=eq.${encodeURIComponent(oldName)}`, "PATCH", { exercise: newName });
-  };
-
-  const removeExercise = async (group, exercise) => {
-    if (!window.confirm(`Remove "${exercise}" from the library? This will also remove it from all week plans.`)) return;
-    // Update library state
-    const updated = { ...library, [group]: library[group].filter(e => e !== exercise) };
-    setLibrary(updated);
-    // Update week plans state
-    const updatedPlans = weekPlans.map(plan => plan.filter(e => e !== exercise));
-    setWeekPlans(updatedPlans);
-    // Supabase: remove from exercise_library
-    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
-    // Supabase: remove from exercise_week_plans
-    await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
   };
 
   const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.filter(e=>!e.startsWith("—")).map(e => ({ exercise: e, group })));
@@ -3271,13 +3256,11 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx }) {
                     <div style={{width:1,height:16,background:"var(--border)",margin:"0 2px"}} />
                     <div onClick={()=>setEditingExercise({exercise,group,newName:exercise})} title="Rename" style={{
                       padding:"3px 8px",borderRadius:3,fontSize:12,cursor:"pointer",
-                      background:"var(--panel)",border:"1px solid var(--border)",color:"var(--muted)",
-                      transition:"color 0.15s"
+                      background:"var(--panel)",border:"1px solid var(--border)",color:"var(--muted)"
                     }}>✏️</div>
                     <div onClick={()=>removeExercise(group,exercise)} title="Remove" style={{
                       padding:"3px 8px",borderRadius:3,fontSize:12,cursor:"pointer",
-                      background:"var(--panel)",border:"1px solid var(--border)",color:"var(--muted)",
-                      transition:"color 0.15s"
+                      background:"var(--panel)",border:"1px solid var(--border)",color:"var(--muted)"
                     }}>✕</div>
                   </div>
                 </div>
