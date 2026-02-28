@@ -2632,7 +2632,8 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
       let [h] = timePart.split(":").map(Number);
       if (ampm === "PM" && h !== 12) h += 12;
       if (ampm === "AM" && h === 12) h = 0;
-      return Math.abs(h - currentHour) <= 1;
+      // Match only the session whose hour is the current hour
+      return h === currentHour;
     });
     if (currentSession && currentSession.clientIds.length > 0) {
       const presentClients = clients.filter(c => currentSession.clientIds.includes(c.id));
