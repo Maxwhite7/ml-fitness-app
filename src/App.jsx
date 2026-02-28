@@ -2417,6 +2417,8 @@ function TrainerProgress({ clients, sessions }) {
   const [currentSessionClients, setCurrentSessionClients] = useState([]);
   const [sessionDate, setSessionDate] = useState("");
   const [sessionTime, setSessionTime] = useState("");
+  const [historyData, setHistoryData] = useState({}); // keyed by clientId+exercise
+  const [historyDrawer, setHistoryDrawer] = useState(null); // {exercise, clientId}
 
   const selectedClient = openClients.find(c => c.id === activeClientId) || null;
 
@@ -2476,12 +2478,42 @@ function TrainerProgress({ clients, sessions }) {
   const saveExercise = async (exercise, field, value) => {
     setSaving(true);
     const existing = (progressData[clientKey] || {})[exercise] || { sets:"", reps:"", weight:"", notes:"" };
-    const updated = { ...existing, [field]: value, updatedAt: new Date().toLocaleDateString() };
+    const updated = { ...existing, [field]: value };
     setProgressData(prev => ({ ...prev, [clientKey]: { ...(prev[clientKey]||{}), [exercise]: updated } }));
+    // Always upsert current values to progress table
     await sbFetch(`progress?on_conflict=clientId,exercise`, "POST", [{
-      clientId: clientKey, exercise, ...updated
+      clientId: clientKey, exercise, ...updated, updatedAt: new Date().toLocaleDateString()
     }], { Prefer: "resolution=merge-duplicates,return=minimal" });
     setSaving(false);
+  };
+
+  const logHistory = async (exercise) => {
+    const d = (progressData[clientKey] || {})[exercise];
+    if (!d || (!d.sets && !d.reps && !d.weight)) return;
+    const entry = {
+      clientId: clientKey,
+      exercise,
+      sets: d.sets || "",
+      reps: d.reps || "",
+      weight: d.weight || "",
+      date: new Date().toLocaleDateString()
+    };
+    const histKey = clientKey + ":" + exercise;
+    setHistoryData(prev => ({
+      ...prev,
+      [histKey]: [...(prev[histKey] || []), entry]
+    }));
+    await sbFetch(`progress_history`, "POST", [entry], { Prefer: "return=minimal" });
+  };
+
+  const loadHistory = async (exercise) => {
+    const histKey = clientKey + ":" + exercise;
+    if (historyData[histKey]) { setHistoryDrawer({ exercise, clientId: clientKey }); return; }
+    const rows = await sbFetch(`progress_history?select=*&clientId=eq.${clientKey}&exercise=eq.${encodeURIComponent(exercise)}&order=id.desc`);
+    if (rows && Array.isArray(rows)) {
+      setHistoryData(prev => ({ ...prev, [histKey]: rows }));
+    }
+    setHistoryDrawer({ exercise, clientId: clientKey });
   };
 
   const handleCellClick = (exercise, field, currentVal) => {
@@ -2494,6 +2526,13 @@ function TrainerProgress({ clients, sessions }) {
     if (!editCell) return;
     await saveExercise(editCell.exercise, editCell.field, editValue);
     setEditCell(null);
+  };
+
+  const handleLogEntry = async (exercise) => {
+    await logHistory(exercise);
+    // Reset current values after logging
+    setProgressData(prev => ({ ...prev, [clientKey]: { ...(prev[clientKey]||{}), [exercise]: { sets:"", reps:"", weight:"", notes:"" } } }));
+    await sbFetch(`progress?clientId=eq.${clientKey}&exercise=eq.${encodeURIComponent(exercise)}`, "PATCH", { sets:"", reps:"", weight:"", updatedAt:"" });
   };
 
   const addCustomExercise = async () => {
@@ -2737,7 +2776,7 @@ function TrainerProgress({ clients, sessions }) {
                     <th style={{textAlign:"center"}}>Sets</th>
                     <th style={{textAlign:"center"}}>Reps</th>
                     <th style={{textAlign:"center"}}>Weight (lbs)</th>
-                    <th style={{textAlign:"center"}}>Last Updated</th>
+                    <th style={{textAlign:"center"}}>History</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2793,14 +2832,73 @@ function TrainerProgress({ clients, sessions }) {
                             )}
                           </td>
                         ))}
-                        <td style={{textAlign:"center",fontSize:11,color:"var(--muted)"}}>
-                          {d.updatedAt || "—"}
+                        <td style={{textAlign:"center"}}>
+                          <div style={{display:"flex",gap:4,justifyContent:"center",alignItems:"center"}}>
+                            {hasData(exercise) && (
+                              <div
+                                onClick={()=>handleLogEntry(exercise)}
+                                title="Save as new entry"
+                                style={{
+                                  padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,fontWeight:700,
+                                  background:"var(--green)",color:"var(--black)"
+                                }}>✓ Log</div>
+                            )}
+                            <div
+                              onClick={()=>loadHistory(exercise)}
+                              title="View history"
+                              style={{
+                                padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,
+                                background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)"
+                              }}>📋</div>
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Drawer */}
+      {historyDrawer && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setHistoryDrawer(null)}>
+          <div className="modal" style={{maxWidth:480}}>
+            <div className="modal-header">
+              <div className="bebas modal-title">📋 {historyDrawer.exercise} — History</div>
+              <button className="modal-close" onClick={()=>setHistoryDrawer(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {(() => {
+                const histKey = historyDrawer.clientId + ":" + historyDrawer.exercise;
+                const entries = historyData[histKey] || [];
+                if (entries.length === 0) return (
+                  <div style={{textAlign:"center",color:"var(--muted)",padding:"24px 0",fontSize:14}}>No history yet. Fill in sets/reps/weight and click ✓ Log to save an entry.</div>
+                );
+                return (
+                  <table style={{width:"100%",borderCollapse:"collapse"}}>
+                    <thead>
+                      <tr style={{borderBottom:"1px solid var(--border)"}}>
+                        {["Date","Sets","Reps","Weight"].map(h=>(
+                          <th key={h} style={{padding:"8px 12px",textAlign:"center",fontSize:12,fontWeight:600,color:"var(--muted)"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map((e,i)=>(
+                        <tr key={i} style={{borderBottom:"1px solid var(--border)",background:i===0?"#3ec9c910":"transparent"}}>
+                          <td style={{padding:"10px 12px",fontSize:13,color:"var(--muted)",textAlign:"center"}}>{e.date}</td>
+                          <td style={{padding:"10px 12px",fontSize:14,fontWeight:600,textAlign:"center"}}>{e.sets||"—"}</td>
+                          <td style={{padding:"10px 12px",fontSize:14,fontWeight:600,textAlign:"center",color:"var(--accent)"}}>{e.reps||"—"}</td>
+                          <td style={{padding:"10px 12px",fontSize:14,fontWeight:600,textAlign:"center"}}>{e.weight?e.weight+" lbs":"—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
           </div>
         </div>
