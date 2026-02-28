@@ -2547,15 +2547,7 @@ function TrainerProgress({ clients, sessions }) {
       rows.forEach(row => { built[row.exercise] = { sets: row.sets||"", reps: row.reps||"", weight: row.weight||"", notes: row.notes||"", updatedAt: row.updatedAt||"" }; });
       setProgressData(prev => ({ ...prev, [clientKey]: built }));
     });
-    sbFetch(`progress_exercises?select=*&clientId=eq.${clientKey}`).then(rows => {
-      if (!rows || !Array.isArray(rows)) return;
-      const built = {};
-      rows.forEach(row => {
-        if (!built[row.muscleGroup]) built[row.muscleGroup] = [];
-        built[row.muscleGroup].push(row.exercise);
-      });
-      setCustomExercises(prev => ({ ...prev, [clientKey]: built }));
-    });
+    // Custom exercises disabled - all exercises come from MUSCLE_GROUPS library
   }, [clientKey]);
 
   const allExercisesForGroup = (group) => {
