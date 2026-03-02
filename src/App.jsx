@@ -13,7 +13,7 @@ const GlobalStyle = () => (
       --panel: #1c1c1c;
       --border: #2a2a2a;
       --accent: #3ec9c9;
-      --accent2: #2aa8a8;x
+      --accent2: #2aa8a8;
       --text: #f0f0f0;
       --muted: #666;
       --green: #4cff91;
@@ -3528,7 +3528,7 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
                   }}>
                   <div style={{flex:1,minWidth:0,display:"flex",alignItems:"center",gap:8}}>
                     {canDrag && <span style={{fontSize:14,color:"var(--border)",flexShrink:0}}>⠿</span>}
-                    <span style={{fontSize:13,fontWeight:500}}>{exercise}</span>
+                    <span style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>{exercise}</span>
                     {searchLib && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{group}</span>}
                   </div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
