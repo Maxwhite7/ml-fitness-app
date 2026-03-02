@@ -13,7 +13,7 @@ const GlobalStyle = () => (
       --panel: #1c1c1c;
       --border: #2a2a2a;
       --accent: #3ec9c9;
-      --accent2: #2aa8a8;
+      --accent2: #2aa8a8;x
       --text: #f0f0f0;
       --muted: #666;
       --green: #4cff91;
@@ -3316,23 +3316,28 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
   const [newExName, setNewExName] = useState("");
   const [newExGroup, setNewExGroup] = useState("Chest");
   const [weekOffset, setWeekOffset] = useState(0); // which 6-week cycle we're in
+  const dragItem = useRef(null);
+  const dragOverItem = useRef(null);
 
   useEffect(() => {
     // Load from Supabase
-    sbFetch("exercise_library?select=*").then(async rows => {
+    sbFetch("exercise_library?select=*&order=position.asc").then(async rows => {
       if (rows && rows.length > 0) {
-        // Merge Supabase rows into defaults — defaults always stay, extras get appended
+        // Build library purely from DB — do NOT merge defaults so deletions persist
         const merged = {};
-        Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, exs]) => { merged[group] = [...exs]; });
+        // Preserve separator headers from defaults (lines starting with "—")
+        Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, exs]) => {
+          merged[group] = exs.filter(e => e.startsWith("—"));
+        });
         rows.forEach(r => {
           if (!merged[r.group]) merged[r.group] = [];
           if (!merged[r.group].includes(r.exercise)) merged[r.group].push(r.exercise);
         });
         setLibrary(merged);
       } else {
-        // Seed defaults into Supabase so future adds persist correctly
+        // Seed defaults into Supabase so future adds/deletions persist correctly
         const seedRows = Object.entries(ALL_EXERCISES_DEFAULT).flatMap(([group, exs]) =>
-          exs.filter(e => !e.startsWith("—")).map(exercise => ({ group, exercise }))
+          exs.filter(e => !e.startsWith("—")).map((exercise, i) => ({ group, exercise, position: i }))
         );
         await sbFetch("exercise_library", "POST", seedRows, { Prefer: "return=minimal" });
       }
