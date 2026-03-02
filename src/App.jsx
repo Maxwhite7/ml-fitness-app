@@ -3504,7 +3504,7 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
             {/* Exercise list with add-to-week buttons */}
             {filteredLib.map(({exercise, group}) => {
               if (exercise.startsWith("—")) return (
-                <div key={exercise} style={{
+                <div key={`${group}::${exercise}`} style={{
                   padding:"8px 4px 4px",fontSize:11,fontWeight:700,
                   color:"var(--accent)",letterSpacing:2,
                   borderTop:"1px solid var(--border)",marginTop:8,marginBottom:2
@@ -3514,7 +3514,7 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
               const exIdx = groupExList.indexOf(exercise);
               const canDrag = !searchLib;
               return (
-                <div key={exercise}
+                <div key={`${group}::${exercise}`}
                   draggable={canDrag}
                   onDragStart={()=>{ dragItem.current = exIdx; }}
                   onDragEnter={()=>{ dragOverItem.current = exIdx; }}
