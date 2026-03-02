@@ -3041,15 +3041,13 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                         }}>
                           <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400}}>
                             <div style={{display:"flex",alignItems:"center",gap:10}}>
-                              {isWeekExercise && (
-                                <div onClick={()=>toggleCheck(exercise)} style={{
-                                  width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
-                                  border:`2px solid ${checked?"var(--green)":"var(--muted)"}`,
-                                  background:checked?"var(--green)":"transparent",
-                                  display:"flex",alignItems:"center",justifyContent:"center",
-                                  fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
-                                }}>{checked?"✓":""}</div>
-                              )}
+                              <div onClick={()=>toggleCheck(exercise)} style={{
+                                width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
+                                border:`2px solid ${checked?"var(--green)":isWeekExercise?"var(--accent)":"var(--border)"}`,
+                                background:checked?"var(--green)":"transparent",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
+                              }}>{checked?"✓":""}</div>
                               <span style={{
                                 color:checked?"var(--green)":isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)",
                                 textDecoration:checked?"line-through":"none"
