@@ -3315,6 +3315,7 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
   const [activeGroup, setActiveGroup] = useState("Chest");
   const [newExName, setNewExName] = useState("");
   const [newExGroup, setNewExGroup] = useState("Chest");
+  const [newExSubGroup, setNewExSubGroup] = useState("");
   const [weekOffset, setWeekOffset] = useState(0); // which 6-week cycle we're in
   const dragItem = useRef(null);
   const dragOverItem = useRef(null);
@@ -3401,9 +3402,24 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
   const addToLibrary = async () => {
     if (!newExName.trim()) return;
     const name = newExName.trim();
-    const updated = { ...library, [newExGroup]: [...(library[newExGroup]||[]), name] };
+    const groupExs = [...(library[newExGroup] || [])];
+    let insertIdx = groupExs.length; // default: append at end
+    if (newExSubGroup) {
+      // Find the subdivision header and insert after all exercises already in that section
+      const headerIdx = groupExs.indexOf(newExSubGroup);
+      if (headerIdx !== -1) {
+        // Find the end of this section (next header or end of array)
+        let endIdx = groupExs.findIndex((e, i) => i > headerIdx && e.startsWith("—"));
+        insertIdx = endIdx === -1 ? groupExs.length : endIdx;
+      }
+    }
+    groupExs.splice(insertIdx, 0, name);
+    const updated = { ...library, [newExGroup]: groupExs };
     setLibrary(updated);
-    await sbFetch("exercise_library", "POST", [{ group: newExGroup, exercise: name }], { Prefer: "return=minimal" });
+    // Persist full reordered group
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(newExGroup)}`, "DELETE");
+    const rows = groupExs.filter(e => !e.startsWith("—")).map((exercise, i) => ({ group: newExGroup, exercise, position: i }));
+    if (rows.length > 0) await sbFetch("exercise_library", "POST", rows, { Prefer: "return=minimal" });
     setNewExName("");
   };
 
@@ -3495,10 +3511,20 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
               <input value={newExName} onChange={e=>setNewExName(e.target.value)} placeholder="New exercise name..."
                 style={{flex:1,minWidth:140,padding:"8px 12px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",outline:"none"}}
               />
-              <select value={newExGroup} onChange={e=>setNewExGroup(e.target.value)}
+              <select value={newExGroup} onChange={e=>{ setNewExGroup(e.target.value); setNewExSubGroup(""); }}
                 style={{padding:"8px 10px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)"}}>
                 {Object.keys(library).map(g=><option key={g}>{g}</option>)}
               </select>
+              {/* Subdivision dropdown — only shown if group has headers */}
+              {(library[newExGroup]||[]).some(e=>e.startsWith("—")) && (
+                <select value={newExSubGroup} onChange={e=>setNewExSubGroup(e.target.value)}
+                  style={{padding:"8px 10px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)"}}>
+                  <option value="">— End of group —</option>
+                  {(library[newExGroup]||[]).filter(e=>e.startsWith("—")).map(h=>(
+                    <option key={h} value={h}>{h.replace(/—/g,"").trim()}</option>
+                  ))}
+                </select>
+              )}
               <button className="btn-primary" style={{width:"auto",padding:"8px 16px",fontSize:13}} onClick={addToLibrary}>+ Add</button>
             </div>
             {/* Exercise list with add-to-week buttons */}
