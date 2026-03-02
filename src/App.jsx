@@ -3389,6 +3389,24 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
 
   const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.filter(e=>!e.startsWith("—")).map(e => ({ exercise: e, group })));
 
+  const reorderExercise = async (group) => {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    if (dragItem.current === dragOverItem.current) { dragItem.current = null; dragOverItem.current = null; return; }
+    const groupExercises = [...(library[group] || [])];
+    const fromIdx = dragItem.current;
+    const toIdx = dragOverItem.current;
+    const moved = groupExercises.splice(fromIdx, 1)[0];
+    groupExercises.splice(toIdx, 0, moved);
+    dragItem.current = null;
+    dragOverItem.current = null;
+    const newLib = { ...library, [group]: groupExercises };
+    setLibrary(newLib);
+    // Persist new order — delete and re-insert
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}`, "DELETE");
+    const rows = groupExercises.filter(e => !e.startsWith("—")).map((exercise, i) => ({ group, exercise, position: i }));
+    if (rows.length > 0) await sbFetch("exercise_library", "POST", rows, { Prefer: "return=minimal" });
+  };
+
   const filteredLib = searchLib
     ? allExercises.filter(x => !x.exercise.startsWith("—") && x.exercise.toLowerCase().includes(searchLib.toLowerCase()))
     : (library[activeGroup]||[]).map(e => ({ exercise: e, group: activeGroup }));
@@ -3472,13 +3490,24 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
                   borderTop:"1px solid var(--border)",marginTop:8,marginBottom:2
                 }}>{exercise.replace(/—/g,"").trim()}</div>
               );
+              const groupExList = library[group] || [];
+              const exIdx = groupExList.indexOf(exercise);
+              const canDrag = !searchLib;
               return (
-                <div key={exercise} style={{
-                  display:"flex",alignItems:"center",justifyContent:"space-between",
-                  padding:"10px 14px",marginBottom:4,borderRadius:4,
-                  background:"var(--charcoal)",border:"1px solid var(--border)"
-                }}>
-                  <div style={{flex:1,minWidth:0}}>
+                <div key={exercise}
+                  draggable={canDrag}
+                  onDragStart={()=>{ dragItem.current = exIdx; }}
+                  onDragEnter={()=>{ dragOverItem.current = exIdx; }}
+                  onDragEnd={()=>reorderExercise(group)}
+                  onDragOver={e=>e.preventDefault()}
+                  style={{
+                    display:"flex",alignItems:"center",justifyContent:"space-between",
+                    padding:"10px 14px",marginBottom:4,borderRadius:4,
+                    background:"var(--charcoal)",border:"1px solid var(--border)",
+                    cursor:canDrag?"grab":"default",userSelect:"none"
+                  }}>
+                  <div style={{flex:1,minWidth:0,display:"flex",alignItems:"center",gap:8}}>
+                    {canDrag && <span style={{fontSize:14,color:"var(--border)",flexShrink:0}}>⠿</span>}
                     <span style={{fontSize:13,fontWeight:500}}>{exercise}</span>
                     {searchLib && <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{group}</span>}
                   </div>
