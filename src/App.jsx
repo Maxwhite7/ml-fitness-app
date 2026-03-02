@@ -2672,6 +2672,17 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
         setProgressData(prev => ({ ...prev, [clientKey]: built }));
       });
     }
+    // Load custom exercises from DB (always reload to stay in sync and avoid duplicates)
+    sbFetch(`progress_exercises?select=*&clientId=eq.${clientKey}`).then(rows => {
+      if (!rows || !Array.isArray(rows)) return;
+      const built = {};
+      rows.forEach(row => {
+        const group = row.muscleGroup || "Other";
+        if (!built[group]) built[group] = [];
+        if (!built[group].includes(row.exercise)) built[group].push(row.exercise);
+      });
+      setCustomExercises(prev => ({ ...prev, [clientKey]: built }));
+    });
     // Load today's checked exercises from history
     const todayLocale = new Date().toLocaleDateString();
     sbFetch(`progress_history?select=exercise&clientId=eq.${clientKey}&date=eq.${encodeURIComponent(todayLocale)}`).then(rows => {
@@ -2759,13 +2770,17 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const addCustomExercise = async () => {
     if (!newExerciseName.trim()) return;
     const name = newExerciseName.trim();
-    setCustomExercises(prev => ({
-      ...prev,
-      [clientKey]: {
-        ...(prev[clientKey]||{}),
-        [newExerciseGroup]: [...((prev[clientKey]||{})[newExerciseGroup]||[]), name]
-      }
-    }));
+    setCustomExercises(prev => {
+      const existing = (prev[clientKey]||{})[newExerciseGroup] || [];
+      if (existing.includes(name)) return prev; // already exists, skip
+      return {
+        ...prev,
+        [clientKey]: {
+          ...(prev[clientKey]||{}),
+          [newExerciseGroup]: [...existing, name]
+        }
+      };
+    });
     await sbFetch(`progress_exercises`, "POST", [{
       clientId: clientKey, exercise: name, muscleGroup: newExerciseGroup
     }], { Prefer: "resolution=merge-duplicates,return=minimal" });
