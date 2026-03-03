@@ -2632,6 +2632,8 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
   const [currentExerciseIdx, setCurrentExerciseIdx] = useState(null); // null = hidden
   const [queuedExercises, setQueuedExercises] = useState([]); // exercises added to top list
+  const [doneToday, setDoneToday] = useState([]); // exercises dragged from queue to done
+  const [draggedExercise, setDraggedExercise] = useState(null);
   const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
   const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
   const isChecked = (exercise) => !!checkedExercises[checkKey(exercise)];
@@ -2735,6 +2737,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
       }
     });
     setQueuedExercises([]);
+    setDoneToday([]);
   }, [clientKey]);
 
   const allExercisesForGroup = (group) => {
@@ -3064,32 +3067,99 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
           </div>
           <div className="section-body" style={{padding:0}}>
 
-            {/* Queued Exercises List */}
-            {queuedExercises.length > 0 && (
-              <div style={{
-                borderBottom:"2px solid var(--green)",
-                padding:"14px 20px",
-                background:"#22c55e12"
-              }}>
-                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:3,color:"var(--green)",marginBottom:10,fontWeight:700}}>
-                  Session Queue — {queuedExercises.length} exercise{queuedExercises.length!==1?"s":""}
+            {/* Session Queue + Done Today */}
+            {(queuedExercises.length > 0 || doneToday.length > 0) && (
+              <div style={{borderBottom:"1px solid var(--border)"}}>
+
+                {/* Session Queue */}
+                <div
+                  style={{padding:"14px 20px",background:"#22c55e12",borderBottom:"1px solid #22c55e30"}}
+                  onDragOver={e=>{e.preventDefault();}}
+                  onDrop={e=>{
+                    e.preventDefault();
+                    if (draggedExercise && doneToday.includes(draggedExercise)) {
+                      setDoneToday(prev=>prev.filter(x=>x!==draggedExercise));
+                      setQueuedExercises(prev=>[...prev, draggedExercise]);
+                      setDraggedExercise(null);
+                    }
+                  }}
+                >
+                  <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:3,color:"var(--green)",marginBottom:10,fontWeight:700}}>
+                    Session Queue — {queuedExercises.length} exercise{queuedExercises.length!==1?"s":""}
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,minHeight:36}}>
+                    {[...queuedExercises].sort().map(ex => (
+                      <div
+                        key={ex}
+                        draggable
+                        onDragStart={()=>setDraggedExercise(ex)}
+                        onDragEnd={()=>setDraggedExercise(null)}
+                        style={{
+                          display:"flex",alignItems:"center",gap:8,
+                          padding:"7px 14px",borderRadius:20,
+                          background:"var(--green)",color:"var(--black)",
+                          fontSize:14,fontWeight:700,cursor:"grab",
+                          opacity:draggedExercise===ex?0.5:1
+                        }}
+                      >
+                        {ex}
+                        <span
+                          onClick={()=>setQueuedExercises(prev=>prev.filter(e=>e!==ex))}
+                          style={{cursor:"pointer",fontSize:11,opacity:0.7,fontWeight:900}}
+                        >✕</span>
+                      </div>
+                    ))}
+                    {queuedExercises.length === 0 && (
+                      <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",lineHeight:"36px"}}>Drag exercises here to requeue</div>
+                    )}
+                  </div>
                 </div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                  {[...queuedExercises].sort().map(ex => (
-                    <div key={ex} style={{
-                      display:"flex",alignItems:"center",gap:8,
-                      padding:"7px 14px",borderRadius:20,
-                      background:"var(--green)",color:"var(--black)",
-                      fontSize:14,fontWeight:700
-                    }}>
-                      {ex}
-                      <span
-                        onClick={()=>setQueuedExercises(prev=>prev.filter(e=>e!==ex))}
-                        style={{cursor:"pointer",fontSize:11,opacity:0.7,fontWeight:900}}
-                      >✕</span>
-                    </div>
-                  ))}
+
+                {/* Done Today */}
+                <div
+                  style={{padding:"14px 20px",background:"#3ec9c908"}}
+                  onDragOver={e=>{e.preventDefault();}}
+                  onDrop={e=>{
+                    e.preventDefault();
+                    if (draggedExercise && queuedExercises.includes(draggedExercise)) {
+                      setQueuedExercises(prev=>prev.filter(x=>x!==draggedExercise));
+                      setDoneToday(prev=>[...prev, draggedExercise]);
+                      setDraggedExercise(null);
+                    }
+                  }}
+                >
+                  <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:3,color:"var(--accent)",marginBottom:10,fontWeight:700}}>
+                    Done Today — {doneToday.length} exercise{doneToday.length!==1?"s":""}
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,minHeight:36}}>
+                    {[...doneToday].sort().map(ex => (
+                      <div
+                        key={ex}
+                        draggable
+                        onDragStart={()=>setDraggedExercise(ex)}
+                        onDragEnd={()=>setDraggedExercise(null)}
+                        style={{
+                          display:"flex",alignItems:"center",gap:8,
+                          padding:"7px 14px",borderRadius:20,
+                          background:"var(--accent)",color:"var(--black)",
+                          fontSize:14,fontWeight:700,cursor:"grab",
+                          opacity:draggedExercise===ex?0.5:1,
+                          textDecoration:"line-through"
+                        }}
+                      >
+                        {ex}
+                        <span
+                          onClick={()=>setDoneToday(prev=>prev.filter(e=>e!==ex))}
+                          style={{cursor:"pointer",fontSize:11,opacity:0.7,fontWeight:900,textDecoration:"none"}}
+                        >✕</span>
+                      </div>
+                    ))}
+                    {doneToday.length === 0 && (
+                      <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",lineHeight:"36px"}}>Drag exercises here when done</div>
+                    )}
+                  </div>
                 </div>
+
               </div>
             )}
 
