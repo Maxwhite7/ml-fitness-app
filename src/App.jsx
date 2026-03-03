@@ -2630,6 +2630,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const [checkedExercises, setCheckedExercises] = useState({});
 
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
+  const [currentExerciseIdx, setCurrentExerciseIdx] = useState(null); // null = hidden
   const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
   const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
   const isChecked = (exercise) => !!checkedExercises[checkKey(exercise)];
@@ -3032,6 +3033,13 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
             ))}
             <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,paddingRight:12,paddingBottom:4}}>
               {saving && <span style={{fontSize:11,color:"var(--muted)"}}>Saving...</span>}
+              {selectedClient && currentWeekPlan.length > 0 && (
+                <button
+                  className="btn-primary"
+                  style={{padding:"4px 14px",fontSize:12,fontWeight:700}}
+                  onClick={() => setCurrentExerciseIdx(0)}
+                >▶ Start Session</button>
+              )}
               {selectedClient && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={()=>setAddExercise(true)}>+ Add Exercise</button>}
             </div>
           </div>
@@ -3227,6 +3235,74 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
       )}
 
       {/* History Drawer — full-screen panel */}
+      {/* Next Exercise Overlay */}
+      {currentExerciseIdx !== null && currentWeekPlan.length > 0 && (() => {
+        const exercise = currentWeekPlan[currentExerciseIdx] || currentWeekPlan[0];
+        const isLast = currentExerciseIdx >= currentWeekPlan.length - 1;
+        return (
+          <div style={{
+            position:"fixed", inset:0, zIndex:600,
+            background:"rgba(0,0,0,0.92)",
+            display:"flex", flexDirection:"column",
+            alignItems:"center", justifyContent:"center",
+            gap:32
+          }}>
+            <div style={{fontSize:13,textTransform:"uppercase",letterSpacing:4,color:"var(--muted)"}}>
+              Exercise {currentExerciseIdx + 1} of {currentWeekPlan.length}
+            </div>
+            <div className="bebas" style={{
+              fontSize:"clamp(48px, 10vw, 96px)",
+              color:"var(--accent)",
+              letterSpacing:4,
+              textAlign:"center",
+              padding:"0 40px",
+              lineHeight:1.1
+            }}>
+              {exercise}
+            </div>
+            <div style={{display:"flex", gap:16, marginTop:16}}>
+              {currentExerciseIdx > 0 && (
+                <div
+                  onClick={() => setCurrentExerciseIdx(i => i - 1)}
+                  style={{
+                    padding:"12px 28px", borderRadius:6, cursor:"pointer",
+                    background:"var(--charcoal)", border:"1px solid var(--border)",
+                    color:"var(--text)", fontSize:15, fontWeight:600
+                  }}
+                >← Prev</div>
+              )}
+              <div
+                onClick={() => setCurrentExerciseIdx(null)}
+                style={{
+                  padding:"12px 28px", borderRadius:6, cursor:"pointer",
+                  background:"var(--charcoal)", border:"1px solid var(--border)",
+                  color:"var(--muted)", fontSize:15
+                }}
+              >Close</div>
+              {!isLast ? (
+                <div
+                  onClick={() => setCurrentExerciseIdx(i => i + 1)}
+                  style={{
+                    padding:"12px 36px", borderRadius:6, cursor:"pointer",
+                    background:"var(--accent)", color:"var(--black)",
+                    fontSize:15, fontWeight:700
+                  }}
+                >Next →</div>
+              ) : (
+                <div
+                  onClick={() => setCurrentExerciseIdx(null)}
+                  style={{
+                    padding:"12px 36px", borderRadius:6, cursor:"pointer",
+                    background:"var(--green)", color:"var(--black)",
+                    fontSize:15, fontWeight:700
+                  }}
+                >Done ✓</div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {historyDrawer && (() => {
         const histKey = historyDrawer.clientId + ":" + historyDrawer.exercise;
         const entries = (historyData[histKey] || []).slice().reverse(); // oldest first for chart
