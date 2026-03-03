@@ -2624,6 +2624,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const [sessionDate, setSessionDate] = useState("");
   const [sessionTime, setSessionTime] = useState("");
   const [historyData, setHistoryData] = useState({}); // keyed by clientId+exercise
+  const [latestHistory, setLatestHistory] = useState({}); // keyed by clientId, value = {exercise: latestRow}
   const [historyDrawer, setHistoryDrawer] = useState(null); // {exercise, clientId}
   const [checkedExercises, setCheckedExercises] = useState({});
 
@@ -2707,6 +2708,15 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
         if (!built[group].includes(row.exercise)) built[group].push(row.exercise);
       });
       setCustomExercises(prev => ({ ...prev, [clientKey]: built }));
+    });
+    // Load latest history entry per exercise for inline display
+    sbFetch(`progress_history?select=exercise,date,sets,reps,weight&clientId=eq.${clientKey}&order=id.desc`).then(rows => {
+      if (!rows || !Array.isArray(rows)) return;
+      const latest = {};
+      rows.forEach(row => {
+        if (!latest[row.exercise]) latest[row.exercise] = row; // first = most recent
+      });
+      setLatestHistory(prev => ({ ...prev, [clientKey]: latest }));
     });
     // Load today's checked exercises from history
     const todayLocale = new Date().toLocaleDateString();
@@ -3127,11 +3137,21 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                               )}
                               <div
                                 onClick={()=>loadHistory(exercise)}
-                                title="View history"
+                                title="View full history"
                                 style={{
                                   padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,
                                   background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)"
                                 }}>📋</div>
+                              {(() => {
+                                const latest = (latestHistory[clientKey] || {})[exercise];
+                                if (!latest) return null;
+                                return (
+                                  <div style={{fontSize:10,color:"var(--muted)",lineHeight:1.3,textAlign:"right",maxWidth:90}}>
+                                    <div style={{color:"var(--accent)",fontWeight:600}}>{latest.date}</div>
+                                    <div>{[latest.sets && latest.sets+"s", latest.reps && latest.reps+"r", latest.weight && latest.weight].filter(Boolean).join(" · ")}</div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
