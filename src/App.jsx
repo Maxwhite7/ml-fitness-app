@@ -583,11 +583,11 @@ const SUPABASE_URL = "https://rdklpaqlkbpmmxvmzppj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJka2xwYXFsa2JwbW14dm16cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjM2MDUsImV4cCI6MjA4NzA5OTYwNX0.6Hwgvz4CHANbYXciRp_T7aQwXhOIB2KAVwjsdxUn_d0";
 
 // Edge Function login - mints JWT with app_role at root level for RLS
+// Token stored in sessionStorage so it survives React re-renders
 const auth = {
-  _token: null,
-  set(token) { this._token = token; },
-  clear() { this._token = null; },
-  get token() { return this._token; },
+  set(token) { sessionStorage.setItem("ml_jwt", token); },
+  clear() { sessionStorage.removeItem("ml_jwt"); },
+  get token() { return sessionStorage.getItem("ml_jwt"); },
   async login(email, password) {
     const res = await fetch(SUPABASE_URL + "/functions/v1/get-token", {
       method: "POST",
