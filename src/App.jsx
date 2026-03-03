@@ -2753,6 +2753,29 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
     await sbFetch(`progress?on_conflict=clientId,exercise`, "POST", [{
       clientId: clientKey, exercise, ...updated, updatedAt: new Date().toLocaleDateString()
     }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    // Auto-log to history when any value is entered
+    if (updated.sets || updated.reps || updated.weight) {
+      const today = new Date().toLocaleDateString();
+      const entry = { clientId: clientKey, exercise, sets: updated.sets||"", reps: updated.reps||"", weight: updated.weight||"", date: today };
+      const histKey = clientKey + ":" + exercise;
+      // Only auto-log once per day per exercise (check if today already logged)
+      const existing_history = (await sbFetch(`progress_history?clientId=eq.${clientKey}&exercise=eq.${encodeURIComponent(exercise)}&date=eq.${encodeURIComponent(today)}&limit=1`)) || [];
+      if (existing_history.length === 0) {
+        await sbFetch(`progress_history`, "POST", [entry], { Prefer: "return=representation" }).then(rows => {
+          if (rows && rows[0]) {
+            setHistoryData(prev => ({ ...prev, [histKey]: [rows[0], ...(prev[histKey]||[])] }));
+            setLatestHistory(prev => ({ ...prev, [clientKey]: { ...(prev[clientKey]||{}), [exercise]: rows[0] } }));
+          }
+        });
+      } else {
+        // Update existing entry for today
+        await sbFetch(`progress_history?clientId=eq.${clientKey}&exercise=eq.${encodeURIComponent(exercise)}&date=eq.${encodeURIComponent(today)}`, "PATCH", { sets: updated.sets||"", reps: updated.reps||"", weight: updated.weight||"" });
+        setLatestHistory(prev => ({
+          ...prev,
+          [clientKey]: { ...(prev[clientKey]||{}), [exercise]: {...(prev[clientKey]||{})[exercise], ...entry} }
+        }));
+      }
+    }
     setSaving(false);
   };
 
@@ -3037,13 +3060,64 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                 <button
                   className="btn-primary"
                   style={{padding:"4px 14px",fontSize:12,fontWeight:700}}
-                  onClick={() => setCurrentExerciseIdx(0)}
-                >▶ Start Session</button>
+                  onClick={() => setCurrentExerciseIdx(prev => {
+                    if (prev === null) return 0;
+                    return prev < currentWeekPlan.length - 1 ? prev + 1 : 0;
+                  })}
+                >{currentExerciseIdx === null ? "▶ Next Exercise" : `▶ ${currentExerciseIdx + 1}/${currentWeekPlan.length}`}</button>
               )}
               {selectedClient && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={()=>setAddExercise(true)}>+ Add Exercise</button>}
             </div>
           </div>
           <div className="section-body" style={{padding:0}}>
+
+            {/* Next Exercise Banner - inline at top */}
+            {currentExerciseIdx !== null && currentWeekPlan.length > 0 && (() => {
+              const exercise = currentWeekPlan[currentExerciseIdx];
+              return (
+                <div style={{
+                  background:"var(--charcoal)",
+                  borderBottom:"2px solid var(--accent)",
+                  padding:"16px 28px",
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:"space-between",
+                  gap:20
+                }}>
+                  <div>
+                    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:3,color:"var(--muted)",marginBottom:4}}>
+                      Next Exercise — {currentExerciseIdx + 1} of {currentWeekPlan.length}
+                    </div>
+                    <div className="bebas" style={{fontSize:42,color:"var(--accent)",letterSpacing:3,lineHeight:1}}>
+                      {exercise}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    {currentExerciseIdx > 0 && (
+                      <div onClick={()=>setCurrentExerciseIdx(i=>i-1)}
+                        style={{padding:"8px 16px",borderRadius:4,cursor:"pointer",background:"var(--panel)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13}}>
+                        ← Prev
+                      </div>
+                    )}
+                    {currentExerciseIdx < currentWeekPlan.length - 1 ? (
+                      <div onClick={()=>setCurrentExerciseIdx(i=>i+1)}
+                        style={{padding:"8px 20px",borderRadius:4,cursor:"pointer",background:"var(--accent)",color:"var(--black)",fontSize:13,fontWeight:700}}>
+                        Next →
+                      </div>
+                    ) : (
+                      <div onClick={()=>setCurrentExerciseIdx(null)}
+                        style={{padding:"8px 20px",borderRadius:4,cursor:"pointer",background:"var(--green)",color:"var(--black)",fontSize:13,fontWeight:700}}>
+                        Done ✓
+                      </div>
+                    )}
+                    <div onClick={()=>setCurrentExerciseIdx(null)}
+                      style={{padding:"8px 12px",borderRadius:4,cursor:"pointer",border:"1px solid var(--border)",color:"var(--muted)",fontSize:13}}>
+                      ✕
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Muscle group anchor nav */}
             <div style={{display:"flex",flexWrap:"wrap",gap:0,borderBottom:"1px solid var(--border)",position:"sticky",top:0,background:"var(--panel)",zIndex:10}}>
@@ -3235,73 +3309,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
       )}
 
       {/* History Drawer — full-screen panel */}
-      {/* Next Exercise Overlay */}
-      {currentExerciseIdx !== null && currentWeekPlan.length > 0 && (() => {
-        const exercise = currentWeekPlan[currentExerciseIdx] || currentWeekPlan[0];
-        const isLast = currentExerciseIdx >= currentWeekPlan.length - 1;
-        return (
-          <div style={{
-            position:"fixed", inset:0, zIndex:600,
-            background:"rgba(0,0,0,0.92)",
-            display:"flex", flexDirection:"column",
-            alignItems:"center", justifyContent:"center",
-            gap:32
-          }}>
-            <div style={{fontSize:13,textTransform:"uppercase",letterSpacing:4,color:"var(--muted)"}}>
-              Exercise {currentExerciseIdx + 1} of {currentWeekPlan.length}
-            </div>
-            <div className="bebas" style={{
-              fontSize:"clamp(48px, 10vw, 96px)",
-              color:"var(--accent)",
-              letterSpacing:4,
-              textAlign:"center",
-              padding:"0 40px",
-              lineHeight:1.1
-            }}>
-              {exercise}
-            </div>
-            <div style={{display:"flex", gap:16, marginTop:16}}>
-              {currentExerciseIdx > 0 && (
-                <div
-                  onClick={() => setCurrentExerciseIdx(i => i - 1)}
-                  style={{
-                    padding:"12px 28px", borderRadius:6, cursor:"pointer",
-                    background:"var(--charcoal)", border:"1px solid var(--border)",
-                    color:"var(--text)", fontSize:15, fontWeight:600
-                  }}
-                >← Prev</div>
-              )}
-              <div
-                onClick={() => setCurrentExerciseIdx(null)}
-                style={{
-                  padding:"12px 28px", borderRadius:6, cursor:"pointer",
-                  background:"var(--charcoal)", border:"1px solid var(--border)",
-                  color:"var(--muted)", fontSize:15
-                }}
-              >Close</div>
-              {!isLast ? (
-                <div
-                  onClick={() => setCurrentExerciseIdx(i => i + 1)}
-                  style={{
-                    padding:"12px 36px", borderRadius:6, cursor:"pointer",
-                    background:"var(--accent)", color:"var(--black)",
-                    fontSize:15, fontWeight:700
-                  }}
-                >Next →</div>
-              ) : (
-                <div
-                  onClick={() => setCurrentExerciseIdx(null)}
-                  style={{
-                    padding:"12px 36px", borderRadius:6, cursor:"pointer",
-                    background:"var(--green)", color:"var(--black)",
-                    fontSize:15, fontWeight:700
-                  }}
-                >Done ✓</div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+
 
       {historyDrawer && (() => {
         const histKey = historyDrawer.clientId + ":" + historyDrawer.exercise;
