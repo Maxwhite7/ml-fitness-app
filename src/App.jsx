@@ -2626,6 +2626,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const [historyData, setHistoryData] = useState({}); // keyed by clientId+exercise
   const [latestHistory, setLatestHistory] = useState({}); // keyed by clientId, value = {exercise: latestRow}
   const [historyDrawer, setHistoryDrawer] = useState(null); // {exercise, clientId}
+  const [expandedHistory, setExpandedHistory] = useState({}); // keyed by clientId:exercise
   const [checkedExercises, setCheckedExercises] = useState({});
 
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
@@ -2796,7 +2797,24 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   };
 
   const handleLogEntry = async (exercise) => {
+    const d = (progressData[clientKey] || {})[exercise];
+    if (!d || (!d.sets && !d.reps && !d.weight)) return;
+    const entry = {
+      clientId: clientKey, exercise,
+      sets: d.sets || "", reps: d.reps || "", weight: d.weight || "",
+      date: new Date().toLocaleDateString()
+    };
     await logHistory(exercise);
+    // Update latestHistory inline immediately
+    setLatestHistory(prev => ({
+      ...prev,
+      [clientKey]: { ...(prev[clientKey] || {}), [exercise]: entry }
+    }));
+    // Update expandable history for this exercise
+    setHistoryData(prev => {
+      const histKey = clientKey + ":" + exercise;
+      return { ...prev, [histKey]: [entry, ...(prev[histKey] || [])] };
+    });
     // Reset current values after logging
     setProgressData(prev => ({ ...prev, [clientKey]: { ...(prev[clientKey]||{}), [exercise]: { sets:"", reps:"", weight:"", notes:"" } } }));
     await sbFetch(`progress?clientId=eq.${clientKey}&exercise=eq.${encodeURIComponent(exercise)}`, "PATCH", { sets:"", reps:"", weight:"", updatedAt:"" });
@@ -3137,25 +3155,61 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                               )}
                               {(() => {
                                 const latest = (latestHistory[clientKey] || {})[exercise];
-                                if (!latest) return null;
+                                const histKey = clientKey + ":" + exercise;
+                                const isExpanded = expandedHistory[histKey];
+                                const allEntries = historyData[histKey] || [];
                                 return (
-                                  <div style={{fontSize:10,color:"var(--muted)",lineHeight:1.3,textAlign:"right",maxWidth:110,position:"relative"}}>
-                                    <div style={{display:"flex",alignItems:"center",gap:4,justifyContent:"flex-end"}}>
-                                      <div style={{color:"var(--accent)",fontWeight:600}}>{latest.date}</div>
+                                  <div style={{fontSize:10,color:"var(--muted)",lineHeight:1.4,textAlign:"right"}}>
+                                    {latest ? (
                                       <div
                                         onClick={async()=>{
-                                          await sbFetch(`progress_history?id=eq.${latest.id}`,"DELETE");
-                                          setLatestHistory(prev => {
-                                            const updated = {...(prev[clientKey] || {})};
-                                            delete updated[exercise];
-                                            return {...prev, [clientKey]: updated};
-                                          });
+                                          if (!isExpanded && allEntries.length === 0) {
+                                            const rows = await sbFetch(`progress_history?select=*&clientId=eq.${clientKey}&exercise=eq.${encodeURIComponent(exercise)}&order=id.desc`);
+                                            if (rows && Array.isArray(rows)) {
+                                              setHistoryData(prev => ({...prev, [histKey]: rows}));
+                                            }
+                                          }
+                                          setExpandedHistory(prev => ({...prev, [histKey]: !prev[histKey]}));
                                         }}
-                                        title="Delete this entry"
-                                        style={{cursor:"pointer",color:"var(--muted)",fontSize:10,lineHeight:1,padding:"1px 3px",borderRadius:2,background:"var(--charcoal)",border:"1px solid var(--border)"}}
-                                      >✕</div>
-                                    </div>
-                                    <div>{[latest.sets && latest.sets+"s", latest.reps && latest.reps+"r", latest.weight && latest.weight].filter(Boolean).join(" · ")}</div>
+                                        style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}
+                                      >
+                                        <span style={{color:"var(--accent)",fontWeight:600}}>{latest.date}</span>
+                                        <span style={{fontSize:9,color:"var(--muted)"}}>{isExpanded ? "▲" : "▼"}</span>
+                                      </div>
+                                    ) : null}
+                                    {latest && <div style={{color:"var(--muted)"}}>{[latest.sets && latest.sets+"s", latest.reps && latest.reps+"r", latest.weight && latest.weight].filter(Boolean).join(" · ")}</div>}
+                                    {isExpanded && (
+                                      <div style={{marginTop:6,borderTop:"1px solid var(--border)",paddingTop:6,maxHeight:160,overflowY:"auto",minWidth:140}}>
+                                        {allEntries.map((e,i) => (
+                                          <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,padding:"3px 0",borderBottom:"1px solid #ffffff08"}}>
+                                            <div>
+                                              <span style={{color:"var(--accent)",fontWeight:600,marginRight:4}}>{e.date}</span>
+                                              <span style={{color:"var(--muted)"}}>{[e.sets && e.sets+"s", e.reps && e.reps+"r", e.weight && e.weight].filter(Boolean).join(" · ")}</span>
+                                            </div>
+                                            <div
+                                              onClick={async(ev)=>{
+                                                ev.stopPropagation();
+                                                await sbFetch(`progress_history?id=eq.${e.id}`,"DELETE");
+                                                setHistoryData(prev => ({
+                                                  ...prev,
+                                                  [histKey]: (prev[histKey]||[]).filter(r=>r.id!==e.id)
+                                                }));
+                                                if (i===0) {
+                                                  const remaining = allEntries.filter(r=>r.id!==e.id);
+                                                  setLatestHistory(prev => ({
+                                                    ...prev,
+                                                    [clientKey]: remaining.length > 0
+                                                      ? {...(prev[clientKey]||{}), [exercise]: remaining[0]}
+                                                      : (() => { const u={...(prev[clientKey]||{})}; delete u[exercise]; return u; })()
+                                                  }));
+                                                }
+                                              }}
+                                              style={{cursor:"pointer",color:"var(--muted)",fontSize:9,padding:"1px 3px",borderRadius:2,flexShrink:0}}
+                                            >✕</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })()}
