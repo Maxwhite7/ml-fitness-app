@@ -580,7 +580,23 @@ const hashPassword = async (password) => {
 };
 
 const SUPABASE_URL = "https://rdklpaqlkbpmmxvmzppj.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJka2xwYXFsa2JwbW14dm16cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjM2MDUsImV4cCI6MjA4NzA5OTYwNX0.6Hwgvz4CHANbYXciRp_T7aQwXhOIB2KAVwjsdxUn_d0";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJka2xwYXFsa2JwbW14dm16cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjM2MDUsImV4cCI6MjA4NzA5OTYwNX0.6Hwgvz4CHANbYXciRp_T7aQwXhOIB2KAVwjsdxUn_d0";
+const auth = {
+  _token: null,
+  set(token) { this._token = token; },
+  clear() { this._token = null; },
+  get token() { return this._token; },
+  async login(email, password) {
+    const res = await fetch(SUPABASE_URL + "/functions/v1/get-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Login failed");
+    return data;
+  }
+};
 const TABLE_MAP = { gym_clients:"clients", gym_sessions:"sessions", gym_availability:"availability" };
 
 const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
@@ -588,8 +604,8 @@ const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
     const opts = {
       method,
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + (auth.token || SUPABASE_ANON_KEY),
         "Content-Type": "application/json",
         ...extraHeaders
       }
@@ -991,7 +1007,7 @@ export default function App() {
     <>
       <GlobalStyle />
       {user.role === "trainer" && !previewClient
-        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => setUser(null)} onPreviewClient={setPreviewClient} />
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} />
         : user.role === "trainer" && previewClient
         ? (
           <>
@@ -1012,7 +1028,7 @@ export default function App() {
             </div>
           </>
           )
-        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => setUser(null)} />
+        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => { auth.clear(); setUser(null); }} />
       }
     </>
   );
@@ -1050,15 +1066,18 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 
   const submit = async () => {
     setErr("");
-    if (email === "trainer@gym.com" && pass === import.meta.env.VITE_TRAINER_PASSWORD) {
-      onLogin({ role:"trainer", name:"Coach", email });
-      return;
-    }
     if (!email || !pass) { setErr("Please enter your email and password."); return; }
-    const hashed = await hashPassword(pass);
-    const c = freshClients.find(x => x.email && x.email === email && x.password && x.password === hashed);
-    if (c) { onLogin({ role:"client", ...c }); return; }
-    setErr("Invalid email or password.");
+    try {
+      const result = await auth.login(email.trim(), pass);
+      auth.set(result.token);
+      if (result.role === "trainer") {
+        onLogin({ role:"trainer", name:"Coach", email });
+      } else {
+        onLogin({ role:"client", ...result.client });
+      }
+    } catch(e) {
+      setErr(e.message || "Invalid email or password.");
+    }
   };
 
   const submitSetup = async () => {
