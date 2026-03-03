@@ -2631,8 +2631,8 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
 
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
   const [currentExerciseIdx, setCurrentExerciseIdx] = useState(null); // null = hidden
-  const [queuedExercises, setQueuedExercises] = useState([]); // exercises added to top list
-  const [doneToday, setDoneToday] = useState([]); // exercises dragged from queue to done
+  const [queuedExercisesMap, setQueuedExercisesMap] = useState({}); // keyed by clientId
+  const [doneTodayMap, setDoneTodayMap] = useState({}); // keyed by clientId
   const [draggedExercise, setDraggedExercise] = useState(null);
   const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
   const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
@@ -2691,6 +2691,14 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   }, [sessions, clients]);
 
   const clientKey = activeClientId;
+  const queuedExercises = queuedExercisesMap[clientKey] || [];
+  const doneToday = doneTodayMap[clientKey] || [];
+  const setQueuedExercises = (fn) => setQueuedExercisesMap(prev => ({
+    ...prev, [clientKey]: typeof fn === "function" ? fn(prev[clientKey] || []) : fn
+  }));
+  const setDoneToday = (fn) => setDoneTodayMap(prev => ({
+    ...prev, [clientKey]: typeof fn === "function" ? fn(prev[clientKey] || []) : fn
+  }));
 
   useEffect(() => {
     if (!clientKey) return;
@@ -2714,6 +2722,17 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
       });
       setCustomExercises(prev => ({ ...prev, [clientKey]: built }));
     });
+    // Load queue and done today from DB
+    sbFetch(`progress?select=exercise,notes&clientId=eq.${clientKey}&exercise=in.(__queue__,__done__)`).then(rows => {
+      if (!rows || !Array.isArray(rows)) return;
+      rows.forEach(row => {
+        try {
+          const data = JSON.parse(row.notes || "[]");
+          if (row.exercise === "__queue__") setQueuedExercisesMap(prev => ({...prev, [clientKey]: data}));
+          if (row.exercise === "__done__") setDoneTodayMap(prev => ({...prev, [clientKey]: data}));
+        } catch(e) {}
+      });
+    });
     // Load latest history entry per exercise for inline display
     sbFetch(`progress_history?select=exercise,date,sets,reps,weight&clientId=eq.${clientKey}&order=id.desc`).then(rows => {
       if (!rows || !Array.isArray(rows)) return;
@@ -2736,9 +2755,14 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
         setCheckedExercises(prev => ({ ...prev, ...newChecked }));
       }
     });
-    setQueuedExercises([]);
-    setDoneToday([]);
   }, [clientKey]);
+
+  const saveQueue = async (clientId, queue, done) => {
+    await sbFetch(`progress?on_conflict=clientId,exercise`, "POST", [
+      { clientId, exercise: "__queue__", sets:"", reps:"", weight:"", notes: JSON.stringify(queue) },
+      { clientId, exercise: "__done__", sets:"", reps:"", weight:"", notes: JSON.stringify(done) }
+    ], { Prefer: "resolution=merge-duplicates,return=minimal" });
+  };
 
   const allExercisesForGroup = (group) => {
     const base = (library || ALL_EXERCISES_DEFAULT)[group] || [];
@@ -3078,9 +3102,12 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                   onDrop={e=>{
                     e.preventDefault();
                     if (draggedExercise && doneToday.includes(draggedExercise)) {
-                      setDoneToday(prev=>prev.filter(x=>x!==draggedExercise));
-                      setQueuedExercises(prev=>[...prev, draggedExercise]);
+                      const newDone = doneToday.filter(x=>x!==draggedExercise);
+                      const newQueue = [...queuedExercises, draggedExercise];
+                      setDoneToday(()=>newDone);
+                      setQueuedExercises(()=>newQueue);
                       setDraggedExercise(null);
+                      saveQueue(clientKey, newQueue, newDone);
                     }
                   }}
                 >
@@ -3104,7 +3131,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                       >
                         {ex}
                         <span
-                          onClick={()=>setQueuedExercises(prev=>prev.filter(e=>e!==ex))}
+                          onClick={()=>{const q=queuedExercises.filter(e=>e!==ex);setQueuedExercises(()=>q);saveQueue(clientKey,q,doneToday);}}
                           style={{cursor:"pointer",fontSize:11,opacity:0.7,fontWeight:900}}
                         >✕</span>
                       </div>
@@ -3122,9 +3149,12 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                   onDrop={e=>{
                     e.preventDefault();
                     if (draggedExercise && queuedExercises.includes(draggedExercise)) {
-                      setQueuedExercises(prev=>prev.filter(x=>x!==draggedExercise));
-                      setDoneToday(prev=>[...prev, draggedExercise]);
+                      const newQueue = queuedExercises.filter(x=>x!==draggedExercise);
+                      const newDone = [...doneToday, draggedExercise];
+                      setQueuedExercises(()=>newQueue);
+                      setDoneToday(()=>newDone);
                       setDraggedExercise(null);
+                      saveQueue(clientKey, newQueue, newDone);
                     }
                   }}
                 >
@@ -3149,7 +3179,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                       >
                         {ex}
                         <span
-                          onClick={()=>setDoneToday(prev=>prev.filter(e=>e!==ex))}
+                          onClick={()=>{const d=doneToday.filter(e=>e!==ex);setDoneToday(()=>d);saveQueue(clientKey,queuedExercises,d);}}
                           style={{cursor:"pointer",fontSize:11,opacity:0.7,fontWeight:900,textDecoration:"none"}}
                         >✕</span>
                       </div>
@@ -3276,9 +3306,13 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                                 fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
                               }}>{checked?"✓":""}</div>
                               <div
-                                onClick={()=>setQueuedExercises(prev=>
-                                  prev.includes(exercise) ? prev.filter(e=>e!==exercise) : [...prev, exercise]
-                                )}
+                                onClick={()=>{
+                                  const newQ = queuedExercises.includes(exercise)
+                                    ? queuedExercises.filter(e=>e!==exercise)
+                                    : [...queuedExercises, exercise];
+                                  setQueuedExercises(()=>newQ);
+                                  saveQueue(clientKey, newQ, doneToday);
+                                }}
                                 title={queuedExercises.includes(exercise) ? "Remove from queue" : "Add to queue"}
                                 style={{
                                   width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
