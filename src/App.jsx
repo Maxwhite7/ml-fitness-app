@@ -3135,19 +3135,26 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                                     background:"var(--green)",color:"var(--black)"
                                   }}>✓ Log</div>
                               )}
-                              <div
-                                onClick={()=>loadHistory(exercise)}
-                                title="View full history"
-                                style={{
-                                  padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:11,
-                                  background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)"
-                                }}>📋</div>
                               {(() => {
                                 const latest = (latestHistory[clientKey] || {})[exercise];
                                 if (!latest) return null;
                                 return (
-                                  <div style={{fontSize:10,color:"var(--muted)",lineHeight:1.3,textAlign:"right",maxWidth:90}}>
-                                    <div style={{color:"var(--accent)",fontWeight:600}}>{latest.date}</div>
+                                  <div style={{fontSize:10,color:"var(--muted)",lineHeight:1.3,textAlign:"right",maxWidth:110,position:"relative"}}>
+                                    <div style={{display:"flex",alignItems:"center",gap:4,justifyContent:"flex-end"}}>
+                                      <div style={{color:"var(--accent)",fontWeight:600}}>{latest.date}</div>
+                                      <div
+                                        onClick={async()=>{
+                                          await sbFetch(`progress_history?id=eq.${latest.id}`,"DELETE");
+                                          setLatestHistory(prev => {
+                                            const updated = {...(prev[clientKey] || {})};
+                                            delete updated[exercise];
+                                            return {...prev, [clientKey]: updated};
+                                          });
+                                        }}
+                                        title="Delete this entry"
+                                        style={{cursor:"pointer",color:"var(--muted)",fontSize:10,lineHeight:1,padding:"1px 3px",borderRadius:2,background:"var(--charcoal)",border:"1px solid var(--border)"}}
+                                      >✕</div>
+                                    </div>
                                     <div>{[latest.sets && latest.sets+"s", latest.reps && latest.reps+"r", latest.weight && latest.weight].filter(Boolean).join(" · ")}</div>
                                   </div>
                                 );
