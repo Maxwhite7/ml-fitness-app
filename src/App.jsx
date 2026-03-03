@@ -2631,6 +2631,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
 
   const currentWeekPlan = (weekPlans && weekPlans[currentWeekIdx]) || [];
   const [currentExerciseIdx, setCurrentExerciseIdx] = useState(null); // null = hidden
+  const [queuedExercises, setQueuedExercises] = useState([]); // exercises added to top list
   const todayKey = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })();
   const checkKey = (exercise) => `${activeClientId}:${exercise}:${todayKey}`;
   const isChecked = (exercise) => !!checkedExercises[checkKey(exercise)];
@@ -3056,20 +3057,40 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
             ))}
             <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,paddingRight:12,paddingBottom:4}}>
               {saving && <span style={{fontSize:11,color:"var(--muted)"}}>Saving...</span>}
-              {selectedClient && currentWeekPlan.length > 0 && (
-                <button
-                  className="btn-primary"
-                  style={{padding:"4px 14px",fontSize:12,fontWeight:700}}
-                  onClick={() => setCurrentExerciseIdx(prev => {
-                    if (prev === null) return 0;
-                    return prev < currentWeekPlan.length - 1 ? prev + 1 : 0;
-                  })}
-                >{currentExerciseIdx === null ? "▶ Next Exercise" : `▶ ${currentExerciseIdx + 1}/${currentWeekPlan.length}`}</button>
-              )}
+
               {selectedClient && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={()=>setAddExercise(true)}>+ Add Exercise</button>}
             </div>
           </div>
           <div className="section-body" style={{padding:0}}>
+
+            {/* Queued Exercises List */}
+            {queuedExercises.length > 0 && (
+              <div style={{
+                borderBottom:"1px solid var(--border)",
+                padding:"10px 20px",
+                background:"var(--charcoal)"
+              }}>
+                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:3,color:"var(--muted)",marginBottom:8}}>
+                  Session Queue — {queuedExercises.length} exercise{queuedExercises.length!==1?"s":""}
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {[...queuedExercises].sort().map(ex => (
+                    <div key={ex} style={{
+                      display:"flex",alignItems:"center",gap:6,
+                      padding:"4px 10px",borderRadius:20,
+                      background:"var(--accent)",color:"var(--black)",
+                      fontSize:12,fontWeight:700
+                    }}>
+                      {ex}
+                      <span
+                        onClick={()=>setQueuedExercises(prev=>prev.filter(e=>e!==ex))}
+                        style={{cursor:"pointer",fontSize:10,opacity:0.7,fontWeight:900}}
+                      >✕</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Next Exercise Banner - inline at top */}
             {currentExerciseIdx !== null && currentWeekPlan.length > 0 && (() => {
@@ -3183,6 +3204,19 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                                 display:"flex",alignItems:"center",justifyContent:"center",
                                 fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
                               }}>{checked?"✓":""}</div>
+                              <div
+                                onClick={()=>setQueuedExercises(prev=>
+                                  prev.includes(exercise) ? prev.filter(e=>e!==exercise) : [...prev, exercise]
+                                )}
+                                title={queuedExercises.includes(exercise) ? "Remove from queue" : "Add to queue"}
+                                style={{
+                                  width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
+                                  border:`2px solid ${queuedExercises.includes(exercise)?"var(--accent)":"var(--border)"}`,
+                                  background:queuedExercises.includes(exercise)?"var(--accent)":"transparent",
+                                  display:"flex",alignItems:"center",justifyContent:"center",
+                                  fontSize:10,color:queuedExercises.includes(exercise)?"var(--black)":"var(--muted)",
+                                  fontWeight:900,transition:"all 0.15s"
+                                }}>{queuedExercises.includes(exercise)?"★":"☆"}</div>
                               <span style={{
                                 color:checked?"var(--green)":isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)",
                                 textDecoration:checked?"line-through":"none"
