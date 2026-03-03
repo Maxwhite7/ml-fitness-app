@@ -2734,6 +2734,7 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
         setCheckedExercises(prev => ({ ...prev, ...newChecked }));
       }
     });
+    setQueuedExercises([]);
   }, [clientKey]);
 
   const allExercisesForGroup = (group) => {
@@ -3066,25 +3067,25 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
             {/* Queued Exercises List */}
             {queuedExercises.length > 0 && (
               <div style={{
-                borderBottom:"1px solid var(--border)",
-                padding:"10px 20px",
-                background:"var(--charcoal)"
+                borderBottom:"2px solid var(--green)",
+                padding:"14px 20px",
+                background:"#22c55e12"
               }}>
-                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:3,color:"var(--muted)",marginBottom:8}}>
+                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:3,color:"var(--green)",marginBottom:10,fontWeight:700}}>
                   Session Queue — {queuedExercises.length} exercise{queuedExercises.length!==1?"s":""}
                 </div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                   {[...queuedExercises].sort().map(ex => (
                     <div key={ex} style={{
-                      display:"flex",alignItems:"center",gap:6,
-                      padding:"4px 10px",borderRadius:20,
-                      background:"var(--accent)",color:"var(--black)",
-                      fontSize:12,fontWeight:700
+                      display:"flex",alignItems:"center",gap:8,
+                      padding:"7px 14px",borderRadius:20,
+                      background:"var(--green)",color:"var(--black)",
+                      fontSize:14,fontWeight:700
                     }}>
                       {ex}
                       <span
                         onClick={()=>setQueuedExercises(prev=>prev.filter(e=>e!==ex))}
-                        style={{cursor:"pointer",fontSize:10,opacity:0.7,fontWeight:900}}
+                        style={{cursor:"pointer",fontSize:11,opacity:0.7,fontWeight:900}}
                       >✕</span>
                     </div>
                   ))}
