@@ -4491,7 +4491,7 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><ClientAvailability client={client} /></div>
-        <div style={{display:tab==="progress"?"":"none"}}><ClientProgress client={client} mySessions={mySessions} /></div>
+        {tab==="progress" && <ClientProgress client={client} mySessions={mySessions||[]} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
     </div>
