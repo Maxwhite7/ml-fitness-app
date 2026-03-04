@@ -1094,32 +1094,72 @@ function LoginScreen({ clients, onLogin, saveClients }) {
     if (newPass.length < 6) return setSetupErr("Password must be at least 6 characters.");
     if (newPass !== newPass2) return setSetupErr("Passwords don't match.");
     const client = freshClients.find(c => c.id === selectedId);
-    // Use the pre-assigned mlfit email for this client
-    const clientEmail = client.email || (client.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z0-9]/g,"").toLowerCase() + ".mlfit@gmail.com");
+    const clientEmail = client.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z0-9]/g,"").toLowerCase() + ".mlfit@gmail.com";
     try {
-      // Update password in Supabase Auth
-      const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+      // Step 1: Try to sign in with existing password (in case SQL-created account works)
+      // Step 2: If that fails, use signUp to create/overwrite with new password
+      // First attempt: sign up (creates or returns existing user)
+      const signUpRes = await fetch(SUPABASE_URL + "/auth/v1/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email: clientEmail, password: newPass })
+      });
+      const signUpData = await signUpRes.json();
+
+      // If signup succeeded and returned a session, we're done
+      if (signUpRes.ok && signUpData.access_token) {
+        const updatedClient = {...client, email: clientEmail};
+        await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
+        setMode("login");
+        setEmail(clientEmail);
+        setErr("Account created! Please sign in.");
+        return;
+      }
+
+      // If user already exists, try to update password via Fitness2026 default
+      // then fall back to a direct admin update via Edge Function
+      const loginRes = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
         body: JSON.stringify({ email: clientEmail, password: "Fitness2026" })
       });
-      const tokenData = await res.json();
-      if (!res.ok) throw new Error("Could not verify account. Please contact your trainer.");
-      // Update password using the access token
-      const updateRes = await fetch(SUPABASE_URL + "/auth/v1/user", {
-        method: "PUT",
+      const loginData = await loginRes.json();
+
+      if (loginRes.ok && loginData.access_token) {
+        // Update to chosen password
+        const updateRes = await fetch(SUPABASE_URL + "/auth/v1/user", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + loginData.access_token
+          },
+          body: JSON.stringify({ password: newPass })
+        });
+        if (!updateRes.ok) throw new Error("Failed to update password.");
+        const updatedClient = {...client, email: clientEmail};
+        await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
+        setMode("login");
+        setEmail(clientEmail);
+        setErr("Account created! Please sign in.");
+        return;
+      }
+
+      // Last resort: use Edge Function to reset password as admin
+      const adminRes = await fetch(SUPABASE_URL + "/functions/v1/get-token", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + tokenData.access_token
+          Authorization: "Bearer " + SUPABASE_ANON_KEY
         },
-        body: JSON.stringify({ password: newPass })
+        body: JSON.stringify({ action: "setup", email: clientEmail, password: newPass })
       });
-      if (!updateRes.ok) throw new Error("Failed to update password.");
-      // Update client record with confirmed email
+      const adminData = await adminRes.json();
+      if (!adminRes.ok) throw new Error(adminData.error || "Could not set up account. Please contact your trainer.");
+
       const updatedClient = {...client, email: clientEmail};
       await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
-      // Redirect to login
       setMode("login");
       setEmail(clientEmail);
       setErr("Account created! Please sign in.");
@@ -1148,7 +1188,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
           </div>
         ) : !signupClient ? (
           <div style={{color:"var(--red)",marginBottom:16,textAlign:"center"}}>Invalid or expired signup link.</div>
-        ) : signupClient.email ? (
+        ) : false ? (
           <div style={{
             background:"var(--charcoal)",border:"1px solid var(--border)",
             borderRadius:4,padding:"20px",marginBottom:16,textAlign:"center"
