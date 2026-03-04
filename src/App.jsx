@@ -1106,8 +1106,8 @@ function LoginScreen({ clients, onLogin, saveClients }) {
       });
       const signUpData = await signUpRes.json();
 
-      // If signup succeeded and returned a session, we're done
-      if (signUpRes.ok && signUpData.access_token) {
+      // If signup succeeded (with or without a session token), we're done
+      if (signUpRes.ok && (signUpData.access_token || signUpData.id || signUpData.user?.id)) {
         const updatedClient = {...client, email: clientEmail};
         await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
         setMode("login");
