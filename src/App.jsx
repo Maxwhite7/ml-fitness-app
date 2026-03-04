@@ -567,6 +567,106 @@ const GlobalStyle = () => (
       .week-grid { grid-template-columns: repeat(3, 1fr); }
       .two-col { grid-template-columns: 1fr; }
     }
+
+    @media (max-width: 640px) {
+      /* Hide top nav items, show bottom nav */
+      .topbar-nav { display: none; }
+      .topbar { padding: 0 16px; height: 52px; }
+      .topbar-logo { margin-right: 0; }
+      .topbar-logo-text { font-size: 18px; }
+      .user-name { display: none; }
+
+      /* Bottom navigation bar */
+      .bottom-nav {
+        display: flex !important;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: var(--charcoal);
+        border-top: 1px solid var(--border);
+        z-index: 100;
+        padding: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .bottom-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 4px 8px;
+        gap: 3px;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: none;
+        background: none;
+        transition: color 0.15s;
+        min-height: 58px;
+      }
+      .bottom-nav-item.active { color: var(--accent); }
+      .bottom-nav-icon { font-size: 20px; line-height: 1; }
+
+      /* Main content padding for bottom nav */
+      .main-content {
+        padding: 20px 16px 80px;
+      }
+
+      /* Page header smaller */
+      .page-title { font-size: 28px; }
+      .page-subtitle { font-size: 12px; }
+      .page-header { margin-bottom: 16px; }
+
+      /* Stats grid 2 col */
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .stat-card { padding: 14px; }
+      .stat-value { font-size: 26px; }
+
+      /* Sections */
+      .section { margin-bottom: 16px; }
+      .section-body { padding: 14px; }
+      .section-header { padding: 12px 14px; }
+
+      /* Tables scroll horizontally */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 500px; }
+
+      /* Modals full screen on mobile */
+      .modal-overlay { align-items: flex-end; padding: 0; }
+      .modal {
+        border-radius: 16px 16px 0 0;
+        max-height: 90vh;
+        overflow-y: auto;
+        width: 100%;
+        max-width: 100%;
+      }
+      .modal-body { padding: 16px; }
+      .modal-footer { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .modal-footer button { flex: 1; min-width: 100px; }
+
+      /* Login box */
+      .login-wrap { padding: 20px 16px; }
+      .login-box { padding: 28px 20px; }
+
+      /* Buttons larger tap targets */
+      .btn-primary, .btn-secondary { min-height: 44px; font-size: 14px; }
+
+      /* Form inputs larger */
+      .field-input, input, select, textarea {
+        font-size: 16px !important; /* prevent zoom on iOS */
+        min-height: 44px;
+      }
+
+      /* Two col always single on mobile */
+      .two-col { grid-template-columns: 1fr; gap: 12px; }
+
+      /* Week grid 2 col */
+      .week-grid { grid-template-columns: repeat(2, 1fr); }
+
+      /* Calendar cells smaller */
+      .cal-cell { min-height: 48px; font-size: 12px; }
+    }
   `}</style>
 );
 
@@ -5130,25 +5230,40 @@ function ClientAccount({ client, sessionsLeft }) {
 // ─── Shared components ────────────────────────────────────────────────────────
 function Sidebar({ user, nav, tab, setTab, onLogout, role }) {
   return (
-    <div className="topbar">
-      <div className="topbar-logo">
-        <div className="bebas topbar-logo-text">ML FITNESS</div>
-        <div className="topbar-role">{role}</div>
+    <>
+      <div className="topbar">
+        <div className="topbar-logo">
+          <div className="bebas topbar-logo-text">ML FITNESS</div>
+          <div className="topbar-role">{role}</div>
+        </div>
+        <div className="topbar-nav">
+          {nav.map(n=>(
+            <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+              <span className="nav-icon">{n.icon}</span>
+              {n.label}
+            </div>
+          ))}
+        </div>
+        <div className="user-pill">
+          <div className="user-avatar">{(user.name||"?")[0]}</div>
+          <div className="user-name">{(user.name||"").split(" ")[0]}</div>
+          <button className="logout-btn" title="Log out" onClick={onLogout}>⏻</button>
+        </div>
       </div>
-      <div className="topbar-nav">
+      {/* Bottom nav — only visible on mobile via CSS */}
+      <div className="bottom-nav" style={{display:"none"}}>
         {nav.map(n=>(
-          <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
-            <span className="nav-icon">{n.icon}</span>
+          <button key={n.id} className={`bottom-nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+            <span className="bottom-nav-icon">{n.icon}</span>
             {n.label}
-          </div>
+          </button>
         ))}
+        <button className="bottom-nav-item" onClick={onLogout}>
+          <span className="bottom-nav-icon">⏻</span>
+          Logout
+        </button>
       </div>
-      <div className="user-pill">
-        <div className="user-avatar">{user.name[0]}</div>
-        <div className="user-name">{user.name.split(" ")[0]}</div>
-        <button className="logout-btn" title="Log out" onClick={onLogout}>⏻</button>
-      </div>
-    </div>
+    </>
   );
 }
 
