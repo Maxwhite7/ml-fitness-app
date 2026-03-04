@@ -583,7 +583,7 @@ const SUPABASE_URL = "https://rdklpaqlkbpmmxvmzppj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJka2xwYXFsa2JwbW14dm16cHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjM2MDUsImV4cCI6MjA4NzA5OTYwNX0.6Hwgvz4CHANbYXciRp_T7aQwXhOIB2KAVwjsdxUn_d0";
 
 // Edge Function login - mints JWT with app_role at root level for RLS
-// Token stored in sessionStorage so it survives React re-renders
+// Token stored in localStorage so it persists across reloads
 const auth = {
   set(token) { localStorage.setItem("ml_jwt", token); },
   clear() { localStorage.removeItem("ml_jwt"); },
@@ -1076,6 +1076,8 @@ function LoginScreen({ clients, onLogin, saveClients }) {
     try {
       const result = await auth.login(email.trim(), pass);
       auth.set(result.token);
+      // Small delay to ensure token is persisted before data fetches begin
+      await new Promise(r => setTimeout(r, 100));
       if (result.role === "trainer") {
         onLogin({ role:"trainer", name:"Coach", email });
       } else {
