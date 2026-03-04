@@ -1773,14 +1773,6 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     }
   };
 
-  const del = async () => {
-    if (!window.confirm(`Remove ${modal.name}? This cannot be undone.`)) return;
-    const clientId = modal.id;
-    setModal(null);
-    deleteClient(clientId);
-    await store.remove("gym_clients", clientId);
-  };
-
   const resetPassword = async () => {
     if (!modal || modal === "add") return;
     const slug = modal.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z]/g,"");
@@ -1791,6 +1783,14 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     await saveClients(clients.map(c => c.id === modal.id ? updatedClient : c), updatedClient);
     setModal(null);
     setNewCredentials({ name: modal.name, email: modal.email, password: newPlain, reset: true });
+  };
+
+  const del = async () => {
+    if (!window.confirm(`Remove ${modal.name}? This cannot be undone.`)) return;
+    const clientId = modal.id;
+    setModal(null);
+    deleteClient(clientId);
+    await store.remove("gym_clients", clientId);
   };
 
   const clientSessions = (id) => sessions.filter(s=>s.clientIds.includes(id)).length;
@@ -1875,7 +1875,6 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         </table>
       </div>
 
-      {/* Credentials popup after adding new client */}
       {newCredentials && (
         <div className="modal-overlay">
           <div className="modal" style={{maxWidth:400}}>
@@ -4497,11 +4496,11 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
 }
 
 function ClientSchedule({ client, mySessions, sessionsLeft }) {
+  if (!client) return null;
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
-  if (!client) return null;
 
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -4525,7 +4524,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
 
-  const pct = client.sessionsTotal > 0 ? Math.round((client.sessionsUsed/client.sessionsTotal)*100) : 0;
+  const pct = Math.round((client.sessionsUsed/client.sessionsTotal)*100);
   const left = client.sessionsTotal - client.sessionsUsed;
 
   return (
@@ -4957,7 +4956,6 @@ function ClientAvailability({ client }) {
     </>
   );
 }
-
 
 function ClientAccount({ client, sessionsLeft }) {
   if (!client) return null;
