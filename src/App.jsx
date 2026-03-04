@@ -1089,16 +1089,41 @@ function LoginScreen({ clients, onLogin, saveClients }) {
   const submitSetup = async () => {
     setSetupErr("");
     if (!selectedId) return setSetupErr("Please select your name.");
-    if (!newEmail.includes("@")) return setSetupErr("Enter a valid email address.");
     if (newPass.length < 6) return setSetupErr("Password must be at least 6 characters.");
     if (newPass !== newPass2) return setSetupErr("Passwords don't match.");
-    if (freshClients.find(x => x.email === newEmail && x.id !== selectedId)) return setSetupErr("That email is already taken.");
     const client = freshClients.find(c => c.id === selectedId);
-    const hashed = await hashPassword(newPass);
-    const updatedClient = {...client, email: newEmail, password: hashed};
-    const updated = freshClients.map(c => c.id === selectedId ? updatedClient : c);
-    await saveClients(updated, updatedClient);
-    onLogin({ role:"client", ...updatedClient });
+    // Use the pre-assigned mlfit email for this client
+    const clientEmail = client.email || (client.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z0-9]/g,"").toLowerCase() + ".mlfit@gmail.com");
+    try {
+      // Update password in Supabase Auth
+      const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email: clientEmail, password: "Fitness2026" })
+      });
+      const tokenData = await res.json();
+      if (!res.ok) throw new Error("Could not verify account. Please contact your trainer.");
+      // Update password using the access token
+      const updateRes = await fetch(SUPABASE_URL + "/auth/v1/user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + tokenData.access_token
+        },
+        body: JSON.stringify({ password: newPass })
+      });
+      if (!updateRes.ok) throw new Error("Failed to update password.");
+      // Update client record with confirmed email
+      const updatedClient = {...client, email: clientEmail};
+      await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
+      // Redirect to login
+      setMode("login");
+      setEmail(clientEmail);
+      setErr("Account created! Please sign in.");
+    } catch(e) {
+      setSetupErr(e.message || "Something went wrong. Please try again.");
+    }
   };
 
   if (mode === "setup") return (
@@ -1145,15 +1170,19 @@ function LoginScreen({ clients, onLogin, saveClients }) {
             </div>
           </div>
         )}
-        {signupId && signupClient && !signupClient.email && !loadingClients && (<>
-        <div className="field-label">Your Email</div>
-        <input className="field-input" type="email" placeholder="you@email.com" value={newEmail} onChange={e=>setNewEmail(e.target.value)} />
-        <div className="field-label">Choose a Password</div>
-        <input className="field-input" type="password" placeholder="Min. 6 characters" value={newPass} onChange={e=>setNewPass(e.target.value)} />
-        <div className="field-label">Confirm Password</div>
-        <input className="field-input" type="password" placeholder="Repeat password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitSetup()} />
-        <button className="btn-primary" onClick={submitSetup}>CREATE ACCOUNT</button>
-        </>)}
+        {signupId && signupClient && !loadingClients && (() => {
+          const clientEmail = signupClient.email || (signupClient.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z0-9]/g,"").toLowerCase() + ".mlfit@gmail.com");
+          return (<>
+            <div className="field-label">Your Email</div>
+            <input className="field-input" type="email" value={clientEmail} readOnly
+              style={{opacity:0.6, cursor:"not-allowed"}} />
+            <div className="field-label">Choose a Password</div>
+            <input className="field-input" type="password" placeholder="Min. 6 characters" value={newPass} onChange={e=>setNewPass(e.target.value)} />
+            <div className="field-label">Confirm Password</div>
+            <input className="field-input" type="password" placeholder="Repeat password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitSetup()} />
+            <button className="btn-primary" onClick={submitSetup}>CREATE ACCOUNT</button>
+          </>);
+        })()}
         <div className="switch-link"><span onClick={()=>{ setMode("login"); window.history.replaceState({},"",window.location.pathname); }}>← Back to sign in</span></div>
       </div>
     </div>
@@ -1916,17 +1945,18 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                     >
                       {c.active?"Active":"Inactive"}
                     </span>
-                    {!c.email && (
+                    {((!c.email) || c.email.endsWith(".mlfit@gmail.com")) && (
                       <span
                         className="badge badge-muted"
                         style={{cursor:"pointer",userSelect:"none",fontSize:11}}
                         title="Copy signup link"
-                        onClick={()=>{
+                        onClick={(e)=>{
+                          e.stopPropagation();
                           const link = `${window.location.origin}?signup=${c.id}`;
                           navigator.clipboard.writeText(link);
-                          alert(`Signup link copied!\n\n${link}`);
+                          alert(`Signup link copied for ${c.name}!\n\n${link}`);
                         }}
-                      >🔗 Copy Link</span>
+                      >🔗 Invite</span>
                     )}
                     <span
                       className="badge"
@@ -3298,30 +3328,20 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                         }}>
                           <td style={{fontWeight:isWeekExercise||hasData(exercise)?600:400}}>
                             <div style={{display:"flex",alignItems:"center",gap:10}}>
-                              <div onClick={()=>toggleCheck(exercise)} style={{
+                              <div onClick={()=>{
+                                const newQ = queuedExercises.includes(exercise)
+                                  ? queuedExercises.filter(e=>e!==exercise)
+                                  : [...queuedExercises, exercise];
+                                setQueuedExercises(()=>newQ);
+                                saveQueue(clientKey, newQ, doneToday);
+                              }} style={{
                                 width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
-                                border:`2px solid ${checked?"var(--green)":isWeekExercise?"var(--accent)":"var(--border)"}`,
-                                background:checked?"var(--green)":"transparent",
+                                border:`2px solid ${queuedExercises.includes(exercise)?"var(--green)":doneToday.includes(exercise)?"var(--accent)":isWeekExercise?"var(--accent)":"var(--border)"}`,
+                                background:queuedExercises.includes(exercise)?"var(--green)":doneToday.includes(exercise)?"var(--accent)":"transparent",
                                 display:"flex",alignItems:"center",justifyContent:"center",
                                 fontSize:10,color:"var(--black)",fontWeight:900,transition:"all 0.15s"
-                              }}>{checked?"✓":""}</div>
-                              <div
-                                onClick={()=>{
-                                  const newQ = queuedExercises.includes(exercise)
-                                    ? queuedExercises.filter(e=>e!==exercise)
-                                    : [...queuedExercises, exercise];
-                                  setQueuedExercises(()=>newQ);
-                                  saveQueue(clientKey, newQ, doneToday);
-                                }}
-                                title={queuedExercises.includes(exercise) ? "Remove from queue" : "Add to queue"}
-                                style={{
-                                  width:16,height:16,borderRadius:3,flexShrink:0,cursor:"pointer",
-                                  border:`2px solid ${queuedExercises.includes(exercise)?"var(--accent)":"var(--border)"}`,
-                                  background:queuedExercises.includes(exercise)?"var(--accent)":"transparent",
-                                  display:"flex",alignItems:"center",justifyContent:"center",
-                                  fontSize:10,color:queuedExercises.includes(exercise)?"var(--black)":"var(--muted)",
-                                  fontWeight:900,transition:"all 0.15s"
-                                }}>{queuedExercises.includes(exercise)?"★":"☆"}</div>
+                              }}>{queuedExercises.includes(exercise)?"★":doneToday.includes(exercise)?"✓":""}</div>
+
                               <span style={{
                                 color:checked?"var(--green)":isWeekExercise?"var(--accent)":hasData(exercise)?"var(--text)":"var(--muted)",
                                 textDecoration:checked?"line-through":"none"
