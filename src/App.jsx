@@ -4497,11 +4497,11 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
 }
 
 function ClientSchedule({ client, mySessions, sessionsLeft }) {
-  if (!client) return null;
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
+  if (!client) return null;
 
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -4525,7 +4525,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
 
-  const pct = Math.round((client.sessionsUsed/client.sessionsTotal)*100);
+  const pct = client.sessionsTotal > 0 ? Math.round((client.sessionsUsed/client.sessionsTotal)*100) : 0;
   const left = client.sessionsTotal - client.sessionsUsed;
 
   return (
@@ -4958,163 +4958,6 @@ function ClientAvailability({ client }) {
   );
 }
 
-
-// ─── Client Progress ──────────────────────────────────────────────────────────
-function ClientProgress({ client, mySessions }) {
-  const [progressHistory, setProgressHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (!client) return;
-    sbFetch(`progress_history?select=*&clientId=eq.${client.id}&order=date.asc`)
-      .then(rows => {
-        setProgressHistory(Array.isArray(rows) ? rows : []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setProgressHistory([]);
-        setLoading(false);
-        setError(true);
-      });
-  }, [client?.id]);
-
-  if (!client) return null;
-
-  // Sessions attended over time — group by month
-  const sessionsByMonth = {};
-  mySessions.forEach(s => {
-    if (!s.date) return;
-    const month = s.date.slice(0, 7); // "2026-02"
-    sessionsByMonth[month] = (sessionsByMonth[month] || 0) + 1;
-  });
-  const sessionMonths = Object.keys(sessionsByMonth).sort();
-
-  // Group progress history by exercise
-  const byExercise = {};
-  progressHistory.forEach(row => {
-    if (!row.exercise || row.exercise.startsWith("__")) return;
-    if (!byExercise[row.exercise]) byExercise[row.exercise] = [];
-    byExercise[row.exercise].push(row);
-  });
-  const exercises = Object.keys(byExercise).sort();
-
-  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const formatMonth = (ym) => {
-    const [y, m] = ym.split("-");
-    return MONTH_NAMES[parseInt(m)-1] + " " + y.slice(2);
-  };
-
-  const formatDate = (d) => {
-    if (!d) return "";
-    const date = new Date(d + "T12:00:00");
-    return MONTH_NAMES[date.getMonth()] + " " + date.getDate();
-  };
-
-  // Simple bar chart renderer
-  const BarChart = ({ data, label, color = "var(--accent)" }) => {
-    const max = Math.max(...data.map(d => d.value), 1);
-    return (
-      <div style={{marginTop:8}}>
-        <div style={{display:"flex",alignItems:"flex-end",gap:6,height:80}}>
-          {data.map((d, i) => (
-            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-              <div style={{fontSize:9,color:"var(--muted)"}}>{d.value}</div>
-              <div style={{
-                width:"100%", borderRadius:2,
-                background: color,
-                height: Math.max((d.value / max) * 60, 2) + "px",
-                opacity: 0.85
-              }} />
-              <div style={{fontSize:9,color:"var(--muted)",whiteSpace:"nowrap"}}>{d.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <div className="page-header">
-        <div className="bebas page-title">MY PROGRESS</div>
-        <div className="page-subtitle">Track your fitness journey</div>
-      </div>
-
-      {/* Sessions attended */}
-      <div className="section" style={{marginBottom:20}}>
-        <div className="section-header">
-          <span className="section-title">Sessions Attended</span>
-          <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{mySessions.length} total</span>
-        </div>
-        <div className="section-body">
-          {sessionMonths.length === 0 ? (
-            <div style={{color:"var(--muted)",fontSize:13}}>No sessions recorded yet.</div>
-          ) : (
-            <BarChart
-              data={sessionMonths.map(m => ({ label: formatMonth(m), value: sessionsByMonth[m] }))}
-              color="var(--accent)"
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Exercise progress */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Exercise Progress</span>
-        </div>
-        <div className="section-body">
-          {loading ? (
-            <div style={{color:"var(--muted)",fontSize:13}}>Loading...</div>
-          ) : exercises.length === 0 ? (
-            <div style={{color:"var(--muted)",fontSize:13}}>No exercise data recorded yet. Your trainer will log your progress after sessions.</div>
-          ) : (
-            <div style={{display:"flex",flexDirection:"column",gap:24}}>
-              {exercises.map(ex => {
-                const rows = byExercise[ex];
-                const hasWeight = rows.some(r => r.weight && r.weight !== "");
-                const hasReps = rows.some(r => r.reps && r.reps !== "");
-                return (
-                  <div key={ex}>
-                    <div style={{fontWeight:600,fontSize:14,color:"var(--text)",marginBottom:8}}>{ex}</div>
-                    {hasWeight && (
-                      <div style={{marginBottom:12}}>
-                        <div style={{fontSize:11,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Weight (lbs/kg)</div>
-                        <BarChart
-                          data={rows.filter(r=>r.weight).map(r => ({ label: formatDate(r.date), value: parseFloat(r.weight)||0 }))}
-                          color="var(--accent)"
-                        />
-                      </div>
-                    )}
-                    {hasReps && (
-                      <div>
-                        <div style={{fontSize:11,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Reps</div>
-                        <BarChart
-                          data={rows.filter(r=>r.reps).map(r => ({ label: formatDate(r.date), value: parseFloat(r.reps)||0 }))}
-                          color="var(--green)"
-                        />
-                      </div>
-                    )}
-                    {/* Latest entry summary */}
-                    {rows.length > 0 && (
-                      <div style={{marginTop:8,fontSize:11,color:"var(--muted)"}}>
-                        Last logged: {formatDate(rows[rows.length-1].date)}
-                        {rows[rows.length-1].sets ? ` · ${rows[rows.length-1].sets} sets` : ""}
-                        {rows[rows.length-1].reps ? ` · ${rows[rows.length-1].reps} reps` : ""}
-                        {rows[rows.length-1].weight ? ` · ${rows[rows.length-1].weight}` : ""}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
 
 function ClientAccount({ client, sessionsLeft }) {
   if (!client) return null;
