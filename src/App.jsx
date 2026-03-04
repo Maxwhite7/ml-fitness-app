@@ -1823,7 +1823,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
           <tbody>
             {[...filtered].sort((a,b)=>a.name.localeCompare(b.name)).map(c => {
               const left = c.sessionsTotal - c.sessionsUsed;
-              const pct = (c.sessionsUsed/c.sessionsTotal)*100;
+              const pct = c.sessionsTotal > 0 ? (c.sessionsUsed/c.sessionsTotal)*100 : 0;
               return (
                 <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>openEdit(c)}>
                   <td>
@@ -4524,7 +4524,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
 
-  const pct = Math.round((client.sessionsUsed/client.sessionsTotal)*100);
+  const pct = client.sessionsTotal > 0 ? Math.round((client.sessionsUsed/client.sessionsTotal)*100) : 0;
   const left = client.sessionsTotal - client.sessionsUsed;
 
   return (
