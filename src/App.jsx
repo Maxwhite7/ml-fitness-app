@@ -1781,6 +1781,18 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     await store.remove("gym_clients", clientId);
   };
 
+  const resetPassword = async () => {
+    if (!modal || modal === "add") return;
+    const slug = modal.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z]/g,"");
+    const num = modal.id.replace("c","");
+    const newPlain = slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase() + num + "ML!";
+    const hashed = await hashPassword(newPlain);
+    const updatedClient = {...modal, password: hashed};
+    await saveClients(clients.map(c => c.id === modal.id ? updatedClient : c), updatedClient);
+    setModal(null);
+    setNewCredentials({ name: modal.name, email: modal.email, password: newPlain, reset: true });
+  };
+
   const clientSessions = (id) => sessions.filter(s=>s.clientIds.includes(id)).length;
 
   return (
@@ -1868,7 +1880,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         <div className="modal-overlay">
           <div className="modal" style={{maxWidth:400}}>
             <div className="modal-header">
-              <div className="bebas modal-title">✅ CLIENT ADDED</div>
+              <div className="bebas modal-title">{newCredentials.reset ? "🔑 PASSWORD RESET" : "✅ CLIENT ADDED"}</div>
             </div>
             <div className="modal-body">
               <div style={{marginBottom:12,color:"var(--muted)",fontSize:13}}>
@@ -1940,6 +1952,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
             </div>
             <div className="modal-footer">
               {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Remove</button>}
+              {modal !== "add" && <button className="btn-secondary" style={{color:"var(--accent)",borderColor:"var(--accent)"}} onClick={resetPassword}>🔑 Reset Password</button>}
               <button className="btn-secondary" onClick={()=>setModal(null)}>Cancel</button>
               <button className="btn-primary" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={save}>Save</button>
             </div>
