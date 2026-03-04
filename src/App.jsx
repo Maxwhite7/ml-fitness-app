@@ -1065,18 +1065,28 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [previewClient, setPreviewClient] = useState(null);
 
-  // Load from Supabase, seed only if empty
+  const loadData = async () => {
+    let c = await store.get("gym_clients");
+    let s = await store.get("gym_sessions");
+    if (!c) { c = []; }
+    if (!s) { s = []; }
+    setClients(c);
+    setSessions(s);
+  };
+
+  // Load on mount (for returning users with existing JWT)
   useEffect(() => {
     (async () => {
-      let c = await store.get("gym_clients");
-      let s = await store.get("gym_sessions");
-      if (!c) { c = []; }
-      if (!s) { s = []; }
-      setClients(c);
-      setSessions(s);
+      await loadData();
       setLoaded(true);
     })();
   }, []);
+
+  // Reload after login so JWT is set and RLS returns correct data
+  const handleLogin = async (userData) => {
+    await loadData();
+    setUser(userData);
+  };
 
   const saveClients = async (updated, changedRow=null) => {
     setClients(updated);
@@ -1105,7 +1115,7 @@ export default function App() {
   if (!user) return (
     <>
       <GlobalStyle />
-      <LoginScreen clients={clients} onLogin={setUser} saveClients={saveClients} />
+      <LoginScreen clients={clients} onLogin={handleLogin} saveClients={saveClients} />
     </>
   );
 
