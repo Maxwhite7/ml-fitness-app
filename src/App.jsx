@@ -4498,19 +4498,6 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
 
 function ClientSchedule({ client, mySessions, sessionsLeft }) {
   if (!client) return null;
-  if (error) return (
-    <>
-      <div className="page-header">
-        <div className="bebas page-title">MY PROGRESS</div>
-        <div className="page-subtitle">Track your fitness journey</div>
-      </div>
-      <div className="section">
-        <div className="section-body">
-          <div style={{color:"var(--muted)",fontSize:13}}>Progress data will appear here once your trainer logs your workouts.</div>
-        </div>
-      </div>
-    </>
-  );
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
