@@ -4474,7 +4474,6 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
   const nav = [
     { id:"schedule", icon:"📅", label:"My Schedule" },
     { id:"availability", icon:"✅", label:"My Availability" },
-    { id:"progress", icon:"📈", label:"My Progress" },
     { id:"account", icon:"👤", label:"Account" },
   ];
 
@@ -4491,7 +4490,6 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><ClientAvailability client={client} /></div>
-        {tab==="progress" && <ClientProgress client={client} mySessions={mySessions||[]} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
     </div>
