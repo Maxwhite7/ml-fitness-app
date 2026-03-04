@@ -681,141 +681,141 @@ const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","5:00 PM","6:00 PM","7:00 PM"];
 
 const seedClients = () => [
-  { id:"c1",   name:"Abdel",            email:"abdel@gym.com",            password:"abdel123", sessionsTotal:28, sessionsUsed:8, active:true },
-  { id:"c2",   name:"Adil",             email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
-  { id:"c3",   name:"Amelie",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c4",   name:"Anna",             email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
-  { id:"c5",   name:"Anika",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c6",   name:"Anthony",          email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c7",   name:"Ashley",           email:"", password:"", sessionsTotal:28, sessionsUsed:6, active:true },
-  { id:"c8",   name:"Asma",             email:"", password:"", sessionsTotal:30, sessionsUsed:29, active:true },
-  { id:"c9",   name:"Aurelien",         email:"", password:"", sessionsTotal:48, sessionsUsed:40, active:true },
-  { id:"c10",  name:"Melissa",          email:"", password:"", sessionsTotal:48, sessionsUsed:41, active:true },
-  { id:"c11",  name:"Beer",             email:"", password:"", sessionsTotal:28, sessionsUsed:25, active:true },
-  { id:"c12",  name:"Caitlin",          email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
-  { id:"c13",  name:"Carla",            email:"", password:"", sessionsTotal:28, sessionsUsed:9, active:true },
-  { id:"c14",  name:"Carole M",         email:"", password:"", sessionsTotal:28, sessionsUsed:24, active:true },
-  { id:"c15",  name:"Celine",           email:"", password:"", sessionsTotal:28, sessionsUsed:17, active:true },
-  { id:"c16",  name:"Clara",            email:"", password:"", sessionsTotal:30, sessionsUsed:8, active:true },
-  { id:"c17",  name:"Claudio",          email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
-  { id:"c18",  name:"Chantal",          email:"", password:"", sessionsTotal:24, sessionsUsed:10, active:true },
-  { id:"c19",  name:"Cheryl",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c20",  name:"Chris",            email:"", password:"", sessionsTotal:24, sessionsUsed:24, active:true },
-  { id:"c21",  name:"Daniel",           email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
-  { id:"c22",  name:"Genevieve",        email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c23",  name:"Dave",             email:"", password:"", sessionsTotal:28, sessionsUsed:5, active:true },
-  { id:"c24",  name:"Dmytro",           email:"", password:"", sessionsTotal:24, sessionsUsed:10, active:true },
-  { id:"c25",  name:"Elaine",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c26",  name:"Elise",            email:"", password:"", sessionsTotal:24, sessionsUsed:18, active:true },
-  { id:"c27",  name:"Elyse CH",         email:"", password:"", sessionsTotal:10, sessionsUsed:6, active:true },
-  { id:"c28",  name:"Elyse CO",         email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c29",  name:"Erin",             email:"", password:"", sessionsTotal:24, sessionsUsed:18, active:true },
-  { id:"c30",  name:"Fabio",            email:"", password:"", sessionsTotal:24, sessionsUsed:24, active:true },
-  { id:"c31",  name:"Farah",            email:"", password:"", sessionsTotal:45, sessionsUsed:45, active:true },
-  { id:"c32",  name:"Foujane",          email:"", password:"", sessionsTotal:28, sessionsUsed:19, active:true },
-  { id:"c33",  name:"Gabby",            email:"", password:"", sessionsTotal:30, sessionsUsed:11, active:true },
-  { id:"c34",  name:"Gen",              email:"", password:"", sessionsTotal:28, sessionsUsed:5, active:true },
-  { id:"c35",  name:"Georges",          email:"", password:"", sessionsTotal:56, sessionsUsed:24, active:true },
-  { id:"c36",  name:"Hughes",           email:"", password:"", sessionsTotal:8, sessionsUsed:1, active:true },
-  { id:"c37",  name:"Isabelle",         email:"", password:"", sessionsTotal:28, sessionsUsed:16, active:true },
-  { id:"c38",  name:"Luc",              email:"", password:"", sessionsTotal:28, sessionsUsed:16, active:true },
-  { id:"c39",  name:"Isabelle2",        email:"", password:"", sessionsTotal:10, sessionsUsed:10, active:true },
-  { id:"c40",  name:"Lea",              email:"", password:"", sessionsTotal:10, sessionsUsed:7, active:true },
-  { id:"c41",  name:"Janine",           email:"", password:"", sessionsTotal:24, sessionsUsed:13, active:true },
-  { id:"c42",  name:"Pierre",           email:"", password:"", sessionsTotal:24, sessionsUsed:12, active:true },
-  { id:"c43",  name:"Jean",             email:"", password:"", sessionsTotal:60, sessionsUsed:59, active:true },
-  { id:"c44",  name:"Jose",             email:"", password:"", sessionsTotal:60, sessionsUsed:60, active:true },
-  { id:"c45",  name:"Jeremie",          email:"", password:"", sessionsTotal:24, sessionsUsed:11, active:true },
-  { id:"c46",  name:"Jess",             email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
-  { id:"c47",  name:"Joe",              email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c48",  name:"Filo",             email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c49",  name:"JohanneM",         email:"", password:"", sessionsTotal:10, sessionsUsed:10, active:true },
-  { id:"c50",  name:"John V",           email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
-  { id:"c51",  name:"John Scott",       email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c52",  name:"Julie B",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c53",  name:"Julien",           email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c54",  name:"JP Grilli",        email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c55",  name:"Karine",           email:"", password:"", sessionsTotal:30, sessionsUsed:10, active:true },
-  { id:"c56",  name:"Keiths",           email:"", password:"", sessionsTotal:24, sessionsUsed:24, active:true },
-  { id:"c57",  name:"Kevin",            email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c58",  name:"Kim",              email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
-  { id:"c59",  name:"Louise",           email:"", password:"", sessionsTotal:24, sessionsUsed:17, active:true },
-  { id:"c60",  name:"Lizon",            email:"", password:"", sessionsTotal:24, sessionsUsed:23, active:true },
-  { id:"c61",  name:"Lynn",             email:"", password:"", sessionsTotal:28, sessionsUsed:21, active:true },
-  { id:"c62",  name:"Malina",           email:"", password:"", sessionsTotal:24, sessionsUsed:21, active:true },
-  { id:"c63",  name:"Malika",           email:"", password:"", sessionsTotal:6, sessionsUsed:6, active:true },
-  { id:"c64",  name:"Marc P",           email:"", password:"", sessionsTotal:28, sessionsUsed:10, active:true },
-  { id:"c65",  name:"Marco",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c66",  name:"Marie",            email:"", password:"", sessionsTotal:24, sessionsUsed:17, active:true },
-  { id:"c67",  name:"Marianne",         email:"", password:"", sessionsTotal:24, sessionsUsed:20, active:true },
-  { id:"c68",  name:"Mateo",            email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
-  { id:"c69",  name:"Matthew",          email:"", password:"", sessionsTotal:24, sessionsUsed:9, active:true },
-  { id:"c70",  name:"Matthew2",         email:"", password:"", sessionsTotal:24, sessionsUsed:18, active:true },
-  { id:"c71",  name:"Mathis",           email:"", password:"", sessionsTotal:6, sessionsUsed:6, active:true },
-  { id:"c72",  name:"Matt G",           email:"", password:"", sessionsTotal:32, sessionsUsed:22, active:true },
-  { id:"c73",  name:"Maude",            email:"", password:"", sessionsTotal:24, sessionsUsed:2, active:true },
-  { id:"c74",  name:"Marie-Claude",     email:"", password:"", sessionsTotal:24, sessionsUsed:14, active:true },
-  { id:"c75",  name:"Mark",             email:"", password:"", sessionsTotal:30, sessionsUsed:12, active:true },
-  { id:"c76",  name:"Sienna",           email:"", password:"", sessionsTotal:30, sessionsUsed:9, active:true },
-  { id:"c77",  name:"Mary",             email:"", password:"", sessionsTotal:24, sessionsUsed:4, active:true },
-  { id:"c78",  name:"Maurizio",         email:"", password:"", sessionsTotal:24, sessionsUsed:16, active:true },
-  { id:"c79",  name:"Max B",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c80",  name:"Max L",            email:"", password:"", sessionsTotal:30, sessionsUsed:11, active:true },
-  { id:"c81",  name:"Maxime",           email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c82",  name:"Mehdi",            email:"", password:"", sessionsTotal:30, sessionsUsed:22, active:true },
-  { id:"c83",  name:"Meryen",           email:"", password:"", sessionsTotal:28, sessionsUsed:23, active:true },
-  { id:"c84",  name:"MichelleB",        email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c85",  name:"MichelleS",        email:"", password:"", sessionsTotal:24, sessionsUsed:1, active:true },
-  { id:"c86",  name:"MichelleT",        email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c87",  name:"Mike",             email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c88",  name:"Mila",             email:"", password:"", sessionsTotal:24, sessionsUsed:20, active:true },
-  { id:"c89",  name:"Mireille",         email:"", password:"", sessionsTotal:28, sessionsUsed:12, active:true },
-  { id:"c90",  name:"Nada",             email:"", password:"", sessionsTotal:10, sessionsUsed:10, active:true },
-  { id:"c91",  name:"Nadine B",         email:"", password:"", sessionsTotal:24, sessionsUsed:3, active:true },
-  { id:"c92",  name:"Nafiseh",          email:"", password:"", sessionsTotal:24, sessionsUsed:17, active:true },
-  { id:"c93",  name:"Nancy D",          email:"", password:"", sessionsTotal:24, sessionsUsed:14, active:true },
-  { id:"c94",  name:"Nancy Y",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c95",  name:"Nardine",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c96",  name:"Natasha",          email:"", password:"", sessionsTotal:28, sessionsUsed:13, active:true },
-  { id:"c97",  name:"Nathalie P",       email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c98",  name:"Nick",             email:"", password:"", sessionsTotal:28, sessionsUsed:19, active:true },
-  { id:"c99",  name:"Lucas",            email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c100", name:"Nishi",            email:"", password:"", sessionsTotal:24, sessionsUsed:8, active:true },
-  { id:"c101", name:"Phil",             email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
-  { id:"c102", name:"Matt",             email:"", password:"", sessionsTotal:28, sessionsUsed:22, active:true },
-  { id:"c103", name:"Rachel",           email:"", password:"", sessionsTotal:30, sessionsUsed:30, active:true },
-  { id:"c104", name:"Rachel2",          email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c105", name:"Rami",             email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c106", name:"Renelle",          email:"", password:"", sessionsTotal:28, sessionsUsed:25, active:true },
-  { id:"c107", name:"ReneeM",           email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
-  { id:"c108", name:"ReneeP",           email:"", password:"", sessionsTotal:28, sessionsUsed:19, active:true },
-  { id:"c109", name:"Reuven",           email:"", password:"", sessionsTotal:28, sessionsUsed:21, active:true },
-  { id:"c110", name:"Rodica",           email:"", password:"", sessionsTotal:24, sessionsUsed:7, active:true },
-  { id:"c111", name:"Romy",             email:"", password:"", sessionsTotal:28, sessionsUsed:6, active:true },
-  { id:"c112", name:"Rozita",           email:"", password:"", sessionsTotal:28, sessionsUsed:7, active:true },
-  { id:"c113", name:"Sabrina",          email:"", password:"", sessionsTotal:24, sessionsUsed:7, active:true },
-  { id:"c114", name:"Sandy",            email:"", password:"", sessionsTotal:10, sessionsUsed:7, active:true },
-  { id:"c115", name:"Sarah",            email:"", password:"", sessionsTotal:30, sessionsUsed:4, active:true },
-  { id:"c116", name:"Sam",              email:"", password:"", sessionsTotal:24, sessionsUsed:4, active:true },
-  { id:"c117", name:"Mira",             email:"", password:"", sessionsTotal:24, sessionsUsed:5, active:true },
-  { id:"c118", name:"Sean",             email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
-  { id:"c119", name:"Simon",            email:"", password:"", sessionsTotal:28, sessionsUsed:15, active:true },
-  { id:"c120", name:"Sita",             email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c121", name:"Sherriff",         email:"", password:"", sessionsTotal:28, sessionsUsed:11, active:true },
-  { id:"c122", name:"Sonia",            email:"", password:"", sessionsTotal:24, sessionsUsed:23, active:true },
-  { id:"c123", name:"Sophie",           email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
-  { id:"c124", name:"Staci",            email:"", password:"", sessionsTotal:24, sessionsUsed:21, active:true },
-  { id:"c125", name:"StephV",           email:"", password:"", sessionsTotal:28, sessionsUsed:25, active:true },
-  { id:"c126", name:"Susan",            email:"", password:"", sessionsTotal:28, sessionsUsed:18, active:true },
-  { id:"c127", name:"Susan/Klaus",      email:"", password:"", sessionsTotal:20, sessionsUsed:0, active:true },
-  { id:"c128", name:"Klaus",            email:"", password:"", sessionsTotal:28, sessionsUsed:18, active:true },
-  { id:"c129", name:"Sylvie",           email:"", password:"", sessionsTotal:28, sessionsUsed:23, active:true },
-  { id:"c130", name:"Tanya",            email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
-  { id:"c131", name:"Thierry",          email:"", password:"", sessionsTotal:24, sessionsUsed:16, active:true },
-  { id:"c132", name:"Ujjaval",          email:"", password:"", sessionsTotal:28, sessionsUsed:17, active:true },
-  { id:"c133", name:"Tyler",            email:"", password:"", sessionsTotal:28, sessionsUsed:27, active:true },
-  { id:"c134", name:"Val Maheux",       email:"", password:"", sessionsTotal:11, sessionsUsed:11, active:true },
-  { id:"c135", name:"Yannie",           email:"", password:"", sessionsTotal:28, sessionsUsed:28, active:true },
+  { id:"c1", name:"Abdel", email:"c1.mlfit@gmail.com", password:"Abdel1ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c2", name:"Adil", email:"c2.mlfit@gmail.com", password:"Adil2ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c3", name:"Amelie", email:"c3.mlfit@gmail.com", password:"Amelie3ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c4", name:"Anna", email:"c4.mlfit@gmail.com", password:"Anna4ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c5", name:"Anika", email:"c5.mlfit@gmail.com", password:"Anika5ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c6", name:"Anthony", email:"c6.mlfit@gmail.com", password:"Anthony6ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c7", name:"Ashley", email:"c7.mlfit@gmail.com", password:"Ashley7ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c8", name:"Asma", email:"c8.mlfit@gmail.com", password:"Asma8ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c9", name:"Aurelien", email:"c9.mlfit@gmail.com", password:"Aurelien9ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c10", name:"Melissa", email:"c10.mlfit@gmail.com", password:"Melissa10ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c11", name:"Beer", email:"c11.mlfit@gmail.com", password:"Beer11ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c12", name:"Caitlin", email:"c12.mlfit@gmail.com", password:"Caitlin12ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c13", name:"Carla", email:"c13.mlfit@gmail.com", password:"Carla13ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c14", name:"Carole M", email:"c14.mlfit@gmail.com", password:"Carole14ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c15", name:"Celine", email:"c15.mlfit@gmail.com", password:"Celine15ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c16", name:"Clara", email:"c16.mlfit@gmail.com", password:"Clara16ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c17", name:"Claudio", email:"c17.mlfit@gmail.com", password:"Claudio17ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c18", name:"Chantal", email:"c18.mlfit@gmail.com", password:"Chantal18ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c19", name:"Cheryl", email:"c19.mlfit@gmail.com", password:"Cheryl19ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c20", name:"Chris", email:"c20.mlfit@gmail.com", password:"Chris20ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c21", name:"Daniel", email:"c21.mlfit@gmail.com", password:"Daniel21ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c22", name:"Genevieve", email:"c22.mlfit@gmail.com", password:"Genevieve22ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c23", name:"Dave", email:"c23.mlfit@gmail.com", password:"Dave23ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c24", name:"Dmytro", email:"c24.mlfit@gmail.com", password:"Dmytro24ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c25", name:"Elaine", email:"c25.mlfit@gmail.com", password:"Elaine25ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c26", name:"Elise", email:"c26.mlfit@gmail.com", password:"Elise26ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c27", name:"Elyse CH", email:"c27.mlfit@gmail.com", password:"Elyse27ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c28", name:"Elyse CO", email:"c28.mlfit@gmail.com", password:"Elyse28ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c29", name:"Erin", email:"c29.mlfit@gmail.com", password:"Erin29ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c30", name:"Fabio", email:"c30.mlfit@gmail.com", password:"Fabio30ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c31", name:"Farah", email:"c31.mlfit@gmail.com", password:"Farah31ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c32", name:"Foujane", email:"c32.mlfit@gmail.com", password:"Foujane32ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c33", name:"Gabby", email:"c33.mlfit@gmail.com", password:"Gabby33ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c34", name:"Gen", email:"c34.mlfit@gmail.com", password:"Gen34ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c35", name:"Georges", email:"c35.mlfit@gmail.com", password:"Georges35ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c36", name:"Hughes", email:"c36.mlfit@gmail.com", password:"Hughes36ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c37", name:"Isabelle", email:"c37.mlfit@gmail.com", password:"Isabelle37ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c38", name:"Luc", email:"c38.mlfit@gmail.com", password:"Luc38ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c39", name:"Isabelle2", email:"c39.mlfit@gmail.com", password:"Isabelle39ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c40", name:"Lea", email:"c40.mlfit@gmail.com", password:"Lea40ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c41", name:"Janine", email:"c41.mlfit@gmail.com", password:"Janine41ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c42", name:"Pierre", email:"c42.mlfit@gmail.com", password:"Pierre42ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c43", name:"Jean", email:"c43.mlfit@gmail.com", password:"Jean43ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c44", name:"Jose", email:"c44.mlfit@gmail.com", password:"Jose44ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c45", name:"Jeremie", email:"c45.mlfit@gmail.com", password:"Jeremie45ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c46", name:"Jess", email:"c46.mlfit@gmail.com", password:"Jess46ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c47", name:"Joe", email:"c47.mlfit@gmail.com", password:"Joe47ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c48", name:"Filo", email:"c48.mlfit@gmail.com", password:"Filo48ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c49", name:"JohanneM", email:"c49.mlfit@gmail.com", password:"Johannem49ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c50", name:"John V", email:"c50.mlfit@gmail.com", password:"John50ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c51", name:"John Scott", email:"c51.mlfit@gmail.com", password:"John51ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c52", name:"Julie B", email:"c52.mlfit@gmail.com", password:"Julie52ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c53", name:"Julien", email:"c53.mlfit@gmail.com", password:"Julien53ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c54", name:"JP Grilli", email:"c54.mlfit@gmail.com", password:"Jp54ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c55", name:"Karine", email:"c55.mlfit@gmail.com", password:"Karine55ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c56", name:"Keiths", email:"c56.mlfit@gmail.com", password:"Keiths56ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c57", name:"Kevin", email:"c57.mlfit@gmail.com", password:"Kevin57ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c58", name:"Kim", email:"c58.mlfit@gmail.com", password:"Kim58ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c59", name:"Louise", email:"c59.mlfit@gmail.com", password:"Louise59ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c60", name:"Lizon", email:"c60.mlfit@gmail.com", password:"Lizon60ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c61", name:"Lynn", email:"c61.mlfit@gmail.com", password:"Lynn61ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c62", name:"Malina", email:"c62.mlfit@gmail.com", password:"Malina62ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c63", name:"Malika", email:"c63.mlfit@gmail.com", password:"Malika63ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c64", name:"Marc P", email:"c64.mlfit@gmail.com", password:"Marc64ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c65", name:"Marco", email:"c65.mlfit@gmail.com", password:"Marco65ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c66", name:"Marie", email:"c66.mlfit@gmail.com", password:"Marie66ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c67", name:"Marianne", email:"c67.mlfit@gmail.com", password:"Marianne67ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c68", name:"Mateo", email:"c68.mlfit@gmail.com", password:"Mateo68ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c69", name:"Matthew", email:"c69.mlfit@gmail.com", password:"Matthew69ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c70", name:"Matthew2", email:"c70.mlfit@gmail.com", password:"Matthew70ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c71", name:"Mathis", email:"c71.mlfit@gmail.com", password:"Mathis71ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c72", name:"Matt G", email:"c72.mlfit@gmail.com", password:"Matt72ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c73", name:"Maude", email:"c73.mlfit@gmail.com", password:"Maude73ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c74", name:"Marie-Claude", email:"c74.mlfit@gmail.com", password:"Marieclaude74ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c75", name:"Mark", email:"c75.mlfit@gmail.com", password:"Mark75ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c76", name:"Sienna", email:"c76.mlfit@gmail.com", password:"Sienna76ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c77", name:"Mary", email:"c77.mlfit@gmail.com", password:"Mary77ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c78", name:"Maurizio", email:"c78.mlfit@gmail.com", password:"Maurizio78ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c79", name:"Max B", email:"c79.mlfit@gmail.com", password:"Max79ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c80", name:"Max L", email:"c80.mlfit@gmail.com", password:"Max80ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c81", name:"Maxime", email:"c81.mlfit@gmail.com", password:"Maxime81ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c82", name:"Mehdi", email:"c82.mlfit@gmail.com", password:"Mehdi82ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c83", name:"Meryen", email:"c83.mlfit@gmail.com", password:"Meryen83ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c84", name:"MichelleB", email:"c84.mlfit@gmail.com", password:"Michelleb84ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c85", name:"MichelleS", email:"c85.mlfit@gmail.com", password:"Michelles85ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c86", name:"MichelleT", email:"c86.mlfit@gmail.com", password:"Michellet86ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c87", name:"Mike", email:"c87.mlfit@gmail.com", password:"Mike87ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c88", name:"Mila", email:"c88.mlfit@gmail.com", password:"Mila88ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c89", name:"Mireille", email:"c89.mlfit@gmail.com", password:"Mireille89ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c90", name:"Nada", email:"c90.mlfit@gmail.com", password:"Nada90ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c91", name:"Nadine B", email:"c91.mlfit@gmail.com", password:"Nadine91ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c92", name:"Nafiseh", email:"c92.mlfit@gmail.com", password:"Nafiseh92ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c93", name:"Nancy D", email:"c93.mlfit@gmail.com", password:"Nancy93ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c94", name:"Nancy Y", email:"c94.mlfit@gmail.com", password:"Nancy94ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c95", name:"Nardine", email:"c95.mlfit@gmail.com", password:"Nardine95ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c96", name:"Natasha", email:"c96.mlfit@gmail.com", password:"Natasha96ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c97", name:"Nathalie P", email:"c97.mlfit@gmail.com", password:"Nathalie97ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c98", name:"Nick", email:"c98.mlfit@gmail.com", password:"Nick98ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c99", name:"Lucas", email:"c99.mlfit@gmail.com", password:"Lucas99ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c100", name:"Nishi", email:"c100.mlfit@gmail.com", password:"Nishi100ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c101", name:"Phil", email:"c101.mlfit@gmail.com", password:"Phil101ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c102", name:"Matt", email:"c102.mlfit@gmail.com", password:"Matt102ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c103", name:"Rachel", email:"c103.mlfit@gmail.com", password:"Rachel103ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c104", name:"Rachel2", email:"c104.mlfit@gmail.com", password:"Rachel104ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c105", name:"Rami", email:"c105.mlfit@gmail.com", password:"Rami105ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c106", name:"Renelle", email:"c106.mlfit@gmail.com", password:"Renelle106ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c107", name:"ReneeM", email:"c107.mlfit@gmail.com", password:"Reneem107ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c108", name:"ReneeP", email:"c108.mlfit@gmail.com", password:"Reneep108ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c109", name:"Reuven", email:"c109.mlfit@gmail.com", password:"Reuven109ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c110", name:"Rodica", email:"c110.mlfit@gmail.com", password:"Rodica110ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c111", name:"Romy", email:"c111.mlfit@gmail.com", password:"Romy111ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c112", name:"Rozita", email:"c112.mlfit@gmail.com", password:"Rozita112ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c113", name:"Sabrina", email:"c113.mlfit@gmail.com", password:"Sabrina113ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c114", name:"Sandy", email:"c114.mlfit@gmail.com", password:"Sandy114ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c115", name:"Sarah", email:"c115.mlfit@gmail.com", password:"Sarah115ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c116", name:"Sam", email:"c116.mlfit@gmail.com", password:"Sam116ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c117", name:"Mira", email:"c117.mlfit@gmail.com", password:"Mira117ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c118", name:"Sean", email:"c118.mlfit@gmail.com", password:"Sean118ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c119", name:"Simon", email:"c119.mlfit@gmail.com", password:"Simon119ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c120", name:"Sita", email:"c120.mlfit@gmail.com", password:"Sita120ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c121", name:"Sherriff", email:"c121.mlfit@gmail.com", password:"Sherriff121ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c122", name:"Sonia", email:"c122.mlfit@gmail.com", password:"Sonia122ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c123", name:"Sophie", email:"c123.mlfit@gmail.com", password:"Sophie123ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c124", name:"Staci", email:"c124.mlfit@gmail.com", password:"Staci124ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c125", name:"StephV", email:"c125.mlfit@gmail.com", password:"Stephv125ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c126", name:"Susan", email:"c126.mlfit@gmail.com", password:"Susan126ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c127", name:"Susan/Klaus", email:"c127.mlfit@gmail.com", password:"Susan127ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c128", name:"Klaus", email:"c128.mlfit@gmail.com", password:"Klaus128ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c129", name:"Sylvie", email:"c129.mlfit@gmail.com", password:"Sylvie129ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c130", name:"Tanya", email:"c130.mlfit@gmail.com", password:"Tanya130ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c131", name:"Thierry", email:"c131.mlfit@gmail.com", password:"Thierry131ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c132", name:"Ujjaval", email:"c132.mlfit@gmail.com", password:"Ujjaval132ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c133", name:"Tyler", email:"c133.mlfit@gmail.com", password:"Tyler133ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c134", name:"Val Maheux", email:"c134.mlfit@gmail.com", password:"Val134ML", sessionsTotal:0, sessionsUsed:0, active:true },
+  { id:"c135", name:"Yannie", email:"c135.mlfit@gmail.com", password:"Yannie135ML", sessionsTotal:0, sessionsUsed:0, active:true },
 ];
 
 const seedSessions = () => [
@@ -1042,33 +1042,9 @@ export default function App() {
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function LoginScreen({ clients, onLogin, saveClients }) {
-  // Check for ?signup=cXXX in URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const signupId = urlParams.get("signup");
-
-  const [mode, setMode] = useState(signupId ? "setup" : "login");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
-
-  // Setup state
-  const [selectedId, setSelectedId] = useState(signupId || "");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [newPass2, setNewPass2] = useState("");
-  const [setupErr, setSetupErr] = useState("");
-
-  const [freshClients, setFreshClients] = useState([]);
-  const [loadingClients, setLoadingClients] = useState(true);
-  useEffect(() => {
-    store.get("gym_clients").then(c => {
-      setFreshClients(c || clients);
-      setLoadingClients(false);
-    });
-  }, []);
-
-  const signupClient = freshClients.find(c => c.id === signupId);
-  const unclaimedClients = freshClients.filter(c => !c.email).sort((a,b) => a.name.localeCompare(b.name));
 
   const submit = async () => {
     setErr("");
@@ -1088,148 +1064,6 @@ function LoginScreen({ clients, onLogin, saveClients }) {
     }
   };
 
-  const submitSetup = async () => {
-    setSetupErr("");
-    if (!selectedId) return setSetupErr("Please select your name.");
-    if (newPass.length < 6) return setSetupErr("Password must be at least 6 characters.");
-    if (newPass !== newPass2) return setSetupErr("Passwords don't match.");
-    const client = freshClients.find(c => c.id === selectedId);
-    const clientEmail = client.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z0-9]/g,"").toLowerCase() + ".mlfit@gmail.com";
-    try {
-      // Step 1: Try to sign in with existing password (in case SQL-created account works)
-      // Step 2: If that fails, use signUp to create/overwrite with new password
-      // First attempt: sign up (creates or returns existing user)
-      const signUpRes = await fetch(SUPABASE_URL + "/auth/v1/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
-        body: JSON.stringify({ email: clientEmail, password: newPass })
-      });
-      const signUpData = await signUpRes.json();
-
-      // If signup succeeded (with or without a session token), we're done
-      if (signUpRes.ok && (signUpData.access_token || signUpData.id || signUpData.user?.id)) {
-        const updatedClient = {...client, email: clientEmail};
-        await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
-        setMode("login");
-        setEmail(clientEmail);
-        setErr("Account created! Please sign in.");
-        return;
-      }
-
-      // If user already exists, try to update password via Fitness2026 default
-      // then fall back to a direct admin update via Edge Function
-      const loginRes = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
-        body: JSON.stringify({ email: clientEmail, password: "Fitness2026" })
-      });
-      const loginData = await loginRes.json();
-
-      if (loginRes.ok && loginData.access_token) {
-        // Update to chosen password
-        const updateRes = await fetch(SUPABASE_URL + "/auth/v1/user", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: "Bearer " + loginData.access_token
-          },
-          body: JSON.stringify({ password: newPass })
-        });
-        if (!updateRes.ok) throw new Error("Failed to update password.");
-        const updatedClient = {...client, email: clientEmail};
-        await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
-        setMode("login");
-        setEmail(clientEmail);
-        setErr("Account created! Please sign in.");
-        return;
-      }
-
-      // Last resort: use Edge Function to reset password as admin
-      const adminRes = await fetch(SUPABASE_URL + "/functions/v1/get-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + SUPABASE_ANON_KEY
-        },
-        body: JSON.stringify({ action: "setup", email: clientEmail, password: newPass })
-      });
-      const adminData = await adminRes.json();
-      if (!adminRes.ok) throw new Error(adminData.error || "Could not set up account. Please contact your trainer.");
-
-      const updatedClient = {...client, email: clientEmail};
-      await saveClients(freshClients.map(c => c.id === selectedId ? updatedClient : c), updatedClient);
-      setMode("login");
-      setEmail(clientEmail);
-      setErr("Account created! Please sign in.");
-    } catch(e) {
-      setSetupErr(e.message || "Something went wrong. Please try again.");
-    }
-  };
-
-  if (mode === "setup") return (
-    <div className="login-wrap">
-      <div className="login-box" style={{width:420}}>
-        <div className="bebas login-logo">ML FITNESS</div>
-        <div className="login-sub">Create Your Account</div>
-        {setupErr && <div className="error-msg">{setupErr}</div>}
-        {loadingClients ? (
-          <div style={{textAlign:"center",color:"var(--muted)",padding:"20px 0"}}>Loading...</div>
-        ) : !signupId ? (
-          // No personal link — block signup
-          <div style={{
-            background:"var(--charcoal)",border:"1px solid var(--border)",
-            borderRadius:4,padding:"20px",marginBottom:16,textAlign:"center"
-          }}>
-            <div style={{fontSize:28,marginBottom:8}}>🔒</div>
-            <div style={{fontWeight:600,color:"var(--text)",marginBottom:6}}>Personal Link Required</div>
-            <div style={{fontSize:12,color:"var(--muted)"}}>Please use the personal signup link your trainer sent you.</div>
-          </div>
-        ) : !signupClient ? (
-          <div style={{color:"var(--red)",marginBottom:16,textAlign:"center"}}>Invalid or expired signup link.</div>
-        ) : false ? (
-          <div style={{
-            background:"var(--charcoal)",border:"1px solid var(--border)",
-            borderRadius:4,padding:"20px",marginBottom:16,textAlign:"center"
-          }}>
-            <div style={{fontSize:28,marginBottom:8}}>✅</div>
-            <div style={{fontWeight:600,color:"var(--text)",marginBottom:6}}>Account already created</div>
-            <div style={{fontSize:12,color:"var(--muted)"}}>Please sign in instead.</div>
-          </div>
-        ) : (
-          <div style={{
-            background:"var(--charcoal)",border:"1px solid var(--accent)",
-            borderRadius:4,padding:"14px 18px",marginBottom:16,
-            display:"flex",alignItems:"center",gap:12
-          }}>
-            <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13,flexShrink:0}}>
-              {signupClient.name.split(" ").map(x=>x[0]).join("")}
-            </div>
-            <div>
-              <div style={{fontWeight:600,color:"var(--text)"}}>{signupClient.name}</div>
-              <div style={{fontSize:11,color:"var(--muted)"}}>Your personal signup link ✓</div>
-            </div>
-          </div>
-        )}
-        {signupId && signupClient && !loadingClients && (() => {
-          const clientEmail = signupClient.email || (signupClient.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z0-9]/g,"").toLowerCase() + ".mlfit@gmail.com");
-          return (<>
-            <div className="field-label">Your Email</div>
-            <input className="field-input" type="email" value={clientEmail} readOnly
-              style={{opacity:0.6, cursor:"not-allowed"}} />
-            <div className="field-label">Choose a Password</div>
-            <input className="field-input" type="password" placeholder="Min. 6 characters" value={newPass} onChange={e=>setNewPass(e.target.value)} />
-            <div className="field-label">Confirm Password</div>
-            <input className="field-input" type="password" placeholder="Repeat password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitSetup()} />
-            <button className="btn-primary" onClick={submitSetup}>CREATE ACCOUNT</button>
-          </>);
-        })()}
-        <div className="switch-link"><span onClick={()=>{ setMode("login"); window.history.replaceState({},"",window.location.pathname); }}>← Back to sign in</span></div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="login-wrap">
       <div className="login-box">
@@ -1242,7 +1076,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <input className="field-input" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} />
         <button className="btn-primary" onClick={submit}>SIGN IN</button>
         <div className="switch-link" style={{marginTop:16,color:"var(--muted)",fontSize:12}}>
-          New? Use the personal link your trainer sent you.
+          Enter the email and password provided by your trainer.
         </div>
       </div>
     </div>
