@@ -1735,26 +1735,42 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", email:"", password:"client123", sessionsTotal:20, sessionsUsed:0, active:true });
+  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true });
+  const [newCredentials, setNewCredentials] = useState(null);
 
-  const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
+  const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", email:"", password:"client123", sessionsTotal:20, sessionsUsed:0, active:true }); setModal("add"); };
-  const openEdit = (c) => { setForm({...c}); setModal(c); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsUsed:0, active:true }); setNewCredentials(null); setModal("add"); };
+  const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
+
+  const hashPassword = async (password) => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  };
 
   const save = async () => {
     if (modal === "add") {
+      if (!form.name.trim()) return alert("Please enter a name.");
       const maxId = clients.reduce((max, c) => {
         const num = parseInt(c.id.replace("c",""));
         return !isNaN(num) && num > max ? num : max;
       }, 0);
-      const newClient = { ...form, id:"c"+(maxId+1) };
+      const newId = "c" + (maxId + 1);
+      const slug = form.name.split(" ")[0].split("/")[0].replace(/[^a-zA-Z]/g,"");
+      const email = newId + ".mlfit@gmail.com";
+      const plainPassword = slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase() + (maxId+1) + "ML";
+      const hashed = await hashPassword(plainPassword);
+      const newClient = { ...form, id: newId, email, password: hashed };
       await saveClients([...clients, newClient], newClient);
+      setNewCredentials({ name: form.name, email, password: plainPassword });
+      setModal(null);
     } else {
       const updatedClient = {...modal,...form};
       await saveClients(clients.map(c=>c.id===modal.id?updatedClient:c), updatedClient);
+      setModal(null);
     }
-    setModal(null);
   };
 
   const del = async () => {
@@ -1847,6 +1863,44 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         </table>
       </div>
 
+      {/* Credentials popup after adding new client */}
+      {newCredentials && (
+        <div className="modal-overlay">
+          <div className="modal" style={{maxWidth:400}}>
+            <div className="modal-header">
+              <div className="bebas modal-title">✅ CLIENT ADDED</div>
+            </div>
+            <div className="modal-body">
+              <div style={{marginBottom:12,color:"var(--muted)",fontSize:13}}>
+                Send these credentials to <strong style={{color:"var(--text)"}}>{newCredentials.name}</strong>:
+              </div>
+              <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"16px 20px",marginBottom:16}}>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:4}}>Login URL</div>
+                  <div style={{fontSize:13,color:"var(--accent)",fontWeight:600}}>{window.location.origin}</div>
+                </div>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:4}}>Email</div>
+                  <div style={{fontSize:13,color:"var(--text)",fontWeight:600}}>{newCredentials.email}</div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:4}}>Password</div>
+                  <div style={{fontSize:13,color:"var(--text)",fontWeight:600}}>{newCredentials.password}</div>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:"var(--muted)"}}>⚠️ Save this password now — it won't be shown again.</div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={()=>{
+                const text = `ML Fitness Login\nURL: ${window.location.origin}\nEmail: ${newCredentials.email}\nPassword: ${newCredentials.password}`;
+                navigator.clipboard.writeText(text);
+              }}>📋 Copy</button>
+              <button className="btn-primary" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={()=>setNewCredentials(null)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal && (
         <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
           <div className="modal">
@@ -1859,16 +1913,6 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 <div className="form-row">
                   <label>Name</label>
                   <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Full name" />
-                </div>
-                <div className="form-row">
-                  <label>Email</label>
-                  <input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="email@example.com" />
-                </div>
-              </div>
-              <div className="two-col">
-                <div className="form-row">
-                  <label>Password</label>
-                  <input value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
                 </div>
                 <div className="form-row">
                   <label>Status</label>
@@ -1888,6 +1932,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   <input type="number" value={form.sessionsUsed} onChange={e=>setForm({...form,sessionsUsed:+e.target.value})} />
                 </div>
               </div>
+              {modal !== "add" && (
+                <div style={{fontSize:12,color:"var(--muted)",marginTop:8}}>
+                  Email: {form.email}
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Remove</button>}
