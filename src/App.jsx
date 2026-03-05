@@ -2561,9 +2561,9 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                     transition:"all 0.15s"
                                   }}>
                                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
-                                    <div>
+                                    <div style={{display:"flex",alignItems:"center",gap:6}}>
                                       <div style={{fontWeight:600,fontSize:11,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
-                                      <div style={{fontSize:10,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
+                                      <div style={{fontSize:11,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
                                     </div>
                                     {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
                                   </div>
