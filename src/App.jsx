@@ -2557,7 +2557,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                   style={{
                                     borderRadius:2,overflow:"hidden",cursor:full?"default":"pointer",
                                     border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,
-                                    background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"var(--charcoal)",
+                                    background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
                                     transition:"all 0.15s"
                                   }}>
                                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
