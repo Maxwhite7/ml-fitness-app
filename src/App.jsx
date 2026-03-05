@@ -2539,7 +2539,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                           <div style={{fontSize:18,fontWeight:600,color: tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
                           <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
                         </div>
-                        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
                           {daySessions.length === 0 ? (
                             <div style={{fontSize:10,color:"var(--border)",textAlign:"center",padding:"10px 0"}}>No sessions</div>
                           ) : (() => {
