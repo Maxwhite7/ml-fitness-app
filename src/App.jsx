@@ -2446,7 +2446,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
             <div style={{display:"flex",flex:1,overflow:"hidden"}}>
 
               {/* LEFT — client availability + history */}
-              <div style={{width:320,borderRight:"1px solid var(--border)",overflowY:"auto",padding:"20px 20px",flexShrink:0}}>
+              <div style={{width:220,borderRight:"1px solid var(--border)",overflowY:"auto",padding:"16px",flexShrink:0}}>
                 {/* Booked sessions this week */}
                 {(() => {
                   const bookedThisWeek = sessions.filter(s =>
