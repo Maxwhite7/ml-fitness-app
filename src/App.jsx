@@ -1065,13 +1065,12 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [previewClient, setPreviewClient] = useState(null);
 
-  const loadData = async () => {
+  const loadData = async (onlyIfData=false) => {
     let c = await store.get("gym_clients");
     let s = await store.get("gym_sessions");
-    if (!c) { c = []; }
-    if (!s) { s = []; }
-    setClients(c);
-    setSessions(s);
+    // Only update state if we actually got data back
+    if (c && c.length > 0) setClients(c);
+    if (s && s.length > 0) setSessions(s);
   };
 
   // Load on mount (for returning users with existing JWT)
@@ -1084,8 +1083,14 @@ export default function App() {
 
   // Reload after login so JWT is set and RLS returns correct data
   const handleLogin = async (userData) => {
-    await loadData();
     setUser(userData);
+    // Small delay to ensure JWT is stored before fetching
+    setTimeout(async () => {
+      let c = await store.get("gym_clients");
+      let s = await store.get("gym_sessions");
+      if (c && c.length > 0) setClients(c);
+      if (s && s.length > 0) setSessions(s);
+    }, 300);
   };
 
   const saveClients = async (updated, changedRow=null) => {
