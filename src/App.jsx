@@ -2220,6 +2220,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
           <thead>
             <tr>
               <th>Client</th>
+              <th>Texted</th>
               <th>Available Times</th>
               <th>Sessions Wanted</th>
               <th>Availability</th>
@@ -2257,6 +2258,34 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                       </div>
                       <span style={{fontWeight:500,color:selectedClient?.id===c.id?"var(--accent)":"var(--text)"}}>{c.name}</span>
                     </div>
+                  </td>
+                  <td onClick={e=>e.stopPropagation()}>
+                    {(() => {
+                      const textedWeeks = Array.isArray(c.textedWeeks) ? c.textedWeeks : [];
+                      const texted = textedWeeks.includes(currentWeekKey);
+                      return (
+                        <div
+                          onClick={async () => {
+                            const newTextedWeeks = texted
+                              ? textedWeeks.filter(w => w !== currentWeekKey)
+                              : [...textedWeeks, currentWeekKey];
+                            const updated = clients.map(x => x.id===c.id ? {...x, textedWeeks:newTextedWeeks} : x);
+                            await saveClients(updated, {...c, textedWeeks:newTextedWeeks});
+                          }}
+                          style={{
+                            display:"inline-flex",alignItems:"center",gap:6,
+                            padding:"4px 12px",borderRadius:20,cursor:"pointer",fontSize:12,fontWeight:600,
+                            background: texted ? "#3ec9c920" : "#ffffff08",
+                            color: texted ? "var(--accent)" : "var(--muted)",
+                            border: `1px solid ${texted ? "var(--accent)" : "var(--border)"}`,
+                            transition:"all 0.15s", userSelect:"none"
+                          }}
+                        >
+                          <div style={{width:7,height:7,borderRadius:"50%",background: texted ? "var(--accent)" : "var(--border)"}} />
+                          {texted ? "Texted ✓" : "Texted"}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{color:"var(--muted)",fontSize:12}}>
                     {avRow ? (() => {
