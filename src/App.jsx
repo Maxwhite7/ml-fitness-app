@@ -1924,7 +1924,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     <>
       <div className="page-header">
         <div className="bebas page-title">CLIENTS</div>
-        <div className="page-subtitle">{clients.filter(c=>c.active).length} active · {clients.filter(c=>!c.active).length} inactive</div>
+        <div className="page-subtitle">{clients.filter(c=>c.active&&!c.former).length} active · {clients.filter(c=>!c.active&&!c.former).length} inactive · {clients.filter(c=>c.former).length} former</div>
       </div>
 
       <div className="section">
@@ -1948,13 +1948,25 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
           <tbody>
             {(() => {
               const sorted = [...filtered].sort((a,b)=>a.name.localeCompare(b.name));
-              const active = sorted.filter(c => c.active);
-              const inactive = sorted.filter(c => !c.active);
+              const active = sorted.filter(c => c.active && !c.former);
+              const inactive = sorted.filter(c => !c.active && !c.former);
+              const former = sorted.filter(c => c.former);
+              const cycleStatus = async (c) => {
+                let update;
+                if (c.active && !c.former)       update = { active: false, former: false }; // Active → Inactive
+                else if (!c.active && !c.former) update = { active: false, former: true };  // Inactive → Former
+                else                             update = { active: true,  former: false }; // Former → Active
+                await saveClients(clients.map(x => x.id===c.id ? {...x,...update} : x), {...c,...update});
+              };
+              const statusBadge = (c) => {
+                if (c.former)  return { label:"Former",   cls:"badge-muted",  color:"var(--muted)" };
+                if (!c.active) return { label:"Inactive",  cls:"badge-muted",  color:"var(--muted)" };
+                return             { label:"Active",    cls:"badge-green",  color:"var(--green)" };
+              };
               const renderRow = (c) => {
-                const left = c.sessionsTotal - c.sessionsUsed;
-                const pct = c.sessionsTotal > 0 ? (c.sessionsUsed/c.sessionsTotal)*100 : 0;
+                const { label, cls } = statusBadge(c);
                 return (
-                  <tr key={c.id} style={{cursor:"pointer",opacity:c.active?1:0.5}} onClick={()=>openEdit(c)}>
+                  <tr key={c.id} style={{cursor:"pointer", opacity: c.former ? 0.4 : c.active ? 1 : 0.6}} onClick={()=>openEdit(c)}>
                     <td>
                       <div style={{display:"flex",alignItems:"center",gap:10}}>
                         <div className="user-avatar" style={{background:"var(--accent)",fontSize:11}}>
@@ -1971,13 +1983,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                     <td></td>
                     <td onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,alignItems:"center"}}>
                       <span
-                        className={`badge ${c.active?"badge-green":"badge-muted"}`}
+                        className={`badge ${cls}`}
                         style={{cursor:"pointer",userSelect:"none"}}
-                        title="Click to toggle"
-                        onClick={async()=>{ await saveClients(clients.map(x=>x.id===c.id?{...x,active:!x.active}:x)); }}
-                      >
-                        {c.active?"Active":"Inactive"}
-                      </span>
+                        title="Click to cycle: Active → Inactive → Former"
+                        onClick={()=>cycleStatus(c)}
+                      >{label}</span>
                       {((!c.email) || c.email.endsWith(".mlfit@gmail.com")) && (
                         <span
                           className="badge badge-muted"
@@ -2004,13 +2014,13 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 <>
                   {active.map(renderRow)}
                   {inactive.length > 0 && (
-                    <tr>
-                      <td colSpan={5} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>
-                        INACTIVE — {inactive.length}
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>INACTIVE — {inactive.length}</td></tr>
                   )}
                   {inactive.map(renderRow)}
+                  {former.length > 0 && (
+                    <tr><td colSpan={5} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--border)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>FORMER CLIENTS — {former.length}</td></tr>
+                  )}
+                  {former.map(renderRow)}
                 </>
               );
             })()}
