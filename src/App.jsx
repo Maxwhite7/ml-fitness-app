@@ -2124,7 +2124,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
   const [dragOverWaitlist, setDragOverWaitlist] = useState(false);
-  const [waitlist, setWaitlist] = useState([]); // [{clientId, name}]
+  const [waitlist, setWaitlist] = useState([]);
+  const [selectedWaitlistClient, setSelectedWaitlistClient] = useState(null); // clientId being placed from waitlist
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2593,7 +2594,22 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
 
                     return (
                       <div key={s.id}
-                        onClick={()=>{ if(!full && !draggedClient) toggleAssign(s); }}
+                        onClick={()=>{
+                          if (draggedClient) return;
+                          if (selectedWaitlistClient) {
+                            // Book the waitlisted client into this session
+                            if (s.clientIds.length >= MAX_GROUP_SIZE) return;
+                            if (s.clientIds.includes(selectedWaitlistClient)) return;
+                            const updated = sessions.map(sess =>
+                              sess.id===s.id ? {...sess, clientIds:[...sess.clientIds, selectedWaitlistClient]} : sess
+                            );
+                            saveSessions(updated, updated.find(x=>x.id===s.id));
+                            setWaitlist(prev=>prev.filter(w=>w.clientId!==selectedWaitlistClient));
+                            setSelectedWaitlistClient(null);
+                            return;
+                          }
+                          if (!full) toggleAssign(s);
+                        }}
                         onDragOver={e=>{ e.preventDefault(); setDragOverSession(s.id); }}
                         onDragLeave={()=>setDragOverSession(null)}
                         onDrop={async(e)=>{
@@ -2615,8 +2631,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                         }}
                         style={{
                           height:94,boxSizing:"border-box",borderRadius:2,overflow:"hidden",
-                          cursor:full?"default":"pointer",
-                          border:`2px solid ${isDragOver?"var(--accent)":assigned?"var(--accent)":clientAvailable?"var(--green)":"var(--border)"}`,
+                          cursor: selectedWaitlistClient ? (s.clientIds.length>=MAX_GROUP_SIZE?"not-allowed":"crosshair") : full?"default":"pointer",
+                          border:`2px solid ${selectedWaitlistClient&&s.clientIds.length<MAX_GROUP_SIZE?"#f59e0b":isDragOver?"var(--accent)":assigned?"var(--accent)":clientAvailable?"var(--green)":"var(--border)"}`,
                           background:isDragOver?"#3ec9c930":assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
                           transition:"all 0.15s",position:"relative",padding:"4px 6px"
                         }}>
@@ -2727,20 +2743,29 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                   padding:"8px 12px", transition:"all 0.15s", boxSizing:"border-box"
                 }}
               >
-                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:6}}>
-                  Waitlist {waitlist.length > 0 ? `(${waitlist.length})` : "— drag a client here"}
+                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color: selectedWaitlistClient?"var(--accent)":"var(--muted)",marginBottom:6}}>
+                  {selectedWaitlistClient
+                    ? `Click a session to book ${waitlist.find(w=>w.clientId===selectedWaitlistClient)?.name} ↑`
+                    : `Waitlist ${waitlist.length > 0 ? `(${waitlist.length})` : "— drag a client here"}`}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                  {waitlist.map(w=>(
+                  {waitlist.map(w=>{
+                    const isSelected = selectedWaitlistClient === w.clientId;
+                    return (
                     <div key={w.clientId} draggable
-                      onDragStart={()=>setDraggedClient({clientId:w.clientId, fromSessionId:null})}
+                      onDragStart={()=>{ setSelectedWaitlistClient(null); setDraggedClient({clientId:w.clientId, fromSessionId:null}); }}
                       onDragEnd={()=>{ setDraggedClient(null); setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId)); }}
-                      style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,background:"#f59e0b20",border:"1px solid #f59e0b",fontSize:11,fontWeight:600,color:"#f59e0b",cursor:"grab",userSelect:"none"}}
+                      onClick={()=>setSelectedWaitlistClient(isSelected ? null : w.clientId)}
+                      style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,
+                        background: isSelected?"#f59e0b":"#f59e0b20",
+                        border:"1px solid #f59e0b",fontSize:11,fontWeight:600,
+                        color: isSelected?"var(--black)":"#f59e0b",
+                        cursor:"pointer",userSelect:"none",transition:"all 0.15s"}}
                     >
                       ⏳ {w.name}
-                      <span onClick={()=>setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId))} style={{fontSize:10,cursor:"pointer",opacity:0.6}}>✕</span>
+                      <span onClick={e=>{e.stopPropagation(); setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId)); if(isSelected) setSelectedWaitlistClient(null);}} style={{fontSize:10,cursor:"pointer",opacity:0.6}}>✕</span>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             </div>
