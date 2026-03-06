@@ -2542,7 +2542,27 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                       <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
                                       <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/{MAX_GROUP_SIZE}{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
                                     </div>
-                                    {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
+                                    <div style={{display:"flex",alignItems:"center",gap:4}}>
+                                      {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
+                                      <div
+                                        title="Remove this time block for this week"
+                                        onClick={async(e)=>{
+                                          e.stopPropagation();
+                                          if (!window.confirm(`Remove the ${s.time} block on ${s.date}? This will delete the session and unbook all clients in it.`)) return;
+                                          await sbFetch(`sessions?id=eq.${s.id}`, "DELETE");
+                                          await saveSessions(sessions.filter(x=>x.id!==s.id));
+                                        }}
+                                        style={{
+                                          width:18,height:18,borderRadius:"50%",
+                                          background:"#ff4c6b30",color:"var(--red)",
+                                          display:"flex",alignItems:"center",justifyContent:"center",
+                                          fontSize:10,fontWeight:700,cursor:"pointer",
+                                          flexShrink:0,transition:"background 0.15s"
+                                        }}
+                                        onMouseEnter={e=>e.currentTarget.style.background="#ff4c6b60"}
+                                        onMouseLeave={e=>e.currentTarget.style.background="#ff4c6b30"}
+                                      >✕</div>
+                                    </div>
                                   </div>
                                   <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"5px 8px",background:"rgba(0,0,0,0.15)",minHeight:60}}>
                                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 4px"}}>
