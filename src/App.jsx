@@ -777,6 +777,7 @@ const store = {
 };
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
+const MAX_GROUP_SIZE = 7;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const TIMES = ["7:00 AM","8:00 AM","9:00 AM","10:00 AM","11:00 AM","5:00 PM","6:00 PM","7:00 PM"];
 
@@ -1386,7 +1387,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const toggleClient = (id) => {
     setForm(f => ({
       ...f,
-      clientIds: f.clientIds.includes(id) ? f.clientIds.filter(x=>x!==id) : f.clientIds.length < 7 ? [...f.clientIds, id] : f.clientIds
+      clientIds: f.clientIds.includes(id) ? f.clientIds.filter(x=>x!==id) : f.clientIds.length < MAX_GROUP_SIZE ? [...f.clientIds, id] : f.clientIds
     }));
   };
 
@@ -1407,7 +1408,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
     d.setDate(d.getDate() + daysUntilMon);
 
     const newSessions = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < MAX_GROUP_SIZE; i++) {
       const cur = new Date(d);
       cur.setDate(d.getDate() + i);
       const weekday = cur.getDay(); // 0=Sun,1=Mon...6=Sat
@@ -1542,7 +1543,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
           <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>{names.join(" · ") || "No clients assigned"}</div>
           {s.notes && <div className="session-note">📝 {s.notes}</div>}
         </div>
-        <span className={`badge ${s.clientIds.length>0?"badge-accent":"badge-muted"}`}>{s.clientIds.length}/7</span>
+        <span className={`badge ${s.clientIds.length>0?"badge-accent":"badge-muted"}`}>{s.clientIds.length}/{MAX_GROUP_SIZE}</span>
       </div>
     );
   };
@@ -1793,7 +1794,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                 </select>
               </div>
               <div className="form-row">
-                <label>Clients ({form.clientIds.length}/7)</label>
+                <label>Clients ({form.clientIds.length}/{MAX_GROUP_SIZE})</label>
                 {/* Selected clients */}
                 {form.clientIds.length > 0 && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
@@ -1816,7 +1817,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   </div>
                 )}
                 {/* Search input */}
-                {form.clientIds.length < 7 && (
+                {form.clientIds.length < MAX_GROUP_SIZE && (
                   <ClientSearchInput
                     clients={clients}
                     excludeIds={form.clientIds}
@@ -2171,7 +2172,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
         ? {...s, clientIds: s.clientIds.filter(id=>id!==selectedClient.id)}
         : s);
     } else {
-      if (session.clientIds.length >= 7) return;
+      if (session.clientIds.length >= MAX_GROUP_SIZE) return;
       updated = sessions.map(s => s.id===session.id
         ? {...s, clientIds: [...s.clientIds, selectedClient.id]}
         : s);
@@ -2504,7 +2505,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                             const evening = daySessions.filter(s => s.time.includes("PM"));
                             const renderSession = (s) => {
                               const assigned = s.clientIds.includes(selectedClient.id);
-                              const full = s.clientIds.length >= 7 && !assigned;
+                              const full = s.clientIds.length >= MAX_GROUP_SIZE && !assigned;
                               const clientAvailable = isClientAvail(d, s.time);
                               const isDragOver = dragOverSession === s.id && draggedClient && draggedClient.fromSessionId !== s.id;
                               const assignedClientIds = s.clientIds;
@@ -2517,7 +2518,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                     e.preventDefault();
                                     setDragOverSession(null);
                                     if (!draggedClient || draggedClient.fromSessionId === s.id) return;
-                                    if (s.clientIds.length >= 7) return;
+                                    if (s.clientIds.length >= MAX_GROUP_SIZE) return;
                                     // Remove from old session, add to new
                                     const updated = sessions.map(sess => {
                                       if (sess.id === draggedClient.fromSessionId) return {...sess, clientIds: sess.clientIds.filter(id=>id!==draggedClient.clientId)};
@@ -2539,7 +2540,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
                                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                                       <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
-                                      <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/7{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
+                                      <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/{MAX_GROUP_SIZE}{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
                                     </div>
                                     {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
                                   </div>
@@ -4128,21 +4129,21 @@ function TrainerAnalytics({ clients, sessions }) {
     const daySessions = monthSessions.filter(s => s.date === dateStr);
     const totalSlots = daySessions.reduce((acc,s) => acc + 7, 0); // max 7 per session
     const booked = daySessions.reduce((acc,s) => acc + s.clientIds.length, 0);
-    const open = daySessions.reduce((acc,s) => acc + Math.max(0, 7 - s.clientIds.length), 0);
+    const open = daySessions.reduce((acc,s) => acc + Math.max(0, MAX_GROUP_SIZE - s.clientIds.length), 0);
     return { day: i+1, dateStr, sessions: daySessions.length, booked, open, totalSlots };
   }).filter(d => d.sessions > 0);
 
   // Monthly totals
   const totalSessions = monthSessions.length;
   const totalBooked = monthSessions.reduce((a,s) => a+s.clientIds.length, 0);
-  const totalOpen = monthSessions.reduce((a,s) => a + Math.max(0, 7-s.clientIds.length), 0);
+  const totalOpen = monthSessions.reduce((a,s) => a + Math.max(0, MAX_GROUP_SIZE-s.clientIds.length), 0);
   const totalCapacity = totalSessions * 7;
   const fillPct = totalCapacity > 0 ? Math.round((totalBooked/totalCapacity)*100) : 0;
 
   // Sessions remaining (future)
   const futureSessions = dated.filter(s => s.date >= todayStr);
   const futureBooked = futureSessions.reduce((a,s) => a+s.clientIds.length, 0);
-  const futureOpen = futureSessions.reduce((a,s) => a+Math.max(0,7-s.clientIds.length), 0);
+  const futureOpen = futureSessions.reduce((a,s) => a+Math.max(0,MAX_GROUP_SIZE-s.clientIds.length), 0);
 
   // Client stats: sessions used vs total
   const clientStats = [...clients]
