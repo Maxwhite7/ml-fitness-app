@@ -2083,6 +2083,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
   const [assignFeedback, setAssignFeedback] = useState("");
   const [expandedSession, setExpandedSession] = useState(null);
   const [trainerWeekOffset, setTrainerWeekOffset] = useState(0); // 0=current week, 1=next, etc.
+  const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
+  const [dragOverSession, setDragOverSession] = useState(null);
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2549,15 +2551,34 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                               const assigned = s.clientIds.includes(selectedClient.id);
                               const full = s.clientIds.length >= 7 && !assigned;
                               const clientAvailable = isClientAvail(d, s.time);
-                              const expanded = expandedSession === s.id;
-                              const assignedNames = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : "?"; });
+                              const isDragOver = dragOverSession === s.id && draggedClient && draggedClient.fromSessionId !== s.id;
+                              const assignedClientIds = s.clientIds;
                               return (
                                 <div key={s.id}
-                                  onClick={()=>{ if(!full) toggleAssign(s); }}
+                                  onClick={()=>{ if(!full && !draggedClient) toggleAssign(s); }}
+                                  onDragOver={e=>{ e.preventDefault(); setDragOverSession(s.id); }}
+                                  onDragLeave={()=>setDragOverSession(null)}
+                                  onDrop={async(e)=>{
+                                    e.preventDefault();
+                                    setDragOverSession(null);
+                                    if (!draggedClient || draggedClient.fromSessionId === s.id) return;
+                                    if (s.clientIds.length >= 7) return;
+                                    // Remove from old session, add to new
+                                    const updated = sessions.map(sess => {
+                                      if (sess.id === draggedClient.fromSessionId) return {...sess, clientIds: sess.clientIds.filter(id=>id!==draggedClient.clientId)};
+                                      if (sess.id === s.id) return {...sess, clientIds: [...sess.clientIds, draggedClient.clientId]};
+                                      return sess;
+                                    });
+                                    const fromSess = updated.find(x=>x.id===draggedClient.fromSessionId);
+                                    const toSess = updated.find(x=>x.id===s.id);
+                                    await saveSessions(updated, fromSess);
+                                    await saveSessions(updated, toSess);
+                                    setDraggedClient(null);
+                                  }}
                                   style={{
                                     borderRadius:2,overflow:"hidden",cursor:full?"default":"pointer",
-                                    border:`1px solid ${assigned?"var(--accent)":clientAvailable?"var(--green)":full?"var(--border)":"var(--border)"}`,
-                                    background:assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
+                                    border:`2px solid ${isDragOver?"var(--accent)":assigned?"var(--accent)":clientAvailable?"var(--green)":"var(--border)"}`,
+                                    background:isDragOver?"#3ec9c930":assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
                                     transition:"all 0.15s"
                                   }}>
                                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
@@ -2567,14 +2588,29 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                     </div>
                                     {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
                                   </div>
-                                  <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"4px 8px",background:"rgba(0,0,0,0.15)",minHeight:52}}>
-                                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1px 4px"}}>
+                                  <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"5px 8px",background:"rgba(0,0,0,0.15)",minHeight:60}}>
+                                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 4px"}}>
                                       {Array.from({length:7}).map((_,i) => {
-                                        const name = assignedNames[i];
-                                        return (
-                                          <div key={i} style={{fontSize:9,color:name?(assigned?"var(--black)":"var(--text)"):"transparent",padding:"1px 0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                                            {name || "·"}
-                                          </div>
+                                        const cId = assignedClientIds[i];
+                                        const cl = cId ? clients.find(x=>x.id===cId) : null;
+                                        const name = cl ? cl.name.split(" ")[0] : null;
+                                        return name ? (
+                                          <div
+                                            key={i}
+                                            draggable
+                                            onDragStart={e=>{ e.stopPropagation(); setDraggedClient({clientId:cId, fromSessionId:s.id}); }}
+                                            onDragEnd={()=>setDraggedClient(null)}
+                                            style={{
+                                              fontSize:11,fontWeight:500,
+                                              color:assigned?"var(--black)":"var(--text)",
+                                              padding:"2px 4px",borderRadius:2,
+                                              background: assigned?"rgba(0,0,0,0.15)":"rgba(255,255,255,0.06)",
+                                              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+                                              cursor:"grab",userSelect:"none"
+                                            }}
+                                          >{name}</div>
+                                        ) : (
+                                          <div key={i} style={{fontSize:11,color:"transparent",padding:"2px 4px"}}>·</div>
                                         );
                                       })}
                                     </div>
