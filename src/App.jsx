@@ -2123,6 +2123,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   const [trainerWeekOffset, setTrainerWeekOffset] = useState(0); // 0=current week, 1=next, etc.
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
+  const [dragOverWaitlist, setDragOverWaitlist] = useState(false);
+  const [waitlist, setWaitlist] = useState([]); // [{clientId, name}]
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2583,8 +2585,11 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                             if (sess.id === s.id) return {...sess, clientIds: [...sess.clientIds, draggedClient.clientId]};
                             return sess;
                           });
-                          await saveSessions(updated, updated.find(x=>x.id===draggedClient.fromSessionId));
+                          if (draggedClient.fromSessionId) {
+                            await saveSessions(updated, updated.find(x=>x.id===draggedClient.fromSessionId));
+                          }
                           await saveSessions(updated, updated.find(x=>x.id===s.id));
+                          setWaitlist(prev=>prev.filter(w=>w.clientId!==draggedClient.clientId));
                           setDraggedClient(null);
                         }}
                         style={{
@@ -2671,6 +2676,51 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     </>
                   );
                 })()}
+              </div>
+              {/* Floating waitlist box — bottom right of calendar */}
+              <div
+                onDragOver={e=>{ e.preventDefault(); setDragOverWaitlist(true); }}
+                onDragLeave={()=>setDragOverWaitlist(false)}
+                onDrop={e=>{
+                  e.preventDefault();
+                  setDragOverWaitlist(false);
+                  if (!draggedClient) return;
+                  const cl = clients.find(x=>x.id===draggedClient.clientId);
+                  if (!cl || waitlist.find(w=>w.clientId===draggedClient.clientId)) return;
+                  if (draggedClient.fromSessionId) {
+                    const updated = sessions.map(sess =>
+                      sess.id===draggedClient.fromSessionId
+                        ? {...sess, clientIds: sess.clientIds.filter(id=>id!==draggedClient.clientId)}
+                        : sess
+                    );
+                    saveSessions(updated, updated.find(x=>x.id===draggedClient.fromSessionId));
+                  }
+                  setWaitlist(prev=>[...prev, {clientId: draggedClient.clientId, name: cl.name.split(" ")[0]}]);
+                  setDraggedClient(null);
+                }}
+                style={{
+                  margin:"12px 20px 16px",
+                  minHeight:54, borderRadius:6,
+                  border:`2px dashed ${dragOverWaitlist?"var(--accent)":"var(--border)"}`,
+                  background: dragOverWaitlist?"#3ec9c910":"#0d1a26",
+                  padding:"8px 12px", transition:"all 0.15s", boxSizing:"border-box"
+                }}
+              >
+                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:6}}>
+                  Waitlist {waitlist.length > 0 ? `(${waitlist.length})` : "— drag a client here"}
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {waitlist.map(w=>(
+                    <div key={w.clientId} draggable
+                      onDragStart={()=>setDraggedClient({clientId:w.clientId, fromSessionId:null})}
+                      onDragEnd={()=>{ setDraggedClient(null); setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId)); }}
+                      style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,background:"#f59e0b20",border:"1px solid #f59e0b",fontSize:11,fontWeight:600,color:"#f59e0b",cursor:"grab",userSelect:"none"}}
+                    >
+                      ⏳ {w.name}
+                      <span onClick={()=>setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId))} style={{fontSize:10,cursor:"pointer",opacity:0.6}}>✕</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
