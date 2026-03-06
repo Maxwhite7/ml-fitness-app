@@ -2567,13 +2567,18 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                     </div>
                                     {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
                                   </div>
-                                  {assignedNames.length > 0 && (
-                                    <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"4px 8px",background:"rgba(0,0,0,0.15)"}}>
-                                      {assignedNames.map((name,i) => (
-                                        <div key={i} style={{fontSize:10,color:assigned?"var(--black)":"var(--text)",padding:"1px 0"}}>{name}</div>
-                                      ))}
+                                  <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"4px 8px",background:"rgba(0,0,0,0.15)",minHeight:52}}>
+                                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1px 4px"}}>
+                                      {Array.from({length:7}).map((_,i) => {
+                                        const name = assignedNames[i];
+                                        return (
+                                          <div key={i} style={{fontSize:9,color:name?(assigned?"var(--black)":"var(--text)"):"transparent",padding:"1px 0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                            {name || "·"}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               );
                             };
