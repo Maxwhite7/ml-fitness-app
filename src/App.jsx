@@ -2499,7 +2499,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                   const renderCell = (d, time) => {
                     const dk = dk2(d);
                     const s = sessions.find(x=>x.date===dk && x.time===time);
-                    if (!s) return <div key={time} style={{height:94,boxSizing:"border-box"}} />;
+                    if (!s) return <div key={time+dk} style={{height:94,boxSizing:"border-box"}} />;
 
                     const assigned = s.clientIds.includes(selectedClient.id);
                     const full = s.clientIds.length >= MAX_GROUP_SIZE && !assigned;
@@ -2545,78 +2545,78 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                           cursor:full?"default":"pointer",
                           border:`2px solid ${isDragOver?"var(--accent)":assigned?"var(--accent)":clientAvailable?"var(--green)":"var(--border)"}`,
                           background:isDragOver?"#3ec9c930":assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
-                          transition:"all 0.15s",display:"flex"
+                          transition:"all 0.15s",position:"relative",padding:"4px 6px"
                         }}>
-                        {/* Left column — time label vertically centered */}
-                        <div style={{
-                          width:38,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
-                          borderRight:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,
-                          padding:"4px 2px"
-                        }}>
-                          <div style={{
-                            fontWeight:700,fontSize:11,color:assigned?"var(--black)":full?"var(--border)":"var(--text)",
-                            textAlign:"center",lineHeight:1.1,letterSpacing:0.5
-                          }}>
-                            {s.time.replace(" AM","").replace(" PM","")}<br/>
-                            <span style={{fontSize:9,fontWeight:500,color:assigned?"rgba(0,0,0,0.5)":"var(--muted)"}}>{s.time.includes("AM")?"AM":"PM"}</span>
-                          </div>
+                        {/* ✕ top right */}
+                        <div style={{position:"absolute",top:4,right:4}}>
+                          <div
+                            title="Hide this time block"
+                            onClick={(e)=>{ e.stopPropagation(); setHiddenBlocks(prev=>({...prev,[s.id]:true})); }}
+                            style={{width:16,height:16,borderRadius:"50%",background:"#ff4c6b30",color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,cursor:"pointer",transition:"background 0.15s"}}
+                            onMouseEnter={e=>e.currentTarget.style.background="#ff4c6b60"}
+                            onMouseLeave={e=>e.currentTarget.style.background="#ff4c6b30"}
+                          >✕</div>
                         </div>
-                        {/* Right area — client names + count bottom right + ✕ top right */}
-                        <div style={{flex:1,display:"flex",flexDirection:"column",padding:"4px 6px",position:"relative",minWidth:0}}>
-                          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:2}}>
-                            <div
-                              title="Hide this time block"
-                              onClick={(e)=>{ e.stopPropagation(); setHiddenBlocks(prev=>({...prev,[s.id]:true})); }}
-                              style={{width:16,height:16,borderRadius:"50%",background:"#ff4c6b30",color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,cursor:"pointer",flexShrink:0,transition:"background 0.15s"}}
-                              onMouseEnter={e=>e.currentTarget.style.background="#ff4c6b60"}
-                              onMouseLeave={e=>e.currentTarget.style.background="#ff4c6b30"}
-                            >✕</div>
-                          </div>
-                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 3px",flex:1}}>
-                            {Array.from({length:MAX_GROUP_SIZE}).map((_,i) => {
-                              const cId = s.clientIds[i];
-                              const cl = cId ? clients.find(x=>x.id===cId) : null;
-                              const name = cl ? cl.name.split(" ")[0] : null;
-                              return name ? (
-                                <div key={i} draggable
-                                  onDragStart={e=>{ e.stopPropagation(); setDraggedClient({clientId:cId,fromSessionId:s.id}); }}
-                                  onDragEnd={()=>setDraggedClient(null)}
-                                  style={{fontSize:10,fontWeight:500,color:assigned?"var(--black)":"var(--text)",padding:"1px 3px",borderRadius:2,background:assigned?"rgba(0,0,0,0.15)":"rgba(255,255,255,0.06)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",cursor:"grab",userSelect:"none"}}
-                                >{name}</div>
-                              ) : <div key={i} style={{fontSize:10,color:"transparent",padding:"1px 3px"}}>·</div>;
-                            })}
-                          </div>
-                          {/* Count bottom right */}
-                          <div style={{position:"absolute",bottom:4,right:6,fontSize:15,fontWeight:700,lineHeight:1,color:assigned?"rgba(0,0,0,0.4)":full?"var(--red)":clientAvailable?"var(--green)":"var(--muted)",userSelect:"none"}}>
-                            {s.clientIds.length}/{MAX_GROUP_SIZE}{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}
-                          </div>
+                        {/* Client names */}
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 3px",marginTop:18}}>
+                          {Array.from({length:MAX_GROUP_SIZE}).map((_,i) => {
+                            const cId = s.clientIds[i];
+                            const cl = cId ? clients.find(x=>x.id===cId) : null;
+                            const name = cl ? cl.name.split(" ")[0] : null;
+                            return name ? (
+                              <div key={i} draggable
+                                onDragStart={e=>{ e.stopPropagation(); setDraggedClient({clientId:cId,fromSessionId:s.id}); }}
+                                onDragEnd={()=>setDraggedClient(null)}
+                                style={{fontSize:10,fontWeight:500,color:assigned?"var(--black)":"var(--text)",padding:"1px 3px",borderRadius:2,background:assigned?"rgba(0,0,0,0.15)":"rgba(255,255,255,0.06)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",cursor:"grab",userSelect:"none"}}
+                              >{name}</div>
+                            ) : <div key={i} style={{fontSize:10,color:"transparent",padding:"1px 3px"}}>·</div>;
+                          })}
+                        </div>
+                        {/* Count bottom right */}
+                        <div style={{position:"absolute",bottom:4,right:6,fontSize:15,fontWeight:700,lineHeight:1,color:assigned?"rgba(0,0,0,0.4)":full?"var(--red)":clientAvailable?"var(--green)":"var(--muted)",userSelect:"none"}}>
+                          {s.clientIds.length}/{MAX_GROUP_SIZE}
                         </div>
                       </div>
                     );
                   };
 
+                  const TIME_COL_W = 52;
+
                   return (
                     <>
-                      {/* Day headers */}
-                      <div style={{display:"grid",gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:8,marginBottom:8}}>
-                        {weekDates.map(d => {
-                          const tod = dk2(d) === dk2(today2);
-                          return (
-                            <div key={dk2(d)} style={{textAlign:"center",padding:"8px 4px",borderBottom:"2px solid",borderColor:tod?"var(--accent)":"var(--border)"}}>
-                              <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
-                              <div style={{fontSize:18,fontWeight:600,color:tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
-                              <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
-                            </div>
-                          );
-                        })}
+                      {/* Header row — empty time col + day headers */}
+                      <div style={{display:"flex",gap:8,marginBottom:8}}>
+                        <div style={{width:TIME_COL_W,flexShrink:0}} />
+                        <div style={{flex:1,display:"grid",gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:8}}>
+                          {weekDates.map(d => {
+                            const tod = dk2(d) === dk2(today2);
+                            return (
+                              <div key={dk2(d)} style={{textAlign:"center",padding:"8px 4px",borderBottom:"2px solid",borderColor:tod?"var(--accent)":"var(--border)"}}>
+                                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
+                                <div style={{fontSize:18,fontWeight:600,color:tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
+                                <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      {/* Time rows — one grid per group (morning / evening) */}
+                      {/* Time rows */}
                       {timeGroups.map((group, gi) => (
                         <div key={gi}>
                           {gi > 0 && <div style={{height:1,background:"var(--border)",margin:"10px 0"}} />}
                           {group.map(time => (
-                            <div key={time} style={{display:"grid",gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:8,marginBottom:8}}>
-                              {weekDates.map(d => renderCell(d, time))}
+                            <div key={time} style={{display:"flex",gap:8,marginBottom:8,alignItems:"stretch"}}>
+                              {/* Time label column */}
+                              <div style={{width:TIME_COL_W,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8}}>
+                                <div style={{textAlign:"right",lineHeight:1.1}}>
+                                  <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{time.replace(":00 AM","").replace(":00 PM","")}</div>
+                                  <div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>{time.includes("AM")?"AM":"PM"}</div>
+                                </div>
+                              </div>
+                              {/* Day cells */}
+                              <div style={{flex:1,display:"grid",gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:8}}>
+                                {weekDates.map(d => renderCell(d, time))}
+                              </div>
                             </div>
                           ))}
                         </div>
