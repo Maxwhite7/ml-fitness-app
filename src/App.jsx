@@ -2752,9 +2752,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                   {waitlist.map(w=>{
                     const isSelected = selectedWaitlistClient === w.clientId;
                     return (
-                    <div key={w.clientId} draggable
-                      onDragStart={()=>{ setSelectedWaitlistClient(null); setDraggedClient({clientId:w.clientId, fromSessionId:null}); }}
-                      onDragEnd={()=>{ setDraggedClient(null); setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId)); }}
+                    <div key={w.clientId}
                       onClick={()=>setSelectedWaitlistClient(isSelected ? null : w.clientId)}
                       style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,
                         background: isSelected?"#f59e0b":"#f59e0b20",
