@@ -2514,14 +2514,35 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     {bookedThisWeek.length === 0
                       ? <span style={{fontSize:12,color:"var(--muted)"}}>No sessions booked yet</span>
                       : bookedThisWeek.map(s => (
-                          <div key={s.id} onClick={()=>toggleAssign(s)} style={{
-                            display:"inline-flex",alignItems:"center",gap:6,
-                            padding:"4px 10px",borderRadius:20,cursor:"pointer",
-                            background:"#3ec9c920",border:"1px solid var(--accent)",
-                            fontSize:11,color:"var(--accent)",whiteSpace:"nowrap"
-                          }}>
-                            ✓ {s.date ? (() => { const d2=new Date(s.date+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${s.time}`; })() : s.time}
-                            <span style={{fontSize:10,color:"var(--muted)"}}>✕</span>
+                          <div key={s.id} style={{display:"inline-flex",alignItems:"center",gap:4}}>
+                            <div onClick={()=>toggleAssign(s)} style={{
+                              display:"inline-flex",alignItems:"center",gap:6,
+                              padding:"4px 10px",borderRadius:20,cursor:"pointer",
+                              background:"#3ec9c920",border:"1px solid var(--accent)",
+                              fontSize:11,color:"var(--accent)",whiteSpace:"nowrap"
+                            }}>
+                              ✓ {s.date ? (() => { const d2=new Date(s.date+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${s.time}`; })() : s.time}
+                              <span style={{fontSize:10,color:"var(--muted)"}}>✕</span>
+                            </div>
+                            <div
+                              title="Move to waitlist"
+                              onClick={()=>{
+                                if (waitlist.find(w=>w.clientId===selectedClient.id)) return;
+                                const updated = sessions.map(sess =>
+                                  sess.id===s.id ? {...sess, clientIds: sess.clientIds.filter(id=>id!==selectedClient.id)} : sess
+                                );
+                                saveSessions(updated, updated.find(x=>x.id===s.id));
+                                setWaitlist(prev=>[...prev, {clientId: selectedClient.id, name: selectedClient.name.split(" ")[0]}]);
+                              }}
+                              style={{
+                                width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",
+                                justifyContent:"center",fontSize:11,cursor:"pointer",
+                                background:"#f59e0b20",border:"1px solid #f59e0b",
+                                flexShrink:0,transition:"background 0.15s"
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.background="#f59e0b40"}
+                              onMouseLeave={e=>e.currentTarget.style.background="#f59e0b20"}
+                            >⏳</div>
                           </div>
                         ))
                     }
