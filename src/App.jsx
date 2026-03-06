@@ -1068,6 +1068,12 @@ export default function App() {
   const [sessions, setSessions] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [previewClient, setPreviewClient] = useState(null);
+  const [hiddenBlocks, setHiddenBlocks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_hidden_blocks") || "{}"); } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
+  }, [hiddenBlocks]);
 
   const loadData = async (onlyIfData=false) => {
     let c = await store.get("gym_clients");
@@ -1132,7 +1138,7 @@ export default function App() {
     <>
       <GlobalStyle />
       {user.role === "trainer" && !previewClient
-        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} />
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} />
         : user.role === "trainer" && previewClient
         ? (
           <>
@@ -1203,7 +1209,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 }
 
 // ─── Trainer App ──────────────────────────────────────────────────────────────
-function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient }) {
+function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient, hiddenBlocks, setHiddenBlocks }) {
   const [tab, setTab] = useState("schedule");
   const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
   const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
@@ -1235,7 +1241,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
         <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>saveClients(clients.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
-        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} /></div>
+        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
@@ -2081,7 +2087,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
   );
 }
 
-function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
+function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hiddenBlocks, setHiddenBlocks }) {
   const [avails, setAvails] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [assignFeedback, setAssignFeedback] = useState("");
@@ -2089,16 +2095,6 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
   const [trainerWeekOffset, setTrainerWeekOffset] = useState(0); // 0=current week, 1=next, etc.
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
-  const [hiddenBlocks, setHiddenBlocksRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ml_hidden_blocks") || "{}"); } catch { return {}; }
-  });
-  const setHiddenBlocks = (updater) => {
-    setHiddenBlocksRaw(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2518,7 +2514,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
 
                     if (isHidden) return (
                       <div key={s.id}
-                        onClick={()=>setHiddenBlocks(prev=>{ const n={...prev}; delete n[s.id]; return n; })}
+                        onClick={()=>setHiddenBlocks(prev=>{ const n={...prev}; delete n[s.id]; try{localStorage.setItem("ml_hidden_blocks",JSON.stringify(n));}catch{} return n; })}
                         title="Click to restore"
                         style={{
                           height:94,boxSizing:"border-box",borderRadius:2,
@@ -2560,7 +2556,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                         <div style={{position:"absolute",top:4,right:4}}>
                           <div
                             title="Hide this time block"
-                            onClick={(e)=>{ e.stopPropagation(); setHiddenBlocks(prev=>({...prev,[s.id]:true})); }}
+                            onClick={(e)=>{ e.stopPropagation(); setHiddenBlocks(prev=>{ const n={...prev,[s.id]:true}; try{localStorage.setItem("ml_hidden_blocks",JSON.stringify(n));}catch{} return n; }); }}
                             style={{width:16,height:16,borderRadius:"50%",background:"#ff4c6b30",color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,cursor:"pointer",transition:"background 0.15s"}}
                             onMouseEnter={e=>e.currentTarget.style.background="#ff4c6b60"}
                             onMouseLeave={e=>e.currentTarget.style.background="#ff4c6b30"}
