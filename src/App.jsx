@@ -2481,154 +2481,137 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
               })()}
             </div>
 
-            {/* Full width calendar */}
+            {/* Full width calendar — shared time-row grid so all days stay aligned */}
             <div style={{display:"flex",flex:1,overflow:"hidden"}}>
               <div style={{flex:1,overflowY:"auto",padding:"20px 20px"}}>
                 <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>{weekLabel(currentMonday)} — Click to Assign</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
-                  {weekDates.map(d => {
+                {(() => {
+                  // Collect every unique time slot across the whole week, in order
+                  const allTimes = [...new Set(
+                    weekDates.flatMap(d => sessions.filter(s=>s.date===dk2(d)).map(s=>s.time))
+                  )].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b));
+
+                  // Separate morning and evening
+                  const morningTimes = allTimes.filter(t=>t.includes("AM"));
+                  const eveningTimes = allTimes.filter(t=>t.includes("PM"));
+                  const timeGroups = [morningTimes, eveningTimes].filter(g=>g.length>0);
+
+                  const renderCell = (d, time) => {
                     const dk = dk2(d);
-                    const daySessions = sessions.filter(s=>s.date===dk).sort((a,b)=>TIMES.indexOf(a.time)-TIMES.indexOf(b.time));
-                    const tod = dk === dk2(today2);
+                    const s = sessions.find(x=>x.date===dk && x.time===time);
+                    if (!s) return <div key={time} style={{height:94,boxSizing:"border-box"}} />;
+
+                    const assigned = s.clientIds.includes(selectedClient.id);
+                    const full = s.clientIds.length >= MAX_GROUP_SIZE && !assigned;
+                    const clientAvailable = isClientAvail(d, time);
+                    const isDragOver = dragOverSession === s.id && draggedClient && draggedClient.fromSessionId !== s.id;
+                    const isHidden = !!hiddenBlocks[s.id];
+
+                    if (isHidden) return (
+                      <div key={s.id}
+                        onClick={()=>setHiddenBlocks(prev=>{ const n={...prev}; delete n[s.id]; return n; })}
+                        title="Click to restore"
+                        style={{
+                          height:94,boxSizing:"border-box",borderRadius:2,
+                          border:"1px dashed #2a2a2a",background:"transparent",cursor:"pointer",
+                          transition:"border-color 0.15s,background 0.15s"
+                        }}
+                        onMouseEnter={e=>{ e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.background="#3ec9c908"; }}
+                        onMouseLeave={e=>{ e.currentTarget.style.borderColor="#2a2a2a"; e.currentTarget.style.background="transparent"; }}
+                      />
+                    );
+
                     return (
-                      <div key={dk}>
-                        <div style={{
-                          textAlign:"center",padding:"8px 4px",marginBottom:6,
-                          borderBottom:"2px solid",
-                          borderColor: tod ? "var(--accent)" : "var(--border)"
+                      <div key={s.id}
+                        onClick={()=>{ if(!full && !draggedClient) toggleAssign(s); }}
+                        onDragOver={e=>{ e.preventDefault(); setDragOverSession(s.id); }}
+                        onDragLeave={()=>setDragOverSession(null)}
+                        onDrop={async(e)=>{
+                          e.preventDefault();
+                          setDragOverSession(null);
+                          if (!draggedClient || draggedClient.fromSessionId === s.id) return;
+                          if (s.clientIds.length >= MAX_GROUP_SIZE) return;
+                          const updated = sessions.map(sess => {
+                            if (sess.id === draggedClient.fromSessionId) return {...sess, clientIds: sess.clientIds.filter(id=>id!==draggedClient.clientId)};
+                            if (sess.id === s.id) return {...sess, clientIds: [...sess.clientIds, draggedClient.clientId]};
+                            return sess;
+                          });
+                          await saveSessions(updated, updated.find(x=>x.id===draggedClient.fromSessionId));
+                          await saveSessions(updated, updated.find(x=>x.id===s.id));
+                          setDraggedClient(null);
+                        }}
+                        style={{
+                          height:94,boxSizing:"border-box",borderRadius:2,overflow:"hidden",
+                          cursor:full?"default":"pointer",
+                          border:`2px solid ${isDragOver?"var(--accent)":assigned?"var(--accent)":clientAvailable?"var(--green)":"var(--border)"}`,
+                          background:isDragOver?"#3ec9c930":assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
+                          transition:"all 0.15s"
                         }}>
-                          <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
-                          <div style={{fontSize:18,fontWeight:600,color: tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
-                          <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
+                            <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/{MAX_GROUP_SIZE}{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:4}}>
+                            {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
+                            <div
+                              title="Hide this time block"
+                              onClick={(e)=>{ e.stopPropagation(); setHiddenBlocks(prev=>({...prev,[s.id]:true})); }}
+                              style={{width:18,height:18,borderRadius:"50%",background:"#ff4c6b30",color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,cursor:"pointer",flexShrink:0,transition:"background 0.15s"}}
+                              onMouseEnter={e=>e.currentTarget.style.background="#ff4c6b60"}
+                              onMouseLeave={e=>e.currentTarget.style.background="#ff4c6b30"}
+                            >✕</div>
+                          </div>
                         </div>
-                        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                          {daySessions.length === 0 ? (
-                            <div style={{fontSize:10,color:"var(--border)",textAlign:"center",padding:"10px 0"}}>No sessions</div>
-                          ) : (() => {
-                            const morning = daySessions.filter(s => s.time.includes("AM"));
-                            const evening = daySessions.filter(s => s.time.includes("PM"));
-                            const renderSession = (s) => {
-                              const assigned = s.clientIds.includes(selectedClient.id);
-                              const full = s.clientIds.length >= MAX_GROUP_SIZE && !assigned;
-                              const clientAvailable = isClientAvail(d, s.time);
-                              const isDragOver = dragOverSession === s.id && draggedClient && draggedClient.fromSessionId !== s.id;
-                              const assignedClientIds = s.clientIds;
-                              const isHidden = !!hiddenBlocks[s.id];
-
-                              // Hidden block — ghost outline, click to restore
-                              if (isHidden) return (
-                                <div key={s.id}
-                                  onClick={()=>setHiddenBlocks(prev=>{ const n={...prev}; delete n[s.id]; return n; })}
-                                  title="Click to restore this time block"
-                                  style={{
-                                    borderRadius:2,border:"1px dashed #2a2a2a",
-                                    background:"transparent",cursor:"pointer",
-                                    height:94,flexShrink:0,boxSizing:"border-box",
-                                    transition:"border-color 0.15s,background 0.15s"
-                                  }}
-                                  onMouseEnter={e=>{ e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.background="#3ec9c908"; }}
-                                  onMouseLeave={e=>{ e.currentTarget.style.borderColor="#2a2a2a"; e.currentTarget.style.background="transparent"; }}
-                                />
-                              );
-
-                              return (
-                                <div key={s.id}
-                                  onClick={()=>{ if(!full && !draggedClient) toggleAssign(s); }}
-                                  onDragOver={e=>{ e.preventDefault(); setDragOverSession(s.id); }}
-                                  onDragLeave={()=>setDragOverSession(null)}
-                                  onDrop={async(e)=>{
-                                    e.preventDefault();
-                                    setDragOverSession(null);
-                                    if (!draggedClient || draggedClient.fromSessionId === s.id) return;
-                                    if (s.clientIds.length >= MAX_GROUP_SIZE) return;
-                                    // Remove from old session, add to new
-                                    const updated = sessions.map(sess => {
-                                      if (sess.id === draggedClient.fromSessionId) return {...sess, clientIds: sess.clientIds.filter(id=>id!==draggedClient.clientId)};
-                                      if (sess.id === s.id) return {...sess, clientIds: [...sess.clientIds, draggedClient.clientId]};
-                                      return sess;
-                                    });
-                                    const fromSess = updated.find(x=>x.id===draggedClient.fromSessionId);
-                                    const toSess = updated.find(x=>x.id===s.id);
-                                    await saveSessions(updated, fromSess);
-                                    await saveSessions(updated, toSess);
-                                    setDraggedClient(null);
-                                  }}
-                                  style={{
-                                    borderRadius:2,overflow:"hidden",cursor:full?"default":"pointer",
-                                    border:`2px solid ${isDragOver?"var(--accent)":assigned?"var(--accent)":clientAvailable?"var(--green)":"var(--border)"}`,
-                                    background:isDragOver?"#3ec9c930":assigned?"var(--accent)":clientAvailable?"#22c55e15":"#1a2a3a",
-                                    transition:"all 0.15s"
-                                  }}>
-                                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",userSelect:"none"}}>
-                                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                                      <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--text)"}}>{s.time}</div>
-                                      <div style={{fontWeight:700,fontSize:13,color:assigned?"var(--black)":full?"var(--border)":"var(--muted)"}}>{s.clientIds.length}/{MAX_GROUP_SIZE}{assigned?" ✓":full?" 🔒":clientAvailable?" ●":""}</div>
-                                    </div>
-                                    <div style={{display:"flex",alignItems:"center",gap:4}}>
-                                      {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
-                                      <div
-                                        title="Hide this time block"
-                                        onClick={(e)=>{
-                                          e.stopPropagation();
-                                          setHiddenBlocks(prev=>({...prev, [s.id]: true}));
-                                        }}
-                                        style={{
-                                          width:18,height:18,borderRadius:"50%",
-                                          background:"#ff4c6b30",color:"var(--red)",
-                                          display:"flex",alignItems:"center",justifyContent:"center",
-                                          fontSize:10,fontWeight:700,cursor:"pointer",
-                                          flexShrink:0,transition:"background 0.15s"
-                                        }}
-                                        onMouseEnter={e=>e.currentTarget.style.background="#ff4c6b60"}
-                                        onMouseLeave={e=>e.currentTarget.style.background="#ff4c6b30"}
-                                      >✕</div>
-                                    </div>
-                                  </div>
-                                  <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"5px 8px",background:"rgba(0,0,0,0.15)",minHeight:60}}>
-                                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 4px"}}>
-                                      {Array.from({length:7}).map((_,i) => {
-                                        const cId = assignedClientIds[i];
-                                        const cl = cId ? clients.find(x=>x.id===cId) : null;
-                                        const name = cl ? cl.name.split(" ")[0] : null;
-                                        return name ? (
-                                          <div
-                                            key={i}
-                                            draggable
-                                            onDragStart={e=>{ e.stopPropagation(); setDraggedClient({clientId:cId, fromSessionId:s.id}); }}
-                                            onDragEnd={()=>setDraggedClient(null)}
-                                            style={{
-                                              fontSize:11,fontWeight:500,
-                                              color:assigned?"var(--black)":"var(--text)",
-                                              padding:"2px 4px",borderRadius:2,
-                                              background: assigned?"rgba(0,0,0,0.15)":"rgba(255,255,255,0.06)",
-                                              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                                              cursor:"grab",userSelect:"none"
-                                            }}
-                                          >{name}</div>
-                                        ) : (
-                                          <div key={i} style={{fontSize:11,color:"transparent",padding:"2px 4px"}}>·</div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            };
-                            return (
-                              <>
-                                {morning.map(renderSession)}
-                                {morning.length > 0 && evening.length > 0 && (
-                                  <div style={{height:1,background:"var(--border)",margin:"4px 0"}} />
-                                )}
-                                {evening.map(renderSession)}
-                              </>
-                            );
-                          })()}
+                        <div style={{borderTop:`1px solid ${assigned?"rgba(0,0,0,0.15)":"var(--border)"}`,padding:"5px 8px",background:"rgba(0,0,0,0.15)",height:60,boxSizing:"border-box"}}>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 4px"}}>
+                            {Array.from({length:MAX_GROUP_SIZE}).map((_,i) => {
+                              const cId = s.clientIds[i];
+                              const cl = cId ? clients.find(x=>x.id===cId) : null;
+                              const name = cl ? cl.name.split(" ")[0] : null;
+                              return name ? (
+                                <div key={i} draggable
+                                  onDragStart={e=>{ e.stopPropagation(); setDraggedClient({clientId:cId,fromSessionId:s.id}); }}
+                                  onDragEnd={()=>setDraggedClient(null)}
+                                  style={{fontSize:11,fontWeight:500,color:assigned?"var(--black)":"var(--text)",padding:"2px 4px",borderRadius:2,background:assigned?"rgba(0,0,0,0.15)":"rgba(255,255,255,0.06)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",cursor:"grab",userSelect:"none"}}
+                                >{name}</div>
+                              ) : <div key={i} style={{fontSize:11,color:"transparent",padding:"2px 4px"}}>·</div>;
+                            })}
+                          </div>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                  };
+
+                  return (
+                    <>
+                      {/* Day headers */}
+                      <div style={{display:"grid",gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:8,marginBottom:8}}>
+                        {weekDates.map(d => {
+                          const tod = dk2(d) === dk2(today2);
+                          return (
+                            <div key={dk2(d)} style={{textAlign:"center",padding:"8px 4px",borderBottom:"2px solid",borderColor:tod?"var(--accent)":"var(--border)"}}>
+                              <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
+                              <div style={{fontSize:18,fontWeight:600,color:tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
+                              <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Time rows — one grid per group (morning / evening) */}
+                      {timeGroups.map((group, gi) => (
+                        <div key={gi}>
+                          {gi > 0 && <div style={{height:1,background:"var(--border)",margin:"10px 0"}} />}
+                          {group.map(time => (
+                            <div key={time} style={{display:"grid",gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:8,marginBottom:8}}>
+                              {weekDates.map(d => renderCell(d, time))}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
