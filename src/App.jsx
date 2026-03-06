@@ -1946,56 +1946,74 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
             </tr>
           </thead>
           <tbody>
-            {[...filtered].sort((a,b)=>a.name.localeCompare(b.name)).map(c => {
-              const left = c.sessionsTotal - c.sessionsUsed;
-              const pct = c.sessionsTotal > 0 ? (c.sessionsUsed/c.sessionsTotal)*100 : 0;
-              return (
-                <tr key={c.id} style={{cursor:"pointer"}} onClick={()=>openEdit(c)}>
-                  <td>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div className="user-avatar" style={{background:"var(--accent)",fontSize:11}}>
-                        {c.name.split(" ").map(x=>x[0]).join("")}
+            {(() => {
+              const sorted = [...filtered].sort((a,b)=>a.name.localeCompare(b.name));
+              const active = sorted.filter(c => c.active);
+              const inactive = sorted.filter(c => !c.active);
+              const renderRow = (c) => {
+                const left = c.sessionsTotal - c.sessionsUsed;
+                const pct = c.sessionsTotal > 0 ? (c.sessionsUsed/c.sessionsTotal)*100 : 0;
+                return (
+                  <tr key={c.id} style={{cursor:"pointer",opacity:c.active?1:0.5}} onClick={()=>openEdit(c)}>
+                    <td>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <div className="user-avatar" style={{background:"var(--accent)",fontSize:11}}>
+                          {c.name.split(" ").map(x=>x[0]).join("")}
+                        </div>
+                        <span style={{fontWeight:500,color:"var(--accent)",textDecoration:"underline",textDecorationColor:"transparent",transition:"text-decoration-color 0.15s"}}
+                          onMouseEnter={e=>e.currentTarget.style.textDecorationColor="var(--accent)"}
+                          onMouseLeave={e=>e.currentTarget.style.textDecorationColor="transparent"}
+                        >{c.name}</span>
                       </div>
-                      <span style={{fontWeight:500,color:"var(--accent)",textDecoration:"underline",textDecorationColor:"transparent",transition:"text-decoration-color 0.15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.textDecorationColor="var(--accent)"}
-                        onMouseLeave={e=>e.currentTarget.style.textDecorationColor="transparent"}
-                      >{c.name}</span>
-                    </div>
-                  </td>
-                  <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
-                  <td></td>
-                  <td></td>
-                  <td onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span
-                      className={`badge ${c.active?"badge-green":"badge-muted"}`}
-                      style={{cursor:"pointer",userSelect:"none"}}
-                      title="Click to toggle"
-                      onClick={async()=>{ await saveClients(clients.map(x=>x.id===c.id?{...x,active:!x.active}:x)); }}
-                    >
-                      {c.active?"Active":"Inactive"}
-                    </span>
-                    {((!c.email) || c.email.endsWith(".mlfit@gmail.com")) && (
+                    </td>
+                    <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
+                    <td></td>
+                    <td></td>
+                    <td onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,alignItems:"center"}}>
                       <span
-                        className="badge badge-muted"
-                        style={{cursor:"pointer",userSelect:"none",fontSize:11}}
-                        title="Copy signup link"
-                        onClick={(e)=>{
-                          e.stopPropagation();
-                          const link = `${window.location.origin}?signup=${c.id}`;
-                          navigator.clipboard.writeText(link);
-                          alert(`Signup link copied for ${c.name}!\n\n${link}`);
-                        }}
-                      >🔗 Invite</span>
-                    )}
-                    <span
-                      className="badge"
-                      style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
-                      onClick={e=>{e.stopPropagation(); onPreviewClient(c);}}
-                    >👁 View Account</span>
-                  </td>
-                </tr>
+                        className={`badge ${c.active?"badge-green":"badge-muted"}`}
+                        style={{cursor:"pointer",userSelect:"none"}}
+                        title="Click to toggle"
+                        onClick={async()=>{ await saveClients(clients.map(x=>x.id===c.id?{...x,active:!x.active}:x)); }}
+                      >
+                        {c.active?"Active":"Inactive"}
+                      </span>
+                      {((!c.email) || c.email.endsWith(".mlfit@gmail.com")) && (
+                        <span
+                          className="badge badge-muted"
+                          style={{cursor:"pointer",userSelect:"none",fontSize:11}}
+                          title="Copy signup link"
+                          onClick={(e)=>{
+                            e.stopPropagation();
+                            const link = `${window.location.origin}?signup=${c.id}`;
+                            navigator.clipboard.writeText(link);
+                            alert(`Signup link copied for ${c.name}!\n\n${link}`);
+                          }}
+                        >🔗 Invite</span>
+                      )}
+                      <span
+                        className="badge"
+                        style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
+                        onClick={e=>{e.stopPropagation(); onPreviewClient(c);}}
+                      >👁 View Account</span>
+                    </td>
+                  </tr>
+                );
+              };
+              return (
+                <>
+                  {active.map(renderRow)}
+                  {inactive.length > 0 && (
+                    <tr>
+                      <td colSpan={5} style={{padding:"10px 12px 4px",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:2,borderTop:"2px solid var(--border)",background:"transparent"}}>
+                        INACTIVE — {inactive.length}
+                      </td>
+                    </tr>
+                  )}
+                  {inactive.map(renderRow)}
+                </>
               );
-            })}
+            })()}
           </tbody>
         </table>
       </div>
