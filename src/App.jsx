@@ -2523,16 +2523,12 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                   style={{
                                     borderRadius:2,border:"1px dashed #2a2a2a",
                                     background:"transparent",cursor:"pointer",
+                                    height:94,flexShrink:0,boxSizing:"border-box",
                                     transition:"border-color 0.15s,background 0.15s"
                                   }}
                                   onMouseEnter={e=>{ e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.background="#3ec9c908"; }}
                                   onMouseLeave={e=>{ e.currentTarget.style.borderColor="#2a2a2a"; e.currentTarget.style.background="transparent"; }}
-                                >
-                                  <div style={{display:"flex",alignItems:"center",padding:"6px 8px"}}>
-                                    <div style={{fontWeight:700,fontSize:13,color:"#2a2a2a"}}>{s.time}</div>
-                                  </div>
-                                  <div style={{borderTop:"1px dashed #2a2a2a",minHeight:60}} />
-                                </div>
+                                />
                               );
 
                               return (
