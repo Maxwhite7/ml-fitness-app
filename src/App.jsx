@@ -2089,7 +2089,16 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
   const [trainerWeekOffset, setTrainerWeekOffset] = useState(0); // 0=current week, 1=next, etc.
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
-  const [hiddenBlocks, setHiddenBlocks] = useState({}); // { sessionId: true } — local display only
+  const [hiddenBlocks, setHiddenBlocksRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_hidden_blocks") || "{}"); } catch { return {}; }
+  });
+  const setHiddenBlocks = (updater) => {
+    setHiddenBlocksRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
