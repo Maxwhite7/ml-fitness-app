@@ -2580,7 +2580,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                     );
                   };
 
-                  const TIME_COL_W = 52;
+                  const TIME_COL_W = 64;
 
                   return (
                     <>
@@ -2591,10 +2591,10 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                           {weekDates.map(d => {
                             const tod = dk2(d) === dk2(today2);
                             return (
-                              <div key={dk2(d)} style={{textAlign:"center",padding:"8px 4px",borderBottom:"2px solid",borderColor:tod?"var(--accent)":"var(--border)"}}>
-                                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
-                                <div style={{fontSize:18,fontWeight:600,color:tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
-                                <div style={{fontSize:10,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
+                              <div key={dk2(d)} style={{textAlign:"center",padding:"10px 4px",borderBottom:"2px solid",borderColor:tod?"var(--accent)":"var(--border)"}}>
+                                <div style={{fontSize:12,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)"}}>{DAY_SHORT[d.getDay()]}</div>
+                                <div style={{fontSize:26,fontWeight:700,color:tod?"var(--accent)":"var(--text)"}}>{d.getDate()}</div>
+                                <div style={{fontSize:12,color:"var(--muted)"}}>{MON_SHORT[d.getMonth()]}</div>
                               </div>
                             );
                           })}
@@ -2609,8 +2609,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                               {/* Time label column */}
                               <div style={{width:TIME_COL_W,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8}}>
                                 <div style={{textAlign:"right",lineHeight:1.1}}>
-                                  <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{time.replace(":00 AM","").replace(":00 PM","")}</div>
-                                  <div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>{time.includes("AM")?"AM":"PM"}</div>
+                                  <div style={{fontWeight:700,fontSize:20,color:"var(--text)"}}>{time.replace(":00 AM","").replace(":00 PM","")}</div>
+                                  <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1}}>{time.includes("AM")?"AM":"PM"}</div>
                                 </div>
                               </div>
                               {/* Day cells */}
