@@ -2216,11 +2216,25 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
       <div className="section">
         <div className="section-header"><span className="section-title">Select Week</span></div>
         <div className="section-body" style={{paddingTop:0,paddingBottom:16}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
             <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>setTrainerWeekOffset(o=>o-1)}>‹</button>
             <span className="bebas" style={{fontSize:18,color:"var(--text)",minWidth:200,textAlign:"center"}}>{weekLabel(currentMonday)}</span>
             <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>setTrainerWeekOffset(o=>o+1)}>›</button>
             {trainerWeekOffset !== 0 && <button className="btn-secondary" style={{padding:"6px 12px",fontSize:11}} onClick={()=>setTrainerWeekOffset(0)}>Today</button>}
+            <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:8}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"#4cff9120",border:"1px solid var(--green)"}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:"var(--green)"}} />
+                <span style={{fontSize:12,fontWeight:600,color:"var(--green)"}}>
+                  {clients.filter(c=>!(Array.isArray(c.pausedWeeks)?c.pausedWeeks:[]).includes(currentWeekKey)).length} Active
+                </span>
+              </div>
+              <div style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"#ffffff08",border:"1px solid var(--border)"}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:"var(--muted)"}} />
+                <span style={{fontSize:12,fontWeight:600,color:"var(--muted)"}}>
+                  {clients.filter(c=>(Array.isArray(c.pausedWeeks)?c.pausedWeeks:[]).includes(currentWeekKey)).length} Inactive
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
