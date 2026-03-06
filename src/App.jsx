@@ -2086,6 +2086,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
   const [trainerWeekOffset, setTrainerWeekOffset] = useState(0); // 0=current week, 1=next, etc.
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
+  const [hiddenBlocks, setHiddenBlocks] = useState({}); // { sessionId: true } — local display only
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2509,22 +2510,25 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                               const clientAvailable = isClientAvail(d, s.time);
                               const isDragOver = dragOverSession === s.id && draggedClient && draggedClient.fromSessionId !== s.id;
                               const assignedClientIds = s.clientIds;
-                              const isEmpty = s.clientIds.length === 0;
+                              const isHidden = !!hiddenBlocks[s.id];
 
-                              // Cleared block — transparent spacer that holds the column position
-                              if (isEmpty) return (
-                                <div key={s.id} style={{borderRadius:2,border:"1px dashed var(--border)",background:"transparent",opacity:0.35}}>
-                                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px"}}>
-                                    <div style={{fontWeight:700,fontSize:13,color:"var(--border)"}}>{s.time}</div>
-                                    <div
-                                      title="Restore this time block"
-                                      onClick={async(e)=>{
-                                        e.stopPropagation();
-                                      }}
-                                      style={{opacity:0}}
-                                    >·</div>
+                              // Hidden block — ghost outline, click to restore
+                              if (isHidden) return (
+                                <div key={s.id}
+                                  onClick={()=>setHiddenBlocks(prev=>{ const n={...prev}; delete n[s.id]; return n; })}
+                                  title="Click to restore this time block"
+                                  style={{
+                                    borderRadius:2,border:"1px dashed #2a2a2a",
+                                    background:"transparent",cursor:"pointer",
+                                    transition:"border-color 0.15s,background 0.15s"
+                                  }}
+                                  onMouseEnter={e=>{ e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.background="#3ec9c908"; }}
+                                  onMouseLeave={e=>{ e.currentTarget.style.borderColor="#2a2a2a"; e.currentTarget.style.background="transparent"; }}
+                                >
+                                  <div style={{display:"flex",alignItems:"center",padding:"6px 8px"}}>
+                                    <div style={{fontWeight:700,fontSize:13,color:"#2a2a2a"}}>{s.time}</div>
                                   </div>
-                                  <div style={{borderTop:"1px dashed var(--border)",minHeight:60,background:"transparent"}} />
+                                  <div style={{borderTop:"1px dashed #2a2a2a",minHeight:60}} />
                                 </div>
                               );
 
@@ -2564,12 +2568,10 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                     <div style={{display:"flex",alignItems:"center",gap:4}}>
                                       {assigned && <div style={{fontSize:12,fontWeight:700,color:"var(--black)"}}>✓</div>}
                                       <div
-                                        title="Remove this time block for this week"
-                                        onClick={async(e)=>{
+                                        title="Hide this time block"
+                                        onClick={(e)=>{
                                           e.stopPropagation();
-                                          if (!window.confirm(`Clear the ${s.time} block on ${s.date}? All clients will be removed but the time slot will stay.`)) return;
-                                          const cleared = {...s, clientIds: []};
-                                          await saveSessions(sessions.map(x=>x.id===s.id ? cleared : x), cleared);
+                                          setHiddenBlocks(prev=>({...prev, [s.id]: true}));
                                         }}
                                         style={{
                                           width:18,height:18,borderRadius:"50%",
