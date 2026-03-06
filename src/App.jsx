@@ -2509,6 +2509,25 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                               const clientAvailable = isClientAvail(d, s.time);
                               const isDragOver = dragOverSession === s.id && draggedClient && draggedClient.fromSessionId !== s.id;
                               const assignedClientIds = s.clientIds;
+                              const isEmpty = s.clientIds.length === 0;
+
+                              // Cleared block — transparent spacer that holds the column position
+                              if (isEmpty) return (
+                                <div key={s.id} style={{borderRadius:2,border:"1px dashed var(--border)",background:"transparent",opacity:0.35}}>
+                                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px"}}>
+                                    <div style={{fontWeight:700,fontSize:13,color:"var(--border)"}}>{s.time}</div>
+                                    <div
+                                      title="Restore this time block"
+                                      onClick={async(e)=>{
+                                        e.stopPropagation();
+                                      }}
+                                      style={{opacity:0}}
+                                    >·</div>
+                                  </div>
+                                  <div style={{borderTop:"1px dashed var(--border)",minHeight:60,background:"transparent"}} />
+                                </div>
+                              );
+
                               return (
                                 <div key={s.id}
                                   onClick={()=>{ if(!full && !draggedClient) toggleAssign(s); }}
@@ -2548,9 +2567,9 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
                                         title="Remove this time block for this week"
                                         onClick={async(e)=>{
                                           e.stopPropagation();
-                                          if (!window.confirm(`Remove the ${s.time} block on ${s.date}? This will delete the session and unbook all clients in it.`)) return;
-                                          await sbFetch(`sessions?id=eq.${s.id}`, "DELETE");
-                                          await saveSessions(sessions.filter(x=>x.id!==s.id));
+                                          if (!window.confirm(`Clear the ${s.time} block on ${s.date}? All clients will be removed but the time slot will stay.`)) return;
+                                          const cleared = {...s, clientIds: []};
+                                          await saveSessions(sessions.map(x=>x.id===s.id ? cleared : x), cleared);
                                         }}
                                         style={{
                                           width:18,height:18,borderRadius:"50%",
