@@ -2746,9 +2746,9 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                 <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color: selectedWaitlistClient?"var(--accent)":"var(--muted)",marginBottom:6}}>
                   {selectedWaitlistClient
                     ? `Click a session to book ${waitlist.find(w=>w.clientId===selectedWaitlistClient)?.name} ↑`
-                    : `Waitlist ${waitlist.length > 0 ? `(${waitlist.length})` : "— drag a client here"}`}
+                    : `Waitlist ${waitlist.length > 0 ? `(${waitlist.length})` : ""}`}
                 </div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
                   {waitlist.map(w=>{
                     const isSelected = selectedWaitlistClient === w.clientId;
                     return (
@@ -2764,6 +2764,18 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                       <span onClick={e=>{e.stopPropagation(); setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId)); if(isSelected) setSelectedWaitlistClient(null);}} style={{fontSize:10,cursor:"pointer",opacity:0.6}}>✕</span>
                     </div>
                   );})}
+                  {/* Add selected client to waitlist */}
+                  {selectedClient && !waitlist.find(w=>w.clientId===selectedClient.id) && (
+                    <div
+                      onClick={()=>setWaitlist(prev=>[...prev, {clientId:selectedClient.id, name:selectedClient.name.split(" ")[0]}])}
+                      style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,
+                        background:"#ffffff08",border:"1px dashed var(--border)",
+                        fontSize:11,fontWeight:600,color:"var(--muted)",
+                        cursor:"pointer",userSelect:"none",transition:"all 0.15s"}}
+                      onMouseEnter={e=>{ e.currentTarget.style.borderColor="#f59e0b"; e.currentTarget.style.color="#f59e0b"; }}
+                      onMouseLeave={e=>{ e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--muted)"; }}
+                    >+ {selectedClient.name.split(" ")[0]} → waitlist</div>
+                  )}
                 </div>
               </div>
             </div>
