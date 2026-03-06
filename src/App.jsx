@@ -2421,108 +2421,63 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients }) {
           }}>
             {/* Header */}
             <div style={{
-              display:"flex",alignItems:"center",justifyContent:"space-between",
-              padding:"14px 24px",background:"var(--charcoal)",borderBottom:"1px solid var(--border)",
+              background:"var(--charcoal)",borderBottom:"1px solid var(--border)",
               flexShrink:0
             }}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13}}>
-                  {selectedClient.name.split(" ").map(x=>x[0]).join("")}
-                </div>
-                <div>
-                  <div className="bebas" style={{fontSize:20,color:"var(--text)"}}>{selectedClient.name}</div>
-                  <div style={{fontSize:11,color:"var(--muted)"}}>
-                    {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"} · {weekLabel(currentMonday)}
+              {/* Top row — name + close */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 24px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div className="user-avatar" style={{background:"var(--accent)",color:"var(--black)",fontSize:13}}>
+                    {selectedClient.name.split(" ").map(x=>x[0]).join("")}
+                  </div>
+                  <div>
+                    <div className="bebas" style={{fontSize:20,color:"var(--text)"}}>{selectedClient.name}</div>
+                    <div style={{fontSize:11,color:"var(--muted)"}}>
+                      {avail ? `${slots.length} available slot${slots.length!==1?"s":""}` : "No availability submitted"} · {weekLabel(currentMonday)}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {assignFeedback && (
-                <div style={{background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:2,padding:"6px 14px",fontSize:12,color:"var(--accent)"}}>
-                  ✓ Assigned to {assignFeedback}
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  {assignFeedback && (
+                    <div style={{background:"#3ec9c920",border:"1px solid var(--accent)",borderRadius:2,padding:"6px 14px",fontSize:12,color:"var(--accent)"}}>
+                      ✓ Assigned to {assignFeedback}
+                    </div>
+                  )}
+                  <button className="modal-close" style={{fontSize:20}} onClick={()=>setSelectedClient(null)}>✕</button>
                 </div>
-              )}
-              <button className="modal-close" style={{fontSize:20}} onClick={()=>setSelectedClient(null)}>✕</button>
+              </div>
+              {/* Booked this week — inline row */}
+              {(() => {
+                const bookedThisWeek = sessions.filter(s =>
+                  s.clientIds.includes(selectedClient.id) &&
+                  weekDates.some(d => dk2(d) === s.date)
+                ).sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time));
+                return (
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 24px 12px",flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginRight:4}}>
+                      Booked {bookedThisWeek.length > 0 ? `(${bookedThisWeek.length})` : ""}
+                    </span>
+                    {bookedThisWeek.length === 0
+                      ? <span style={{fontSize:12,color:"var(--muted)"}}>No sessions booked yet</span>
+                      : bookedThisWeek.map(s => (
+                          <div key={s.id} onClick={()=>toggleAssign(s)} style={{
+                            display:"inline-flex",alignItems:"center",gap:6,
+                            padding:"4px 10px",borderRadius:20,cursor:"pointer",
+                            background:"#3ec9c920",border:"1px solid var(--accent)",
+                            fontSize:11,color:"var(--accent)",whiteSpace:"nowrap"
+                          }}>
+                            ✓ {s.date ? (() => { const d2=new Date(s.date+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${s.time}`; })() : s.time}
+                            <span style={{fontSize:10,color:"var(--muted)"}}>✕</span>
+                          </div>
+                        ))
+                    }
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* Split body */}
+            {/* Full width calendar */}
             <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-
-              {/* LEFT — client availability + history */}
-              <div style={{width:220,borderRight:"1px solid var(--border)",overflowY:"auto",padding:"16px",flexShrink:0}}>
-                {/* Booked sessions this week */}
-                {(() => {
-                  const bookedThisWeek = sessions.filter(s =>
-                    s.clientIds.includes(selectedClient.id) &&
-                    weekDates.some(d => dk2(d) === s.date)
-                  ).sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time));
-                  if (bookedThisWeek.length === 0) return (
-                    <div style={{marginBottom:20}}>
-                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginBottom:8}}>Booked This Week</div>
-                      <div style={{color:"var(--muted)",fontSize:12}}>No sessions booked yet.</div>
-                    </div>
-                  );
-                  // Group by date
-                  const byDate = {};
-                  bookedThisWeek.forEach(s => { if(!byDate[s.date]) byDate[s.date]=[]; byDate[s.date].push(s); });
-                  return (
-                    <div style={{marginBottom:20}}>
-                      <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginBottom:8}}>Booked This Week ({bookedThisWeek.length})</div>
-                      {Object.entries(byDate).sort(([a],[b])=>a<b?-1:1).map(([date, daySess]) => {
-                        const d2obj = new Date(date+"T12:00:00");
-                        return (
-                          <div key={date} style={{marginBottom:10}}>
-                            <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>{DAY_SHORT[d2obj.getDay()]} {MON_SHORT[d2obj.getMonth()]} {d2obj.getDate()}</div>
-                            {daySess.map(s => (
-                              <div key={s.id} onClick={()=>toggleAssign(s)} style={{
-                                display:"flex",alignItems:"center",justifyContent:"space-between",
-                                padding:"7px 10px",borderRadius:2,marginBottom:3,cursor:"pointer",
-                                background:"#3ec9c920",border:"1px solid var(--accent)",fontSize:12,color:"var(--accent)"
-                              }}>
-                                <span>✓ {s.time}</span>
-                                <span style={{fontSize:10,color:"var(--muted)"}}>Remove</span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-
-                {/* Submitted availability */}
-                {avail && sortedDays.length > 0 && (
-                  <>
-                    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>Submitted Availability</div>
-                    {sortedDays.map(day => (
-                      <div key={day} style={{marginBottom:12}}>
-                        <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>
-                          {day.includes("-") ? (() => { const d2 = new Date(day+"T12:00:00"); return `${DAY_SHORT[d2.getDay()]} ${MON_SHORT[d2.getMonth()]} ${d2.getDate()}`; })() : day}
-                        </div>
-                        <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                          {slotsByDay[day].map(slot => {
-                            const time = slot.split(" ").slice(1).join(" ");
-                            const matchingSessions = sessionsForSlot(slot);
-                            const anyAssigned = matchingSessions.some(s => s.clientIds.includes(selectedClient.id));
-                            return (
-                              <div key={slot} style={{
-                                padding:"6px 10px",borderRadius:2,fontSize:12,
-                                background: anyAssigned ? "#3ec9c920" : "var(--charcoal)",
-                                border:`1px solid ${anyAssigned?"var(--accent)":"var(--border)"}`,
-                                color: anyAssigned ? "var(--accent)" : "var(--text)"
-                              }}>
-                                {time} {anyAssigned && "✓"}
-                                {matchingSessions.length === 0 && <span style={{fontSize:10,color:"var(--muted)",marginLeft:8}}>no session</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-
-              {/* RIGHT — next week schedule */}
               <div style={{flex:1,overflowY:"auto",padding:"20px 20px"}}>
                 <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:16}}>{weekLabel(currentMonday)} — Click to Assign</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
