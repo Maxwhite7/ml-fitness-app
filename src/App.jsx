@@ -4798,7 +4798,7 @@ Today is ${todayStr}. Use this to resolve relative dates like "next Monday", "th
 
 Always confirm what you did after executing an action.
 For anything else, just respond conversationally and helpfully.
-Keep responses concise.${customInstructions ? `\n\nAdditional instructions from the trainer:\n${customInstructions}` : ""}`);
+Keep responses concise.` + (customInstructions ? "\n\nAdditional instructions from the trainer:\n" + customInstructions : "");
 
       const response = await fetch("/api/chat", {
         method: "POST",
