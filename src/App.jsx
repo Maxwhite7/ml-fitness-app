@@ -2287,40 +2287,6 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
               })()}
             </div>
           </div>
-              <div style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"#4cff9120",border:"1px solid var(--green)"}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:"var(--green)"}} />
-                <span style={{fontSize:12,fontWeight:600,color:"var(--green)"}}>
-                  {clients.filter(c=>!(Array.isArray(c.pausedWeeks)?c.pausedWeeks:[]).includes(currentWeekKey)).length} Active
-                </span>
-              </div>
-              <div style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"#ffffff08",border:"1px solid var(--border)"}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:"var(--muted)"}} />
-                <span style={{fontSize:12,fontWeight:600,color:"var(--muted)"}}>
-                  {clients.filter(c=>(Array.isArray(c.pausedWeeks)?c.pausedWeeks:[]).includes(currentWeekKey)).length} Inactive
-                </span>
-              </div>
-              {(() => {
-                const sunday = new Date(currentMonday); sunday.setDate(currentMonday.getDate()+6);
-                const inWeek = s => { if (!s.date) return false; const sd = new Date(s.date+"T12:00:00"); return sd >= currentMonday && sd <= sunday; };
-                const activeClients = clients.filter(c => c.active && !c.former && !(Array.isArray(c.pausedWeeks)?c.pausedWeeks:[]).includes(currentWeekKey));
-                const bookedIds = new Set(sessions.filter(s=>inWeek(s)).flatMap(s=>s.clientIds));
-                const booked = activeClients.filter(c=>bookedIds.has(c.id)).length;
-                const notBooked = activeClients.filter(c=>!bookedIds.has(c.id)).length;
-                return (
-                  <>
-                    <div style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"#3ec9c915",border:"1px solid var(--accent)"}}>
-                      <div style={{width:6,height:6,borderRadius:"50%",background:"var(--accent)"}} />
-                      <span style={{fontSize:12,fontWeight:600,color:"var(--accent)"}}>{booked} Booked</span>
-                    </div>
-                    <div style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,background:"#ff4c6b15",border:"1px solid var(--red)"}}>
-                      <div style={{width:6,height:6,borderRadius:"50%",background:"var(--red)"}} />
-                      <span style={{fontSize:12,fontWeight:600,color:"var(--red)"}}>{notBooked} Not Booked</span>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
         </div>
       </div>
 
