@@ -4716,6 +4716,7 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder }) {
         onReminder(msg);
         return `✓ Reminder sent!`;
       }
+      case "show_stats": {
         const totalClients = clients.length;
         const activeClients = clients.filter(c=>c.active).length;
         const upcomingSessions = sessions.filter(s=>s.date>=todayStr && s.clientIds.length>0).length;
