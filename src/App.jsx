@@ -1,5 +1,22 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 
+const WolfIcon = ({ size = 20, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="8,30 17,6 25,27" fill={color} opacity="0.95"/>
+    <polygon points="56,30 47,6 39,27" fill={color} opacity="0.95"/>
+    <polygon points="11,28 17,10 23,26" fill={color} opacity="0.35"/>
+    <polygon points="53,28 47,10 41,26" fill={color} opacity="0.35"/>
+    <ellipse cx="32" cy="35" rx="21" ry="19" fill={color} opacity="0.95"/>
+    <ellipse cx="32" cy="44" rx="11" ry="8" fill={color} opacity="0.55"/>
+    <ellipse cx="32" cy="39" rx="4.5" ry="3.5" fill={color} opacity="1"/>
+    <ellipse cx="23.5" cy="30" rx="4" ry="4.5" fill="#000" opacity="0.75"/>
+    <ellipse cx="40.5" cy="30" rx="4" ry="4.5" fill="#000" opacity="0.75"/>
+    <ellipse cx="24.8" cy="28.5" rx="1.4" ry="1.4" fill="white" opacity="0.9"/>
+    <ellipse cx="41.8" cy="28.5" rx="1.4" ry="1.4" fill="white" opacity="0.9"/>
+    <path d="M27 47 Q32 51 37 47" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.7"/>
+  </svg>
+);
+
 // ─── Embedded Google Font via @import in style ───────────────────────────────
 const GlobalStyle = () => (
   <style>{`
@@ -4838,7 +4855,7 @@ ${actionResult}` : displayText),
           {/* Header */}
           <div style={{padding:"14px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--charcoal)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}><WolfIcon size={20} color="var(--black)" /></div>
               <div>
                 <div className="bebas" style={{fontSize:16,color:"var(--accent)",letterSpacing:1}}>AI ASSISTANT</div>
                 <div style={{fontSize:10,color:"var(--muted)"}}>Ask me anything about your gym</div>
@@ -4867,7 +4884,7 @@ ${actionResult}` : displayText),
             {messages.map((m, i) => (
               <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:12}}>
                 {m.role==="assistant" && (
-                  <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0,marginRight:8,marginTop:2}}>🤖</div>
+                  <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0,marginRight:8,marginTop:2}}><WolfIcon size={16} color="var(--black)" /></div>
                 )}
                 <div style={{maxWidth:m.workout?"100%":"78%"}}>
                   {m.text && (
@@ -4911,7 +4928,7 @@ ${actionResult}` : displayText),
             ))}
             {loading && (
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤖</div>
+                <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}><WolfIcon size={16} color="var(--black)" /></div>
                 <div style={{padding:"10px 13px",borderRadius:"10px 10px 10px 2px",background:"var(--charcoal)",border:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>Thinking...</div>
               </div>
             )}
@@ -4942,7 +4959,7 @@ ${actionResult}` : displayText),
         fontSize:24,cursor:"pointer",zIndex:1001,
         boxShadow:"0 4px 20px rgba(62,201,201,0.4)",
         transition:"all 0.2s",userSelect:"none"
-      }}>{open ? "✕" : "🤖"}</div>
+      }}>{open ? "✕" : <WolfIcon size={28} color="var(--black)" />}</div>
     </>
   );
 }
