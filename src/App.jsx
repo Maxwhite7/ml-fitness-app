@@ -1187,6 +1187,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
+  const [showPass, setShowPass] = useState(false);
 
   const submit = async () => {
     setErr("");
@@ -1215,7 +1216,12 @@ function LoginScreen({ clients, onLogin, saveClients }) {
         <div className="field-label">Email</div>
         <input className="field-input" type="email" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} />
         <div className="field-label">Password</div>
-        <input className="field-input" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} />
+        <div style={{position:"relative"}}>
+          <input className="field-input" type={showPass?"text":"password"} placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{paddingRight:44}} />
+          <div onClick={()=>setShowPass(s=>!s)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",color:"var(--muted)",fontSize:18,userSelect:"none",lineHeight:1}}>
+            {showPass ? "🙈" : "👁️"}
+          </div>
+        </div>
         <button className="btn-primary" onClick={submit}>SIGN IN</button>
         <div className="switch-link" style={{marginTop:16,color:"var(--muted)",fontSize:12}}>
           Enter the email and password provided by your trainer.
