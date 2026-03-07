@@ -4302,8 +4302,25 @@ function TrainerAnalytics({ clients, sessions }) {
   const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   const todayStr = dk(now);
 
+  // Current week (Mon–Sun)
+  const getMonday = (d) => { const day = d.getDay(); const diff = (day===0?-6:1-day); const m = new Date(d); m.setDate(d.getDate()+diff); m.setHours(0,0,0,0); return m; };
+  const weekStart = getMonday(now);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6);
+  const weekStartStr = dk(weekStart);
+  const weekEndStr = dk(weekEnd);
+
   // All sessions with a date
   const dated = sessions.filter(s => s.date);
+
+  // This week's sessions
+  const weekSessions = dated.filter(s => s.date >= weekStartStr && s.date <= weekEndStr);
+  const weekBooked = weekSessions.reduce((a,s) => a+s.clientIds.length, 0);
+  const weekCapacity = weekSessions.length * MAX_GROUP_SIZE;
+  const weekOpen = weekSessions.reduce((a,s) => a+Math.max(0,MAX_GROUP_SIZE-s.clientIds.length), 0);
+  const weekFillPct = weekCapacity > 0 ? Math.round((weekBooked/weekCapacity)*100) : 0;
+  const weekUniqueClients = new Set(weekSessions.flatMap(s=>s.clientIds)).size;
+  const weekPastSessions = weekSessions.filter(s => s.date < todayStr || (s.date === todayStr));
+  const weekUpcoming = weekSessions.filter(s => s.date > todayStr);
 
   // Sessions in selected month
   const monthKey = `${selectedYear}-${String(selectedMonth+1).padStart(2,"0")}`;
@@ -4315,7 +4332,7 @@ function TrainerAnalytics({ clients, sessions }) {
     const d = String(i+1).padStart(2,"0");
     const dateStr = `${monthKey}-${d}`;
     const daySessions = monthSessions.filter(s => s.date === dateStr);
-    const totalSlots = daySessions.reduce((acc,s) => acc + 7, 0); // max 7 per session
+    const totalSlots = daySessions.reduce((acc,s) => acc + 7, 0);
     const booked = daySessions.reduce((acc,s) => acc + s.clientIds.length, 0);
     const open = daySessions.reduce((acc,s) => acc + Math.max(0, MAX_GROUP_SIZE - s.clientIds.length), 0);
     return { day: i+1, dateStr, sessions: daySessions.length, booked, open, totalSlots };
@@ -4359,6 +4376,8 @@ function TrainerAnalytics({ clients, sessions }) {
     </div>
   );
 
+  const weekDayNames = ["Mon","Tue","Wed","Thu","Fri","Sat"];
+
   return (
     <>
       <div className="page-header">
@@ -4366,7 +4385,57 @@ function TrainerAnalytics({ clients, sessions }) {
         <div className="page-subtitle">Session trends, capacity, and client progress</div>
       </div>
 
-      {/* Month selector */}
+      {/* ── This Week ── */}
+      <div style={{padding:"0 24px 8px"}}>
+        <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginBottom:12}}>
+          This Week — {MONTHS[weekStart.getMonth()]} {weekStart.getDate()} – {MONTHS[weekEnd.getMonth()]} {weekEnd.getDate()}
+        </div>
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
+          <StatCard label="Sessions" value={weekSessions.length} sub={`${weekUpcoming.length} upcoming`} />
+          <StatCard label="Booked Spots" value={weekBooked} sub={`of ${weekCapacity} capacity`} color="var(--green)" />
+          <StatCard label="Open Spots" value={weekOpen} sub="still available" color="var(--accent)" />
+          <StatCard label="Fill Rate" value={`${weekFillPct}%`} sub="of capacity filled" color={weekFillPct>=80?"var(--green)":weekFillPct>=50?"var(--accent)":"var(--red)"} />
+          <StatCard label="Unique Clients" value={weekUniqueClients} sub="booked this week" color="var(--muted)" />
+        </div>
+
+        {/* Per-day breakdown for the week */}
+        {weekSessions.length > 0 && (
+          <div style={{background:"var(--charcoal)",borderRadius:8,border:"1px solid var(--border)",padding:"16px 20px",marginBottom:24}}>
+            <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12}}>Day by Day</div>
+            <div style={{display:"flex",gap:8}}>
+              {Array.from({length:6},(_,i)=>{
+                const d = new Date(weekStart); d.setDate(weekStart.getDate()+i);
+                const dStr = dk(d);
+                const daySess = weekSessions.filter(s=>s.date===dStr);
+                const booked = daySess.reduce((a,s)=>a+s.clientIds.length,0);
+                const cap = daySess.length * MAX_GROUP_SIZE;
+                const open = daySess.reduce((a,s)=>a+Math.max(0,MAX_GROUP_SIZE-s.clientIds.length),0);
+                const isToday = dStr === todayStr;
+                return (
+                  <div key={i} style={{flex:1,background:isToday?"#3ec9c910":"var(--panel)",borderRadius:6,padding:"10px 8px",border:`1px solid ${isToday?"var(--accent)":"var(--border)"}`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:isToday?"var(--accent)":"var(--muted)",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{weekDayNames[i]}</div>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>{d.getDate()}</div>
+                    {daySess.length===0
+                      ? <div style={{fontSize:11,color:"var(--border)"}}>—</div>
+                      : <>
+                          <div style={{fontSize:18,fontWeight:700,color:"var(--text)",lineHeight:1}}>{booked}</div>
+                          <div style={{fontSize:10,color:"var(--muted)"}}>/{cap} booked</div>
+                          {open>0 && <div style={{fontSize:10,color:"var(--accent)",marginTop:2}}>{open} open</div>}
+                          <div style={{fontSize:10,color:"var(--muted)",marginTop:4}}>{daySess.length} session{daySess.length!==1?"s":""}</div>
+                        </>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Monthly ── */}
+      <div style={{padding:"0 24px",borderTop:"1px solid var(--border)",paddingTop:20}}>
+        <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:12}}>Monthly</div>
+      </div>
       <div style={{padding:"0 24px 20px",display:"flex",alignItems:"center",gap:8}}>
         <button className="btn-secondary" style={{padding:"6px 14px"}} onClick={()=>{
           let m = selectedMonth-1; let y = selectedYear;
