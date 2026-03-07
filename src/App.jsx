@@ -4744,6 +4744,17 @@ function AIAgent({ clients, sessions, setSessions, library }) {
       const pastSessions = sessions.filter(s=>s.date<todayStr).length;
       const bookedPast = sessions.filter(s=>s.date<todayStr && s.clientIds.length>0).length;
 
+      // Build available slots: upcoming sessions that have at least 1 client but aren't full
+      const partialSessions = sessions
+        .filter(s => s.date >= todayStr && s.clientIds.length > 0 && s.clientIds.length < MAX_GROUP_SIZE)
+        .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+      const availableSlotsStr = partialSessions.length > 0
+        ? partialSessions.map(s => {
+            const clientNames = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : "?"; }).join(", ");
+            return `${s.date} ${s.time} — ${s.clientIds.length}/${MAX_GROUP_SIZE} spots filled (${clientNames}) — ${MAX_GROUP_SIZE - s.clientIds.length} open`;
+          }).join("\n")
+        : "No partially-filled upcoming sessions.";
+
       const libraryStr = library ? Object.entries(library).map(([group, exs]) =>
         `${group}: ${exs.filter(e=>!e.startsWith("—")).join(", ")}`
       ).join("\n") : "";
@@ -4757,6 +4768,9 @@ Current gym data:
 - ${pastSessions} past sessions (${bookedPast} had bookings)
 - Today: ${todayStr}
 
+Upcoming sessions with open spots (has at least 1 client booked, not yet full — max ${MAX_GROUP_SIZE} per session):
+${availableSlotsStr}
+
 Exercise library (use ONLY these exercises when generating workouts):
 ${libraryStr}
 
@@ -4767,9 +4781,12 @@ Available actions:
 - clear_past_sessions — removes all client names from past sessions (keeps time slots)
 - show_stats — shows gym statistics
 - list_clients — lists all clients
+- available_slots — lists all upcoming sessions that have open spots (already have clients but aren't full)
 - update_progress — updates sets/reps/weight for a client exercise
 - add_session — adds a new session to the schedule
 - generate_workout — generates a structured workout plan
+
+When asked about open spots, available times, or where more clients can be added, use the "Upcoming sessions with open spots" data above and present it clearly. Empty sessions (0 clients) are NOT shown — only sessions that already have people booked with room for more.
 
 For generate_workout, use this format:
 <action>{"type":"generate_workout","params":{"title":"Full Body Strength","focus":"Chest, Back, Shoulders","exercises":[{"exercise":"Flat Bench Press","sets":"4","reps":"8-10","weight":"","notes":"Focus on form"},{"exercise":"Wide Grip Lat Pulldown","sets":"3","reps":"10-12","weight":"","notes":""}]}}</action>
