@@ -5062,6 +5062,18 @@ function ClientAvailability({ client }) {
   };
 
   const upcomingWeeks = getUpcomingWeeks();
+
+  // Group weeks by month
+  const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const weeksByMonth = {};
+  upcomingWeeks.forEach(monday => {
+    const mk = monday.getMonth();
+    if (!weeksByMonth[mk]) weeksByMonth[mk] = [];
+    weeksByMonth[mk].push(monday);
+  });
+  const availableMonths = Object.keys(weeksByMonth).map(Number);
+
+  const [selectedMonth, setSelectedMonth] = useState(() => upcomingWeeks[0]?.getMonth() ?? new Date().getMonth());
   const [selectedWeek, setSelectedWeek] = useState(upcomingWeeks[0]);
   const [allData, setAllData] = useState({}); // key: weekMonday dateKey, value: { slots, trainingsWanted, saved }
   const [saved, setSaved] = useState(false);
@@ -5172,12 +5184,37 @@ function ClientAvailability({ client }) {
         <div className="page-subtitle">Select which week and your available times</div>
       </div>
 
-      {/* Week selector */}
+      {/* Month selector */}
+      <div className="section">
+        <div className="section-header"><span className="section-title">Select a Month</span></div>
+        <div className="section-body">
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {availableMonths.map(m => {
+              const hasSubmitted = (weeksByMonth[m]||[]).some(mon => allData[weekKey(mon)]?.saved);
+              const isSelected = m === selectedMonth;
+              return (
+                <div key={m} onClick={()=>{ setSelectedMonth(m); setSelectedWeek(weeksByMonth[m][0]); }} style={{
+                  padding:"12px 20px",borderRadius:4,cursor:"pointer",minWidth:110,textAlign:"center",
+                  border:`2px solid ${isSelected?"var(--accent)":hasSubmitted?"var(--green)":"var(--border)"}`,
+                  background:isSelected?"var(--accent)":hasSubmitted?"#22c55e10":"var(--charcoal)",
+                  color:isSelected?"var(--black)":hasSubmitted?"var(--green)":"var(--text)",
+                  transition:"all 0.15s",userSelect:"none"
+                }}>
+                  <div style={{fontWeight:700,fontSize:15}}>{MONTH_NAMES_FULL[m]}</div>
+                  {hasSubmitted && <div style={{fontSize:10,marginTop:3,opacity:0.8}}>✓ submitted</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Week selector for selected month */}
       <div className="section">
         <div className="section-header"><span className="section-title">Select a Week</span></div>
         <div className="section-body">
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {upcomingWeeks.map((monday, i) => {
+            {(weeksByMonth[selectedMonth]||[]).map((monday, i) => {
               const wkk = weekKey(monday);
               const hasData = allData[wkk]?.saved;
               const isSelected = wkk === wk;
@@ -5191,7 +5228,7 @@ function ClientAvailability({ client }) {
                 }}>
                   <div style={{fontWeight:700,fontSize:14}}>{weekLabel(monday)}</div>
                   <div style={{fontSize:11,marginTop:4,opacity:0.8}}>
-                    {hasData ? `✓ ${allData[wkk].trainingsWanted||"?"} sessions · ${Object.values(allData[wkk].slots).reduce((a,v)=>a+Object.keys(v).length,0)} slots` : i===0?"Next week":"Available"}
+                    {hasData ? `✓ ${allData[wkk].trainingsWanted||"?"} sessions · ${Object.values(allData[wkk].slots).reduce((a,v)=>a+Object.keys(v).length,0)} slots` : "Tap to fill in"}
                   </div>
                 </div>
               );
