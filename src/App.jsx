@@ -1935,6 +1935,25 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
             <button className="btn-primary" style={{width:"auto",padding:"8px 20px",fontSize:14}} onClick={openAdd}>+ Add Client</button>
           </div>
         </div>
+        <div style={{display:"flex",gap:0}}>
+          {/* A–Z index */}
+          {(() => {
+            const sorted = [...filtered].sort((a,b)=>a.name.localeCompare(b.name));
+            const letters = [...new Set(sorted.map(c=>c.name[0].toUpperCase()))].sort();
+            return (
+              <div style={{width:32,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",paddingTop:4,gap:2,position:"sticky",top:56,alignSelf:"flex-start"}}>
+                {letters.map(l=>(
+                  <div key={l}
+                    onClick={()=>document.getElementById("client-letter-"+l)?.scrollIntoView({behavior:"smooth",block:"center"})}
+                    style={{fontSize:15,fontWeight:700,color:"var(--accent)",cursor:"pointer",lineHeight:1.8,userSelect:"none",transition:"color 0.1s"}}
+                    onMouseEnter={e=>e.currentTarget.style.color="var(--text)"}
+                    onMouseLeave={e=>e.currentTarget.style.color="var(--accent)"}
+                  >{l}</div>
+                ))}
+              </div>
+            );
+          })()}
+          <div style={{flex:1,overflowX:"auto"}}>
         <table className="table">
           <thead>
             <tr>
@@ -1953,9 +1972,9 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
               const former = sorted.filter(c => c.former);
               const cycleStatus = async (c) => {
                 let update;
-                if (c.active && !c.former)       update = { active: false, former: false }; // Active → Inactive
-                else if (!c.active && !c.former) update = { active: false, former: true };  // Inactive → Former
-                else                             update = { active: true,  former: false }; // Former → Active
+                if (c.active && !c.former)       update = { active: false, former: false };
+                else if (!c.active && !c.former) update = { active: false, former: true };
+                else                             update = { active: true,  former: false };
                 await saveClients(clients.map(x => x.id===c.id ? {...x,...update} : x), {...c,...update});
               };
               const statusBadge = (c) => {
@@ -1963,10 +1982,20 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 if (!c.active) return { label:"Inactive",  cls:"badge-muted",  color:"var(--muted)" };
                 return             { label:"Active",    cls:"badge-green",  color:"var(--green)" };
               };
+              let lastLetter = null;
               const renderRow = (c) => {
                 const { label, cls } = statusBadge(c);
+                const letter = c.name[0].toUpperCase();
+                const showLetter = letter !== lastLetter;
+                lastLetter = letter;
                 return (
-                  <tr key={c.id} style={{cursor:"pointer", opacity: c.former ? 0.4 : c.active ? 1 : 0.6}} onClick={()=>openEdit(c)}>
+                  <Fragment key={c.id}>
+                    {showLetter && (
+                      <tr id={`client-letter-${letter}`}>
+                        <td colSpan={5} style={{padding:"6px 12px 2px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:3,background:"var(--panel)",borderTop:"1px solid var(--border)"}}>{letter}</td>
+                      </tr>
+                    )}
+                  <tr style={{cursor:"pointer", opacity: c.former ? 0.4 : c.active ? 1 : 0.6}} onClick={()=>openEdit(c)}>
                     <td>
                       <div style={{display:"flex",alignItems:"center",gap:10}}>
                         <div className="user-avatar" style={{background:"var(--accent)",fontSize:11}}>
@@ -2008,6 +2037,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                       >👁 View Account</span>
                     </td>
                   </tr>
+                  </Fragment>
                 );
               };
               return (
@@ -2026,6 +2056,8 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
             })()}
           </tbody>
         </table>
+          </div>
+        </div>
       </div>
 
       {newCredentials && (
