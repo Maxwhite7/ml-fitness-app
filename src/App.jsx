@@ -5043,17 +5043,20 @@ function ClientAvailability({ client }) {
 
   const dateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
-  // Build list of upcoming Mondays (next 4 weeks)
+  // Build list of upcoming Mondays through end of year
   const getUpcomingWeeks = () => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const dow = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    // Always jump to NEXT Monday (never current week)
+    const dow = today.getDay();
     const daysUntilNextMon = dow === 1 ? 7 : (8 - dow) % 7 || 7;
+    const endOfYear = new Date(today.getFullYear(), 11, 31);
     const weeks = [];
-    for (let w = 0; w < 4; w++) {
+    let w = 0;
+    while (true) {
       const monday = new Date(today);
       monday.setDate(today.getDate() + daysUntilNextMon + w * 7);
+      if (monday > endOfYear) break;
       weeks.push(monday);
+      w++;
     }
     return weeks;
   };
