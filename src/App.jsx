@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 
 // ─── Embedded Google Font via @import in style ───────────────────────────────
 const GlobalStyle = () => (
@@ -2355,7 +2355,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
               const avRow = clientAvail(c.id);
               const isInactive = (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey);
               return (
-                <React.Fragment key={c.id}>
+                <Fragment key={c.id}>
                   {showLetter && (
                     <tr id={`avail-letter-${letter}`}>
                       <td colSpan={8} style={{padding:"6px 12px 2px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:3,background:"var(--panel)",borderTop:"1px solid var(--border)"}}>{letter}</td>
@@ -2494,7 +2494,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     })()}
                   </td>
                 </tr>
-                </React.Fragment>
+                </Fragment>
               );
               });
             })()}
