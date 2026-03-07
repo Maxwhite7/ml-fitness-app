@@ -652,6 +652,16 @@ const GlobalStyle = () => (
       .bottom-nav-item.active { color: var(--accent); }
       .bottom-nav-icon { font-size: 20px; line-height: 1; }
 
+      /* Blu bubble above bottom nav on mobile */
+      .blu-bubble {
+        bottom: 72px !important;
+      }
+      .blu-panel {
+        bottom: 132px !important;
+        width: calc(100vw - 32px) !important;
+        right: 16px !important;
+        height: 65vh !important;
+      }
       /* Main content padding for bottom nav */
       .main-content {
         padding: 20px 16px 80px;
@@ -4978,7 +4988,7 @@ ${actionResult}` : displayText),
     <>
       {/* Floating chat panel */}
       {open && (
-        <div style={{
+        <div className="blu-panel" style={{
           position:"fixed",bottom:90,right:24,width:380,height:560,
           background:"var(--panel)",border:"1px solid var(--border)",
           borderRadius:12,display:"flex",flexDirection:"column",
@@ -5126,7 +5136,7 @@ ${actionResult}` : displayText),
       )}
 
       {/* Floating bubble button */}
-      <div onClick={()=>setOpen(o=>!o)} style={{
+      <div className="blu-bubble" onClick={()=>setOpen(o=>!o)} style={{
         position:"fixed",bottom:24,right:24,width:56,height:56,
         borderRadius:"50%",background:open?"var(--charcoal)":"var(--accent)",
         border:`2px solid ${open?"var(--border)":"var(--accent)"}`,
@@ -5352,7 +5362,7 @@ Do NOT discuss other clients or trainer-only data.`;
   return (
     <>
       {open && (
-        <div style={{position:"fixed",bottom:90,right:24,width:340,height:480,background:"var(--panel)",border:"1px solid var(--border)",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 8px 40px rgba(0,0,0,0.5)",zIndex:1000,overflow:"hidden"}}>
+        <div className="blu-panel-client" style={{position:"fixed",bottom:90,right:24,width:340,height:480,background:"var(--panel)",border:"1px solid var(--border)",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 8px 40px rgba(0,0,0,0.5)",zIndex:1000,overflow:"hidden"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--charcoal)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center"}}><BluIcon size={20} /></div>
@@ -5384,7 +5394,7 @@ Do NOT discuss other clients or trainer-only data.`;
           </div>
         </div>
       )}
-      <div onClick={()=>setOpen(o=>!o)} style={{position:"fixed",bottom:72,right:24,width:50,height:50,borderRadius:"50%",background:open?"var(--charcoal)":"var(--accent)",border:`2px solid ${open?"var(--border)":"var(--accent)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:1001,boxShadow:"0 4px 20px rgba(62,201,201,0.4)",transition:"all 0.2s",userSelect:"none"}}>
+      <div className="blu-bubble-client" onClick={()=>setOpen(o=>!o)} style={{position:"fixed",bottom:72,right:24,width:50,height:50,borderRadius:"50%",background:open?"var(--charcoal)":"var(--accent)",border:`2px solid ${open?"var(--border)":"var(--accent)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:1001,boxShadow:"0 4px 20px rgba(62,201,201,0.4)",transition:"all 0.2s",userSelect:"none"}}>
         {open ? <span style={{color:"var(--muted)",fontSize:16}}>✕</span> : <BluIcon size={26} />}
       </div>
     </>
