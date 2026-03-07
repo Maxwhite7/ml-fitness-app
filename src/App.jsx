@@ -2298,6 +2298,25 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
             <button className="btn-secondary" style={{padding:"4px 12px",fontSize:12}} onClick={refresh}>↻ Refresh</button>
           </div>
         </div>
+        <div style={{display:"flex",gap:0}}>
+          {/* A–Z index */}
+          {(() => {
+            const sorted = [...clients].sort((a,b)=>a.name.localeCompare(b.name));
+            const letters = [...new Set(sorted.map(c=>c.name[0].toUpperCase()))].sort();
+            return (
+              <div style={{width:24,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",paddingTop:4,gap:1,position:"sticky",top:56,alignSelf:"flex-start"}}>
+                {letters.map(l=>(
+                  <div key={l}
+                    onClick={()=>document.getElementById("avail-letter-"+l)?.scrollIntoView({behavior:"smooth",block:"center"})}
+                    style={{fontSize:11,fontWeight:700,color:"var(--accent)",cursor:"pointer",lineHeight:1.6,userSelect:"none",transition:"color 0.1s"}}
+                    onMouseEnter={e=>e.currentTarget.style.color="var(--text)"}
+                    onMouseLeave={e=>e.currentTarget.style.color="var(--accent)"}
+                  >{l}</div>
+                ))}
+              </div>
+            );
+          })()}
+          <div style={{flex:1,overflowX:"auto"}}>
         <table className="table">
           <thead>
             <tr>
@@ -2321,6 +2340,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                 ...(inactiveClients.length > 0 ? ["__divider__"] : []),
                 ...inactiveClients
               ];
+              let lastLetter = null;
               return rows.map(c => {
                 if (c === "__divider__") return (
                   <tr key="divider">
@@ -2329,10 +2349,19 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     </td>
                   </tr>
                 );
+                const letter = c.name[0].toUpperCase();
+                const showLetter = letter !== lastLetter;
+                lastLetter = letter;
               const avRow = clientAvail(c.id);
               const isInactive = (Array.isArray(c.pausedWeeks) ? c.pausedWeeks : []).includes(currentWeekKey);
               return (
-                <tr key={c.id} style={{cursor:"pointer", opacity:isInactive?0.5:1}} onClick={()=>setSelectedClient(c)}>
+                <React.Fragment key={c.id}>
+                  {showLetter && (
+                    <tr id={`avail-letter-${letter}`}>
+                      <td colSpan={8} style={{padding:"6px 12px 2px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:3,background:"var(--panel)",borderTop:"1px solid var(--border)"}}>{letter}</td>
+                    </tr>
+                  )}
+                <tr style={{cursor:"pointer", opacity:isInactive?0.5:1}} onClick={()=>setSelectedClient(c)}>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <div className="user-avatar" style={{fontSize:11,background:selectedClient?.id===c.id?"var(--accent)":"var(--panel)",border:"1px solid var(--accent)",color:selectedClient?.id===c.id?"var(--black)":"var(--accent)"}}>
@@ -2465,11 +2494,14 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     })()}
                   </td>
                 </tr>
+                </React.Fragment>
               );
               });
             })()}
           </tbody>
         </table>
+          </div>
+        </div>
       </div>
 
       {/* Split screen panel when client selected */}
