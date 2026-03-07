@@ -4798,7 +4798,7 @@ Today is ${todayStr}. Use this to resolve relative dates like "next Monday", "th
 
 Always confirm what you did after executing an action.
 For anything else, just respond conversationally and helpfully.
-Keep responses concise.`;
+Keep responses concise.${customInstructions ? `\n\nAdditional instructions from the trainer:\n${customInstructions}` : ""}`);
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -4847,6 +4847,10 @@ ${actionResult}` : displayText),
   };
 
   const [open, setOpen] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [customInstructions, setCustomInstructions] = useState(() => {
+    try { return localStorage.getItem("ml_agent_instructions") || ""; } catch { return ""; }
+  });
 
   return (
     <>
@@ -4868,6 +4872,29 @@ ${actionResult}` : displayText),
               </div>
             </div>
             <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer",padding:4}}>✕</button>
+          </div>
+
+          {/* Custom Instructions toggle */}
+          <div style={{borderBottom:"1px solid var(--border)"}}>
+            <div onClick={()=>setShowInstructions(s=>!s)} style={{padding:"8px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",userSelect:"none"}}>
+              <span style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase"}}>⚙ Custom Instructions {customInstructions ? "●" : ""}</span>
+              <span style={{fontSize:11,color:"var(--muted)"}}>{showInstructions ? "▲" : "▼"}</span>
+            </div>
+            {showInstructions && (
+              <div style={{padding:"0 12px 12px"}}>
+                <textarea
+                  value={customInstructions}
+                  onChange={e => {
+                    setCustomInstructions(e.target.value);
+                    try { localStorage.setItem("ml_agent_instructions", e.target.value); } catch {}
+                  }}
+                  placeholder={"Give the agent specific behaviours, e.g.:\n• Always greet clients by first name\n• When I say 'log it', save the last mentioned exercise\n• Suggest supersets when generating workouts"}
+                  rows={5}
+                  style={{width:"100%",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:12,padding:"10px",resize:"vertical",outline:"none",boxSizing:"border-box",lineHeight:1.5}}
+                />
+                <div style={{fontSize:10,color:"var(--muted)",marginTop:4}}>Saved automatically · Active on every message</div>
+              </div>
+            )}
           </div>
 
           {/* Suggestion chips */}
