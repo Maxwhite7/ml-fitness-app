@@ -1232,7 +1232,6 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"progress", icon:"💪", label:"Progress" },
     { id:"exercises", icon:"🏋️", label:"Exercises" },
     { id:"analytics", icon:"📊", label:"Analytics" },
-    { id:"agent", icon:"🤖", label:"AI Agent" },
   ];
 
   return (
@@ -1245,8 +1244,8 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
-        <div style={{display:tab==="agent"?"":"none"}}><AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} /></div>
       </div>
+      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} />
     </div>
   );
 }
@@ -4824,127 +4823,126 @@ ${actionResult}` : displayText),
     setLoading(false);
   };
 
+  const [open, setOpen] = useState(false);
+
   return (
     <>
-      <div className="page-header">
-        <div className="bebas page-title">AI AGENT</div>
-        <div className="page-subtitle">Ask me to manage your schedule, clients and data</div>
-      </div>
+      {/* Floating chat panel */}
+      {open && (
+        <div style={{
+          position:"fixed",bottom:90,right:24,width:380,height:560,
+          background:"var(--panel)",border:"1px solid var(--border)",
+          borderRadius:12,display:"flex",flexDirection:"column",
+          boxShadow:"0 8px 40px rgba(0,0,0,0.5)",zIndex:1000,overflow:"hidden"
+        }}>
+          {/* Header */}
+          <div style={{padding:"14px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--charcoal)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
+              <div>
+                <div className="bebas" style={{fontSize:16,color:"var(--accent)",letterSpacing:1}}>AI ASSISTANT</div>
+                <div style={{fontSize:10,color:"var(--muted)"}}>Ask me anything about your gym</div>
+              </div>
+            </div>
+            <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer",padding:4}}>✕</button>
+          </div>
 
-      <div className="section" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 160px)"}}>
-        {/* Suggestion chips */}
-        <div style={{padding:"12px 20px",borderBottom:"1px solid var(--border)",display:"flex",gap:8,flexWrap:"wrap"}}>
-          {[
-            "Generate a full body workout",
-            "Generate a chest and back workout",
-            "Generate a leg day workout",
-            "Clear all past session bookings",
-            "Show me gym stats",
-          ].map(s => (
-            <div key={s} onClick={()=>{ setInput(s); }} style={{
-              padding:"6px 14px",borderRadius:20,fontSize:12,cursor:"pointer",
-              border:"1px solid var(--accent)",color:"var(--accent)",
-              background:"transparent",userSelect:"none",transition:"all 0.15s"
-            }}>{s}</div>
-          ))}
-        </div>
+          {/* Suggestion chips */}
+          <div style={{padding:"10px 12px",borderBottom:"1px solid var(--border)",display:"flex",gap:6,flexWrap:"wrap"}}>
+            {[
+              "Generate a full body workout",
+              "Clear all past session bookings",
+              "Show me gym stats",
+            ].map(s => (
+              <div key={s} onClick={()=>setInput(s)} style={{
+                padding:"4px 10px",borderRadius:20,fontSize:11,cursor:"pointer",
+                border:"1px solid var(--accent)",color:"var(--accent)",
+                background:"transparent",userSelect:"none"
+              }}>{s}</div>
+            ))}
+          </div>
 
-        {/* Messages */}
-        <div style={{flex:1,overflowY:"auto",padding:"20px"}}>
-          {messages.map((m, i) => (
-            <div key={i} style={{
-              display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",
-              marginBottom:16
-            }}>
-              {m.role==="assistant" && (
-                <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0,marginRight:10,marginTop:2}}>🤖</div>
-              )}
-              <div style={{maxWidth:m.workout?"520px":"75%"}}>
-                {m.text && (
-                  <div style={{
-                    padding:"12px 16px",borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
-                    background:m.role==="user"?"var(--accent)":"var(--charcoal)",
-                    color:m.role==="user"?"var(--black)":"var(--text)",
-                    fontSize:13,lineHeight:1.6,whiteSpace:"pre-wrap",
-                    border:m.role==="assistant"?"1px solid var(--border)":"none",
-                    marginBottom:m.workout?8:0
-                  }}>{m.text}</div>
+          {/* Messages */}
+          <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
+            {messages.map((m, i) => (
+              <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:12}}>
+                {m.role==="assistant" && (
+                  <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0,marginRight:8,marginTop:2}}>🤖</div>
                 )}
-                {m.workout && (() => {
-                  const w = m.workout;
-                  return (
-                    <div style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:10,overflow:"hidden",boxShadow:"0 4px 20px rgba(62,201,201,0.1)"}}>
-                      {/* Workout header */}
-                      <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"16px 20px",borderBottom:"1px solid var(--accent)"}}>
-                        <div className="bebas" style={{fontSize:22,color:"var(--accent)",letterSpacing:1}}>{w.title}</div>
-                        {w.focus && <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Focus: {w.focus}</div>}
-                        <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>{w.exercises.length} exercises</div>
-                      </div>
-                      {/* Exercise list */}
-                      <div style={{padding:"12px 0"}}>
-                        {w.exercises.map((ex, idx) => (
-                          <div key={idx} style={{
-                            display:"flex",alignItems:"flex-start",gap:12,
-                            padding:"10px 20px",
-                            borderBottom:idx < w.exercises.length-1 ? "1px solid var(--border)" : "none"
-                          }}>
-                            <div style={{
-                              width:28,height:28,borderRadius:"50%",
-                              background:"var(--accent)",color:"var(--black)",
-                              display:"flex",alignItems:"center",justifyContent:"center",
-                              fontSize:12,fontWeight:700,flexShrink:0,marginTop:1
-                            }}>{idx+1}</div>
-                            <div style={{flex:1}}>
-                              <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
-                              <div style={{display:"flex",gap:12,marginTop:4}}>
-                                {ex.sets && <span style={{fontSize:11,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
-                                {ex.reps && <span style={{fontSize:11,color:"var(--muted)"}}>× {ex.reps} reps</span>}
-                                {ex.weight && <span style={{fontSize:11,color:"var(--muted)"}}>@ {ex.weight}</span>}
+                <div style={{maxWidth:m.workout?"100%":"78%"}}>
+                  {m.text && (
+                    <div style={{
+                      padding:"10px 13px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"10px 10px 10px 2px",
+                      background:m.role==="user"?"var(--accent)":"var(--charcoal)",
+                      color:m.role==="user"?"var(--black)":"var(--text)",
+                      fontSize:12,lineHeight:1.6,whiteSpace:"pre-wrap",
+                      border:m.role==="assistant"?"1px solid var(--border)":"none",
+                      marginBottom:m.workout?6:0
+                    }}>{m.text}</div>
+                  )}
+                  {m.workout && (() => {
+                    const w = m.workout;
+                    return (
+                      <div style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:8,overflow:"hidden"}}>
+                        <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"10px 14px",borderBottom:"1px solid var(--accent)"}}>
+                          <div className="bebas" style={{fontSize:16,color:"var(--accent)"}}>{w.title}</div>
+                          <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{w.exercises.length} exercises</div>
+                        </div>
+                        <div style={{padding:"8px 0"}}>
+                          {w.exercises.map((ex, idx) => (
+                            <div key={idx} style={{display:"flex",gap:10,padding:"7px 14px",borderBottom:idx<w.exercises.length-1?"1px solid var(--border)":"none"}}>
+                              <div style={{width:22,height:22,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0}}>{idx+1}</div>
+                              <div>
+                                <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
+                                <div style={{display:"flex",gap:8,marginTop:2}}>
+                                  {ex.sets && <span style={{fontSize:10,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
+                                  {ex.reps && <span style={{fontSize:10,color:"var(--muted)"}}>× {ex.reps} reps</span>}
+                                  {ex.weight && <span style={{fontSize:10,color:"var(--muted)"}}>@ {ex.weight}</span>}
+                                </div>
                               </div>
-                              {ex.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>{ex.notes}</div>}
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
-          ))}
-          {loading && (
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
-              <div style={{padding:"12px 16px",borderRadius:"12px 12px 12px 2px",background:"var(--charcoal)",border:"1px solid var(--border)",fontSize:13,color:"var(--muted)"}}>
-                Thinking...
+            ))}
+            {loading && (
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤖</div>
+                <div style={{padding:"10px 13px",borderRadius:"10px 10px 10px 2px",background:"var(--charcoal)",border:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>Thinking...</div>
               </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
 
-        {/* Input */}
-        <div style={{padding:"16px 20px",borderTop:"1px solid var(--border)",display:"flex",gap:10}}>
-          <input
-            value={input}
-            onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMessage()}
-            placeholder="Ask me anything about your gym..."
-            disabled={loading}
-            style={{
-              flex:1,padding:"12px 16px",fontSize:14,
-              background:"var(--charcoal)",border:"1px solid var(--border)",
-              borderRadius:4,color:"var(--text)",outline:"none"
-            }}
-          />
-          <button
-            className="btn-primary"
-            style={{width:"auto",padding:"12px 20px",fontSize:14,opacity:loading?0.5:1}}
-            onClick={sendMessage}
-            disabled={loading}
-          >Send</button>
+          {/* Input */}
+          <div style={{padding:"12px",borderTop:"1px solid var(--border)",display:"flex",gap:8}}>
+            <input
+              value={input}
+              onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMessage()}
+              placeholder="Ask me anything..."
+              disabled={loading}
+              style={{flex:1,padding:"10px 12px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",outline:"none"}}
+            />
+            <button className="btn-primary" style={{width:"auto",padding:"10px 16px",fontSize:13,opacity:loading?0.5:1}} onClick={sendMessage} disabled={loading}>Send</button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Floating bubble button */}
+      <div onClick={()=>setOpen(o=>!o)} style={{
+        position:"fixed",bottom:24,right:24,width:56,height:56,
+        borderRadius:"50%",background:open?"var(--charcoal)":"var(--accent)",
+        border:`2px solid ${open?"var(--border)":"var(--accent)"}`,
+        display:"flex",alignItems:"center",justifyContent:"center",
+        fontSize:24,cursor:"pointer",zIndex:1001,
+        boxShadow:"0 4px 20px rgba(62,201,201,0.4)",
+        transition:"all 0.2s",userSelect:"none"
+      }}>{open ? "✕" : "🤖"}</div>
     </>
   );
 }
