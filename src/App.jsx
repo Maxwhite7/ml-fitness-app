@@ -1135,6 +1135,8 @@ export default function App() {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
   }, [hiddenBlocks]);
 
+  const [dataReady, setDataReady] = useState(false);
+
   const loadData = async (onlyIfData=false) => {
     let c = await store.get("gym_clients");
     let s = await store.get("gym_sessions");
@@ -1148,18 +1150,20 @@ export default function App() {
     (async () => {
       await loadData();
       setLoaded(true);
+      setDataReady(true);
     })();
   }, []);
 
   // Reload after login so JWT is set and RLS returns correct data
   const handleLogin = async (userData) => {
     setUser(userData);
-    // Small delay to ensure JWT is stored before fetching
+    setDataReady(false);
     setTimeout(async () => {
       let c = await store.get("gym_clients");
       let s = await store.get("gym_sessions");
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
+      setDataReady(true);
     }, 300);
   };
 
@@ -1180,10 +1184,15 @@ export default function App() {
     }
   };
 
-  if (!loaded) return (
+  if (!loaded || !dataReady) return (
     <>
       <GlobalStyle />
-      <div className="login-wrap"><div style={{color:"var(--muted)",fontSize:14}}>Loading...</div></div>
+      <div className="login-wrap">
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:12}}>🐾</div>
+          <div style={{color:"var(--muted)",fontSize:14}}>Loading...</div>
+        </div>
+      </div>
     </>
   );
 
@@ -5165,6 +5174,15 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ }) {
     return da < db ? -1 : da > db ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time);
   });
   const sessionsLeft = client ? client.sessionsTotal - client.sessionsUsed : 0;
+
+  if (!client) return (
+    <div className="login-wrap">
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:40,marginBottom:12}}>🐾</div>
+        <div style={{color:"var(--muted)",fontSize:14}}>Loading your profile...</div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="app-shell">
