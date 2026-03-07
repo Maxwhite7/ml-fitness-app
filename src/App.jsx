@@ -2304,11 +2304,11 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
             const sorted = [...clients].sort((a,b)=>a.name.localeCompare(b.name));
             const letters = [...new Set(sorted.map(c=>c.name[0].toUpperCase()))].sort();
             return (
-              <div style={{width:24,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",paddingTop:4,gap:1,position:"sticky",top:56,alignSelf:"flex-start"}}>
+              <div style={{width:32,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",paddingTop:4,gap:2,position:"sticky",top:56,alignSelf:"flex-start"}}>
                 {letters.map(l=>(
                   <div key={l}
                     onClick={()=>document.getElementById("avail-letter-"+l)?.scrollIntoView({behavior:"smooth",block:"center"})}
-                    style={{fontSize:11,fontWeight:700,color:"var(--accent)",cursor:"pointer",lineHeight:1.6,userSelect:"none",transition:"color 0.1s"}}
+                    style={{fontSize:15,fontWeight:700,color:"var(--accent)",cursor:"pointer",lineHeight:1.8,userSelect:"none",transition:"color 0.1s"}}
                     onMouseEnter={e=>e.currentTarget.style.color="var(--text)"}
                     onMouseLeave={e=>e.currentTarget.style.color="var(--accent)"}
                   >{l}</div>
