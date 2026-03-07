@@ -1115,6 +1115,12 @@ export default function App() {
   const [hiddenBlocks, setHiddenBlocks] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_hidden_blocks") || "{}"); } catch { return {}; }
   });
+  const [bluFAQ, setBluFAQ] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_blu_faq") || "[]"); } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("ml_blu_faq", JSON.stringify(bluFAQ)); } catch {}
+  }, [bluFAQ]);
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
   }, [hiddenBlocks]);
@@ -1182,7 +1188,7 @@ export default function App() {
     <>
       <GlobalStyle />
       {user.role === "trainer" && !previewClient
-        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} />
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} bluFAQ={bluFAQ} setBluFAQ={setBluFAQ} />
         : user.role === "trainer" && previewClient
         ? (
           <>
@@ -1199,11 +1205,11 @@ export default function App() {
               }}>← Back to Trainer View</button>
             </div>
             <div style={{marginTop:40}}>
-              <ClientApp user={{role:"client",...previewClient}} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={()=>setPreviewClient(null)} />
+              <ClientApp user={{role:"client",...previewClient}} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={()=>setPreviewClient(null)} bluFAQ={bluFAQ} />
             </div>
           </>
           )
-        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => { auth.clear(); setUser(null); }} />
+        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => { auth.clear(); setUser(null); }} bluFAQ={bluFAQ} />
       }
     </>
   );
@@ -1259,7 +1265,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 }
 
 // ─── Trainer App ──────────────────────────────────────────────────────────────
-function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient, hiddenBlocks, setHiddenBlocks }) {
+function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient, hiddenBlocks, setHiddenBlocks, bluFAQ, setBluFAQ }) {
   const [tab, setTab] = useState("schedule");
   const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
   const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
@@ -1304,6 +1310,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"progress", icon:"💪", label:"Progress" },
     { id:"exercises", icon:"🏋️", label:"Exercises" },
     { id:"analytics", icon:"📊", label:"Analytics" },
+    { id:"blufaq", icon:"🐾", label:"Blu FAQ" },
   ];
 
   return (
@@ -1316,6 +1323,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
+        <div style={{display:tab==="blufaq"?"":"none"}}><TrainerBluFAQ bluFAQ={bluFAQ} setBluFAQ={setBluFAQ} /></div>
       </div>
       <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} recurringReminders={recurringReminders} setRecurringReminders={setRecurringReminders} />
       {reminder && (
@@ -5132,7 +5140,7 @@ ${actionResult}` : displayText),
 }
 
 // ─── Client App ───────────────────────────────────────────────────────────────
-function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
+function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ }) {
   const [tab, setTab] = useState("schedule");
   const nav = [
     { id:"schedule", icon:"📅", label:"My Schedule" },
@@ -5157,12 +5165,116 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
         {tab==="progress" && <ClientProgress client={client} mySessions={mySessions} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
-      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} />
+      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} />
     </div>
   );
 }
 
-function ClientBlu({ client, mySessions, sessionsLeft }) {
+function TrainerBluFAQ({ bluFAQ, setBluFAQ }) {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [editIdx, setEditIdx] = useState(null);
+
+  const save = () => {
+    if (!question.trim() || !answer.trim()) return;
+    let updated;
+    if (editIdx !== null) {
+      updated = bluFAQ.map((f,i) => i === editIdx ? { question: question.trim(), answer: answer.trim() } : f);
+      setEditIdx(null);
+    } else {
+      updated = [...bluFAQ, { question: question.trim(), answer: answer.trim() }];
+    }
+    setBluFAQ(updated);
+    try { localStorage.setItem("ml_blu_faq", JSON.stringify(updated)); } catch {}
+    setQuestion(""); setAnswer("");
+  };
+
+  const remove = (i) => {
+    const updated = bluFAQ.filter((_,idx) => idx !== i);
+    setBluFAQ(updated);
+    try { localStorage.setItem("ml_blu_faq", JSON.stringify(updated)); } catch {}
+  };
+
+  const startEdit = (i) => {
+    setQuestion(bluFAQ[i].question);
+    setAnswer(bluFAQ[i].answer);
+    setEditIdx(i);
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">BLU FAQ</div>
+        <div className="page-subtitle">Build responses Blu gives to all clients — saves automatically and deploys instantly</div>
+      </div>
+
+      <div className="section">
+        <div className="section-header"><span className="section-title">{editIdx !== null ? "Edit Response" : "Add New Response"}</span></div>
+        <div className="section-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Question clients might ask</div>
+            <input
+              value={question}
+              onChange={e=>setQuestion(e.target.value)}
+              placeholder='e.g. "What should I eat before a session?"'
+              style={{width:"100%",padding:"10px 14px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13,outline:"none",boxSizing:"border-box"}}
+            />
+          </div>
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Blu's answer</div>
+            <textarea
+              value={answer}
+              onChange={e=>setAnswer(e.target.value)}
+              placeholder='e.g. "Have a light meal 1-2 hours before — something with protein and carbs. Avoid heavy or greasy food!"'
+              rows={4}
+              style={{width:"100%",padding:"10px 14px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",lineHeight:1.5}}
+            />
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={save}>
+              {editIdx !== null ? "Update Response" : "Add Response"}
+            </button>
+            {editIdx !== null && (
+              <button className="btn-secondary" style={{padding:"10px 20px"}} onClick={()=>{setEditIdx(null);setQuestion("");setAnswer("");}}>Cancel</button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Active Responses ({bluFAQ.length})</span>
+          <span style={{fontSize:12,color:"var(--muted)"}}>Deployed to all client profiles</span>
+        </div>
+        {bluFAQ.length === 0 ? (
+          <div style={{padding:"32px",textAlign:"center",color:"var(--muted)",fontSize:13}}>
+            <div style={{fontSize:32,marginBottom:12}}>🐾</div>
+            No responses yet — add your first one above and Blu will use it with all clients.
+          </div>
+        ) : (
+          <div style={{padding:"12px 20px",display:"flex",flexDirection:"column",gap:10}}>
+            {bluFAQ.map((f,i) => (
+              <div key={i} style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:8,padding:"14px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"var(--accent)",marginBottom:6}}>Q: {f.question}</div>
+                    <div style={{fontSize:12,color:"var(--text)",lineHeight:1.6}}>A: {f.answer}</div>
+                  </div>
+                  <div style={{display:"flex",gap:8,flexShrink:0}}>
+                    <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11}} onClick={()=>startEdit(i)}>Edit</button>
+                    <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11,color:"var(--red)",borderColor:"var(--red)"}} onClick={()=>remove(i)}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role:"assistant", text:`Hey ${client?.name?.split(" ")[0] || "there"}! 🐾 I'm Blu. Ask me about your schedule, upcoming sessions, or anything about your training!` }
@@ -5192,6 +5304,10 @@ function ClientBlu({ client, mySessions, sessionsLeft }) {
         ? past.map(s=>`${s.date} at ${s.time}`).join(", ")
         : "None.";
 
+      const faqStr = bluFAQ && bluFAQ.length > 0
+        ? "\n\nFrequently asked questions — use these answers when relevant:\n" + bluFAQ.map((f,i) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")
+        : "";
+
       const systemPrompt = `You are Blu, a friendly gym assistant dog 🐾 helping a client named ${client?.name || "the client"}.
 You know their personal schedule and can answer questions about it.
 
@@ -5206,7 +5322,7 @@ You can help with:
 - Telling them when their next session is
 - How many sessions they have left
 - Motivational messages and workout tips
-- Questions about their training schedule
+- Questions about their training schedule${faqStr}
 
 Keep responses short, friendly, and encouraging. You're like a supportive gym buddy.
 Do NOT discuss other clients or trainer-only data.`;
