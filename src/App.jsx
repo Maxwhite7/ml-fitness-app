@@ -1268,6 +1268,27 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
   const autoWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
   const [currentWeekIdx, setCurrentWeekIdx] = useState(autoWeekIdx);
   const [reminder, setReminder] = useState(null);
+  const [recurringReminders, setRecurringReminders] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_recurring_reminders") || "[]"); } catch { return []; }
+  });
+
+  // Check recurring reminders every minute
+  useEffect(() => {
+    const check = () => {
+      const now = new Date();
+      const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+      const todayName = dayNames[now.getDay()];
+      const currentTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+      recurringReminders.forEach(r => {
+        const dayMatch = r.frequency === "daily" || (r.frequency === "weekly" && r.day === todayName) || (r.frequency === "weekdays" && now.getDay() >= 1 && now.getDay() <= 5);
+        if (dayMatch && r.time === currentTime) {
+          setReminder(r.message);
+        }
+      });
+    };
+    const interval = setInterval(check, 60000);
+    return () => clearInterval(interval);
+  }, [recurringReminders]);
   useEffect(() => {
     sbFetch("settings?key=eq.activeWeekIdx").then(rows => {
       if (rows && rows[0]?.value !== undefined) {
@@ -1296,7 +1317,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
       </div>
-      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} />
+      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} recurringReminders={recurringReminders} setRecurringReminders={setRecurringReminders} />
       {reminder && (
         <div onClick={()=>setReminder(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000}}>
           <div onClick={e=>e.stopPropagation()} style={{background:"var(--panel)",border:"2px solid var(--accent)",borderRadius:16,padding:"32px 36px",maxWidth:420,width:"90%",textAlign:"center",boxShadow:"0 8px 60px rgba(62,201,201,0.3)",position:"relative"}}>
@@ -4663,7 +4684,7 @@ function TrainerAnalytics({ clients, sessions }) {
 }
 
 // ─── AI Agent ─────────────────────────────────────────────────────────────────
-function AIAgent({ clients, sessions, setSessions, library, onReminder }) {
+function AIAgent({ clients, sessions, setSessions, library, onReminder, recurringReminders, setRecurringReminders }) {
   const [messages, setMessages] = useState([
     { role: "assistant", text: "Woof! 🐾 I'm Blu, your gym assistant. I can help you manage your schedule, clients, and workouts. What do you need?" }
   ]);
@@ -4715,6 +4736,30 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder }) {
         const msg = params?.message || "Don't forget!";
         onReminder(msg);
         return `✓ Reminder sent!`;
+      }
+      case "set_recurring_reminder": {
+        const { message, frequency, day, time } = params;
+        const newReminder = { id: Date.now(), message, frequency: frequency||"daily", day: day||null, time: time||"09:00" };
+        const updated = [...recurringReminders, newReminder];
+        setRecurringReminders(updated);
+        try { localStorage.setItem("ml_recurring_reminders", JSON.stringify(updated)); } catch {}
+        const freqLabel = frequency === "weekly" ? `every ${day}` : frequency === "weekdays" ? "every weekday" : "daily";
+        return `✓ Recurring reminder set! Blu will remind you "${message}" ${freqLabel} at ${time}.`;
+      }
+      case "list_reminders": {
+        if (recurringReminders.length === 0) return "No recurring reminders set.";
+        return "🔔 Recurring reminders:\n" + recurringReminders.map((r,i) => {
+          const freqLabel = r.frequency === "weekly" ? `every ${r.day}` : r.frequency === "weekdays" ? "every weekday" : "daily";
+          return `${i+1}. "${r.message}" — ${freqLabel} at ${r.time}`;
+        }).join("\n");
+      }
+      case "delete_reminder": {
+        const idx = (params?.index || 1) - 1;
+        if (idx < 0 || idx >= recurringReminders.length) return "Couldn't find that reminder.";
+        const updated = recurringReminders.filter((_,i) => i !== idx);
+        setRecurringReminders(updated);
+        try { localStorage.setItem("ml_recurring_reminders", JSON.stringify(updated)); } catch {}
+        return `✓ Reminder deleted.`;
       }
       case "show_stats": {
         const totalClients = clients.length;
@@ -4825,7 +4870,14 @@ Available actions:
 - show_stats — shows gym statistics
 - list_clients — lists all clients
 - available_slots — lists all upcoming sessions that have open spots (already have clients but aren't full)
-- send_reminder — pops a reminder message in the middle of the screen. Use format: <action>{"type":"send_reminder","params":{"message":"Your reminder text here"}}</action>
+- send_reminder — pops a one-time reminder message in the middle of the screen. Use format: <action>{"type":"send_reminder","params":{"message":"Your reminder text here"}}</action>
+- set_recurring_reminder — sets a recurring reminder. Use format: <action>{"type":"set_recurring_reminder","params":{"message":"Check availability submissions","frequency":"daily","time":"09:00"}}</action>. frequency can be "daily", "weekdays", or "weekly" (weekly requires a "day" param e.g. "monday"). time must be in 24h HH:MM format.
+- list_reminders — lists all active recurring reminders
+- delete_reminder — deletes a recurring reminder by number: <action>{"type":"delete_reminder","params":{"index":1}}</action>
+
+When the trainer says "remind me every day at 9am to...", "set a weekly reminder on Monday to...", or "remind me every weekday at 6pm to...", use set_recurring_reminder.
+When they say "what reminders do I have" or "show my reminders", use list_reminders.
+When they say "delete reminder 2" or "remove the first reminder", use delete_reminder.
 - update_progress — updates sets/reps/weight for a client exercise
 - add_session — adds a new session to the schedule
 - generate_workout — generates a structured workout plan
@@ -4958,6 +5010,26 @@ ${actionResult}` : displayText),
               </div>
             )}
           </div>
+
+          {/* Active recurring reminders */}
+          {recurringReminders.length > 0 && (
+            <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",background:"#3ec9c908"}}>
+              <div style={{fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,marginBottom:6}}>🔔 RECURRING REMINDERS</div>
+              {recurringReminders.map((r,i) => {
+                const freqLabel = r.frequency === "weekly" ? `every ${r.day}` : r.frequency === "weekdays" ? "weekdays" : "daily";
+                return (
+                  <div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:11,color:"var(--text)"}}>{r.message} <span style={{color:"var(--muted)"}}>— {freqLabel} {r.time}</span></span>
+                    <div onClick={()=>{
+                      const updated = recurringReminders.filter((_,idx)=>idx!==i);
+                      setRecurringReminders(updated);
+                      try { localStorage.setItem("ml_recurring_reminders", JSON.stringify(updated)); } catch {}
+                    }} style={{cursor:"pointer",color:"var(--muted)",fontSize:12,marginLeft:8,padding:"0 4px"}}>✕</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Suggestion chips */}
           <div style={{padding:"10px 12px",borderBottom:"1px solid var(--border)",display:"flex",gap:6,flexWrap:"wrap"}}>
