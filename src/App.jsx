@@ -1,19 +1,46 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 
-const WolfIcon = ({ size = 20, color = "currentColor" }) => (
+const BluIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="8,30 17,6 25,27" fill={color} opacity="0.95"/>
-    <polygon points="56,30 47,6 39,27" fill={color} opacity="0.95"/>
-    <polygon points="11,28 17,10 23,26" fill={color} opacity="0.35"/>
-    <polygon points="53,28 47,10 41,26" fill={color} opacity="0.35"/>
-    <ellipse cx="32" cy="35" rx="21" ry="19" fill={color} opacity="0.95"/>
-    <ellipse cx="32" cy="44" rx="11" ry="8" fill={color} opacity="0.55"/>
-    <ellipse cx="32" cy="39" rx="4.5" ry="3.5" fill={color} opacity="1"/>
-    <ellipse cx="23.5" cy="30" rx="4" ry="4.5" fill="#000" opacity="0.75"/>
-    <ellipse cx="40.5" cy="30" rx="4" ry="4.5" fill="#000" opacity="0.75"/>
-    <ellipse cx="24.8" cy="28.5" rx="1.4" ry="1.4" fill="white" opacity="0.9"/>
-    <ellipse cx="41.8" cy="28.5" rx="1.4" ry="1.4" fill="white" opacity="0.9"/>
-    <path d="M27 47 Q32 51 37 47" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.7"/>
+    {/* Left ear - pointy, brown */}
+    <polygon points="14,28 10,6 22,24" fill="#8B5E3C"/>
+    {/* Right ear */}
+    <polygon points="50,28 54,6 42,24" fill="#8B5E3C"/>
+    {/* Inner ear */}
+    <polygon points="14,26 12,10 20,23" fill="#C4856A" opacity="0.6"/>
+    <polygon points="50,26 52,10 44,23" fill="#C4856A" opacity="0.6"/>
+    {/* Head - warm brown */}
+    <ellipse cx="32" cy="34" rx="20" ry="19" fill="#A0673A"/>
+    {/* White chest/chin patch */}
+    <ellipse cx="32" cy="40" rx="12" ry="10" fill="#E8DDD0"/>
+    {/* Darker brown fur marking on top of head */}
+    <ellipse cx="32" cy="24" rx="13" ry="8" fill="#7A4E2D" opacity="0.5"/>
+    {/* Snout - lighter */}
+    <ellipse cx="32" cy="43" rx="9" ry="6" fill="#C8A882"/>
+    {/* Nose */}
+    <ellipse cx="32" cy="38" rx="4" ry="3" fill="#3D2010"/>
+    {/* Nostrils */}
+    <ellipse cx="30" cy="39" rx="1" ry="0.8" fill="#2A150A" opacity="0.7"/>
+    <ellipse cx="34" cy="39" rx="1" ry="0.8" fill="#2A150A" opacity="0.7"/>
+    {/* Eyes - Blu's signature blue */}
+    <ellipse cx="24" cy="30" rx="4" ry="4" fill="#1A1A2E"/>
+    <ellipse cx="40" cy="30" rx="4" ry="4" fill="#1A1A2E"/>
+    {/* Blue iris */}
+    <ellipse cx="24" cy="30" rx="2.8" ry="2.8" fill="#4A9FD4"/>
+    <ellipse cx="40" cy="30" rx="2.8" ry="2.8" fill="#4A9FD4"/>
+    {/* Pupil */}
+    <ellipse cx="24" cy="30" rx="1.4" ry="1.4" fill="#0D0D0D"/>
+    <ellipse cx="40" cy="30" rx="1.4" ry="1.4" fill="#0D0D0D"/>
+    {/* Eye shine */}
+    <ellipse cx="25" cy="29" rx="0.8" ry="0.8" fill="white" opacity="0.9"/>
+    <ellipse cx="41" cy="29" rx="0.8" ry="0.8" fill="white" opacity="0.9"/>
+    {/* Happy open mouth */}
+    <path d="M24 46 Q32 52 40 46" stroke="#3D2010" strokeWidth="1.2" fill="#C45A5A" strokeLinecap="round"/>
+    {/* Tongue */}
+    <ellipse cx="32" cy="50" rx="5" ry="4" fill="#E87070"/>
+    <path d="M27 50 Q32 55 37 50" fill="#D45A5A"/>
+    {/* Tongue line */}
+    <line x1="32" y1="46" x2="32" y2="53" stroke="#C04040" strokeWidth="0.8" opacity="0.5"/>
   </svg>
 );
 
@@ -4627,7 +4654,7 @@ function TrainerAnalytics({ clients, sessions }) {
 // ─── AI Agent ─────────────────────────────────────────────────────────────────
 function AIAgent({ clients, sessions, setSessions, library }) {
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! I'm your gym assistant. I can help you manage your schedule, clients, and workouts. Try asking me to generate a workout, update progress, or anything else about your gym!" }
+    { role: "assistant", text: "Woof! 🐾 I'm Blu, your gym assistant. I can help you manage your schedule, clients, and workouts. What do you need?" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -4882,10 +4909,10 @@ ${actionResult}` : displayText),
           {/* Header */}
           <div style={{padding:"14px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--charcoal)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}><WolfIcon size={20} color="var(--black)" /></div>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}><BluIcon size={20} /></div>
               <div>
-                <div className="bebas" style={{fontSize:16,color:"var(--accent)",letterSpacing:1}}>AI ASSISTANT</div>
-                <div style={{fontSize:10,color:"var(--muted)"}}>Ask me anything about your gym</div>
+                <div className="bebas" style={{fontSize:16,color:"var(--accent)",letterSpacing:1}}>BLU</div>
+                <div style={{fontSize:10,color:"var(--muted)"}}>Your gym assistant 🐾</div>
               </div>
             </div>
             <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer",padding:4}}>✕</button>
@@ -4934,7 +4961,7 @@ ${actionResult}` : displayText),
             {messages.map((m, i) => (
               <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:12}}>
                 {m.role==="assistant" && (
-                  <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0,marginRight:8,marginTop:2}}><WolfIcon size={16} color="var(--black)" /></div>
+                  <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0,marginRight:8,marginTop:2}}><BluIcon size={16} /></div>
                 )}
                 <div style={{maxWidth:m.workout?"100%":"78%"}}>
                   {m.text && (
@@ -4978,7 +5005,7 @@ ${actionResult}` : displayText),
             ))}
             {loading && (
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}><WolfIcon size={16} color="var(--black)" /></div>
+                <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}><BluIcon size={16} /></div>
                 <div style={{padding:"10px 13px",borderRadius:"10px 10px 10px 2px",background:"var(--charcoal)",border:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>Thinking...</div>
               </div>
             )}
@@ -5009,7 +5036,7 @@ ${actionResult}` : displayText),
         fontSize:24,cursor:"pointer",zIndex:1001,
         boxShadow:"0 4px 20px rgba(62,201,201,0.4)",
         transition:"all 0.2s",userSelect:"none"
-      }}>{open ? "✕" : <WolfIcon size={28} color="var(--black)" />}</div>
+      }}>{open ? "✕" : <BluIcon size={28} />}</div>
     </>
   );
 }
