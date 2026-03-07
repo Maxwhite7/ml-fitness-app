@@ -1267,6 +1267,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
   const _now = new Date(); _now.setHours(0,0,0,0);
   const autoWeekIdx = ((Math.floor((_now - epochMonday) / (1000*60*60*24*7))) % NUM_WEEKS + NUM_WEEKS) % NUM_WEEKS;
   const [currentWeekIdx, setCurrentWeekIdx] = useState(autoWeekIdx);
+  const [reminder, setReminder] = useState(null);
   useEffect(() => {
     sbFetch("settings?key=eq.activeWeekIdx").then(rows => {
       if (rows && rows[0]?.value !== undefined) {
@@ -1295,7 +1296,17 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
       </div>
-      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} />
+      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} />
+      {reminder && (
+        <div onClick={()=>setReminder(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"var(--panel)",border:"2px solid var(--accent)",borderRadius:16,padding:"32px 36px",maxWidth:420,width:"90%",textAlign:"center",boxShadow:"0 8px 60px rgba(62,201,201,0.3)",position:"relative"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🐾</div>
+            <div className="bebas" style={{fontSize:22,color:"var(--accent)",letterSpacing:1,marginBottom:8}}>BLU SAYS</div>
+            <div style={{fontSize:15,color:"var(--text)",lineHeight:1.7,whiteSpace:"pre-wrap",marginBottom:24}}>{reminder}</div>
+            <button className="btn-primary" style={{width:"auto",padding:"10px 32px"}} onClick={()=>setReminder(null)}>Got it 👍</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4652,7 +4663,7 @@ function TrainerAnalytics({ clients, sessions }) {
 }
 
 // ─── AI Agent ─────────────────────────────────────────────────────────────────
-function AIAgent({ clients, sessions, setSessions, library }) {
+function AIAgent({ clients, sessions, setSessions, library, onReminder }) {
   const [messages, setMessages] = useState([
     { role: "assistant", text: "Woof! 🐾 I'm Blu, your gym assistant. I can help you manage your schedule, clients, and workouts. What do you need?" }
   ]);
@@ -4700,7 +4711,11 @@ function AIAgent({ clients, sessions, setSessions, library }) {
         setSessions(updated);
         return `✓ Cleared ${cleared.length} sessions for the selected week.`;
       }
-      case "show_stats": {
+      case "send_reminder": {
+        const msg = params?.message || "Don't forget!";
+        onReminder(msg);
+        return `✓ Reminder sent!`;
+      }
         const totalClients = clients.length;
         const activeClients = clients.filter(c=>c.active).length;
         const upcomingSessions = sessions.filter(s=>s.date>=todayStr && s.clientIds.length>0).length;
@@ -4809,10 +4824,12 @@ Available actions:
 - show_stats — shows gym statistics
 - list_clients — lists all clients
 - available_slots — lists all upcoming sessions that have open spots (already have clients but aren't full)
+- send_reminder — pops a reminder message in the middle of the screen. Use format: <action>{"type":"send_reminder","params":{"message":"Your reminder text here"}}</action>
 - update_progress — updates sets/reps/weight for a client exercise
 - add_session — adds a new session to the schedule
 - generate_workout — generates a structured workout plan
 
+When the trainer says something like "remind me to..." or "send me a reminder that..." or "pop up a note saying...", use send_reminder with a clear, concise message.
 When asked about open spots, available times, or where more clients can be added, use the "Upcoming sessions with open spots" data above and present it clearly. Empty sessions (0 clients) are NOT shown — only sessions that already have people booked with room for more.
 
 For generate_workout, use this format:
