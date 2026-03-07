@@ -5157,7 +5157,121 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout }) {
         {tab==="progress" && <ClientProgress client={client} mySessions={mySessions} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
+      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} />
     </div>
+  );
+}
+
+function ClientBlu({ client, mySessions, sessionsLeft }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role:"assistant", text:`Hey ${client?.name?.split(" ")[0] || "there"}! 🐾 I'm Blu. Ask me about your schedule, upcoming sessions, or anything about your training!` }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role:"user", text:userMsg }]);
+    setLoading(true);
+    try {
+      const upcoming = mySessions.filter(s=>s.date>=todayStr).slice(0,10);
+      const past = mySessions.filter(s=>s.date<todayStr).slice(-5);
+      const upcomingStr = upcoming.length > 0
+        ? upcoming.map(s=>`${s.date} at ${s.time}`).join(", ")
+        : "No upcoming sessions booked yet.";
+      const pastStr = past.length > 0
+        ? past.map(s=>`${s.date} at ${s.time}`).join(", ")
+        : "None.";
+
+      const systemPrompt = `You are Blu, a friendly gym assistant dog 🐾 helping a client named ${client?.name || "the client"}.
+You know their personal schedule and can answer questions about it.
+
+Client info:
+- Name: ${client?.name || "Unknown"}
+- Sessions left: ${sessionsLeft}
+- Upcoming sessions: ${upcomingStr}
+- Recent past sessions: ${pastStr}
+- Today: ${todayStr}
+
+You can help with:
+- Telling them when their next session is
+- How many sessions they have left
+- Motivational messages and workout tips
+- Questions about their training schedule
+
+Keep responses short, friendly, and encouraging. You're like a supportive gym buddy.
+Do NOT discuss other clients or trainer-only data.`;
+
+      const response = await fetch("/api/chat", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:500,
+          system: systemPrompt,
+          messages: [
+            ...messages.map(m=>({ role:m.role==="assistant"?"assistant":"user", content:m.text })),
+            { role:"user", content:userMsg }
+          ]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "Woof! Something went wrong, try again.";
+      setMessages(prev => [...prev, { role:"assistant", text }]);
+    } catch {
+      setMessages(prev => [...prev, { role:"assistant", text:"Woof! Couldn't connect. Try again!" }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      {open && (
+        <div style={{position:"fixed",bottom:90,right:24,width:340,height:480,background:"var(--panel)",border:"1px solid var(--border)",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 8px 40px rgba(0,0,0,0.5)",zIndex:1000,overflow:"hidden"}}>
+          <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--charcoal)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center"}}><BluIcon size={20} /></div>
+              <div>
+                <div className="bebas" style={{fontSize:16,color:"var(--accent)",letterSpacing:1}}>BLU</div>
+                <div style={{fontSize:10,color:"var(--muted)"}}>Your training buddy 🐾</div>
+              </div>
+            </div>
+            <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer"}}>✕</button>
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
+            {messages.map((m,i) => (
+              <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:12}}>
+                {m.role==="assistant" && <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginRight:8,marginTop:2}}><BluIcon size={16} /></div>}
+                <div style={{maxWidth:"78%",padding:"10px 13px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"10px 10px 10px 2px",background:m.role==="user"?"var(--accent)":"var(--charcoal)",color:m.role==="user"?"var(--black)":"var(--text)",fontSize:12,lineHeight:1.6,whiteSpace:"pre-wrap",border:m.role==="assistant"?"1px solid var(--border)":"none"}}>{m.text}</div>
+              </div>
+            ))}
+            {loading && (
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:26,height:26,borderRadius:"50%",background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center"}}><BluIcon size={16} /></div>
+                <div style={{padding:"10px 13px",borderRadius:"10px 10px 10px 2px",background:"var(--charcoal)",border:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>Woof...</div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+          <div style={{padding:"12px",borderTop:"1px solid var(--border)",display:"flex",gap:8}}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMessage()} placeholder="Ask Blu anything..." disabled={loading} style={{flex:1,padding:"10px 12px",fontSize:13,background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",outline:"none"}} />
+            <button className="btn-primary" style={{width:"auto",padding:"10px 14px",fontSize:13,opacity:loading?0.5:1}} onClick={sendMessage} disabled={loading}>Send</button>
+          </div>
+        </div>
+      )}
+      <div onClick={()=>setOpen(o=>!o)} style={{position:"fixed",bottom:72,right:24,width:50,height:50,borderRadius:"50%",background:open?"var(--charcoal)":"var(--accent)",border:`2px solid ${open?"var(--border)":"var(--accent)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:1001,boxShadow:"0 4px 20px rgba(62,201,201,0.4)",transition:"all 0.2s",userSelect:"none"}}>
+        {open ? <span style={{color:"var(--muted)",fontSize:16}}>✕</span> : <BluIcon size={26} />}
+      </div>
+    </>
   );
 }
 
