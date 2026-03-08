@@ -823,9 +823,11 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return;
-      await sbFetch(table, "POST", [row], { 
+      const result = await sbFetch(table, "POST", [row], { 
         Prefer: "resolution=merge-duplicates,return=minimal" 
       });
+      console.log(`[upsertOne] ${table} id=${row.id}:`, result === null ? "FAILED ❌" : "OK ✓");
+      return result;
     } catch(e) { console.error("store.upsertOne error:", e); }
   },
   async remove(key, id) {
@@ -2163,7 +2165,10 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 if (c.active && !c.former)       update = { active: false, former: false };
                 else if (!c.active && !c.former) update = { active: false, former: true };
                 else                             update = { active: true,  former: false };
-                await saveClients(clients.map(x => x.id===c.id ? {...x,...update} : x), {...c,...update});
+                const updatedClient = {...c, ...update};
+                console.log("[Status] saving client", c.name, update);
+                const result = await saveClients(clients.map(x => x.id===c.id ? updatedClient : x), updatedClient);
+                console.log("[Status] save result:", result);
               };
               const statusBadge = (c) => {
                 if (c.former)  return { label:"Former",   cls:"badge-muted",  color:"var(--muted)" };
