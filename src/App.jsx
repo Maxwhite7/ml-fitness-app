@@ -7456,10 +7456,12 @@ function Sidebar({ user, nav, tab, setTab, onLogout, role }) {
             {n.label}
           </button>
         ))}
-        <button className="bottom-nav-item" onClick={onLogout}>
-          <span className="bottom-nav-icon">⏻</span>
-          Logout
-        </button>
+        {role === "TRAINER" && (
+          <button className="bottom-nav-item" onClick={onLogout}>
+            <span className="bottom-nav-icon">⏻</span>
+            Logout
+          </button>
+        )}
       </div>
     </>
   );
