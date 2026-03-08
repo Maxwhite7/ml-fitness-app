@@ -5679,21 +5679,45 @@ Respond with ONLY this JSON format:
       </div>
       {w.warmup && <div style={{padding:"10px 20px",borderBottom:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>🔥 <strong>Warmup:</strong> {w.warmup}</div>}
       <div style={{padding:"8px 0"}}>
-        {(w.exercises||[]).map((ex,idx) => (
-          <div key={idx} style={{display:"flex",alignItems:"flex-start",gap:14,padding:"12px 20px",borderBottom:idx<w.exercises.length-1?"1px solid var(--border)":"none"}}>
-            <div style={{width:30,height:30,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>{idx+1}</div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
-              <div style={{display:"flex",gap:16,marginTop:4,flexWrap:"wrap"}}>
-                {ex.sets && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
-                {ex.reps && <span style={{fontSize:12,color:"var(--muted)"}}>× {ex.reps} reps</span>}
-                {ex.rest && <span style={{fontSize:12,color:"var(--muted)"}}>Rest: {ex.rest}</span>}
-                <span style={{fontSize:11,color:"var(--border)",background:"var(--charcoal)",padding:"1px 8px",borderRadius:10}}>{ex.muscleGroup}</span>
+        {(w.exercises||[]).map((ex,idx) => {
+          const nextEx = (w.exercises||[])[idx+1];
+          const isSupersetStart = ex.supersetId && nextEx?.supersetId === ex.supersetId;
+          const isSupersetEnd = ex.supersetId && (w.exercises||[])[idx-1]?.supersetId === ex.supersetId;
+          if (isSupersetEnd) return null;
+          if (isSupersetStart) return (
+            <div key={idx} style={{margin:"4px 12px",border:"2px solid var(--accent)",borderRadius:8,overflow:"hidden",marginBottom:4}}>
+              <div style={{background:"#3ec9c918",padding:"4px 14px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ SUPERSET</div>
+              <div style={{display:"flex"}}>
+                {[ex, nextEx].map((e, si) => (
+                  <div key={si} style={{flex:1,padding:"10px 14px",borderRight:si===0?"1px solid var(--border)":"none"}}>
+                    <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>{e.exercise}</div>
+                    <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                      {e.sets && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{e.sets} sets</span>}
+                      {e.reps && <span style={{fontSize:12,color:"var(--muted)"}}>× {e.reps} reps</span>}
+                      {e.rest && <span style={{fontSize:12,color:"var(--muted)"}}>Rest: {e.rest}</span>}
+                    </div>
+                    {e.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontStyle:"italic"}}>💡 {e.notes}</div>}
+                  </div>
+                ))}
               </div>
-              {ex.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontStyle:"italic"}}>💡 {ex.notes}</div>}
             </div>
-          </div>
-        ))}
+          );
+          return (
+            <div key={idx} style={{display:"flex",alignItems:"flex-start",gap:14,padding:"12px 20px",borderBottom:idx<w.exercises.length-1?"1px solid var(--border)":"none"}}>
+              <div style={{width:30,height:30,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>{idx+1}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
+                <div style={{display:"flex",gap:16,marginTop:4,flexWrap:"wrap"}}>
+                  {ex.sets && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
+                  {ex.reps && <span style={{fontSize:12,color:"var(--muted)"}}>× {ex.reps} reps</span>}
+                  {ex.rest && <span style={{fontSize:12,color:"var(--muted)"}}>Rest: {ex.rest}</span>}
+                  <span style={{fontSize:11,color:"var(--border)",background:"var(--charcoal)",padding:"1px 8px",borderRadius:10}}>{ex.muscleGroup}</span>
+                </div>
+                {ex.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontStyle:"italic"}}>💡 {ex.notes}</div>}
+              </div>
+            </div>
+          );
+        })}
       </div>
       {w.cooldown && <div style={{padding:"10px 20px",borderTop:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>❄️ <strong>Cooldown:</strong> {w.cooldown}</div>}
     </div>
