@@ -1152,7 +1152,8 @@ export default function App() {
     try { localStorage.setItem("ml_saved_workouts", json); } catch {}
     try { localStorage.setItem("ml_saved_workouts_bak", json); } catch {}
     // Save to Supabase using same pattern as activeWeekIdx
-    sbFetch("settings", "POST", [{ key: "saved_workouts", value: json }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    sbFetch("settings", "POST", [{ key: "saved_workouts", value: json }], { Prefer: "resolution=merge-duplicates,return=minimal" })
+      .then(r => console.log("[Save] saved_workouts →", r === null ? "FAILED ❌" : `OK ✓ (${next.length} workouts, ${json.length} bytes)`));
   };
 
   // Load from Supabase on mount — only replace if Supabase has data
@@ -1222,22 +1223,25 @@ export default function App() {
       let s = await store.get("gym_sessions");
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
-      // Re-fetch workouts now that we have a valid JWT
-      sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
-        if (!rows) return;
-        rows.forEach(r => {
+      // Re-fetch workouts with valid JWT — await so dataReady waits
+      try {
+        const rows = await sbFetch("settings?key=in.(saved_workouts,assigned_workouts)");
+        console.log("[Login] settings rows:", rows);
+        if (rows) rows.forEach(r => {
           try {
             if (r.key === "saved_workouts") {
               const p = JSON.parse(r.value) || [];
-              if (p.length > 0) setSavedWorkoutsRaw(prev => p.length >= prev.length ? p : prev);
+              console.log("[Login] loaded", p.length, "saved workouts from Supabase");
+              setSavedWorkoutsRaw(prev => p.length >= prev.length ? p : prev);
             }
             if (r.key === "assigned_workouts") {
               const p = JSON.parse(r.value) || {};
+              console.log("[Login] loaded assigned workouts for", Object.keys(p).length, "clients");
               if (Object.keys(p).length > 0) setAssignedWorkoutsState(p);
             }
-          } catch {}
+          } catch(e) { console.error("[Login] parse error", e); }
         });
-      });
+      } catch(e) { console.error("[Login] workout fetch error", e); }
       setDataReady(true);
     }, 300);
   };
