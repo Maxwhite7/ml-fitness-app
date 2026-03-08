@@ -1214,7 +1214,7 @@ export default function App() {
       if (s && s.length > 0) setSessions(s);
       setLoaded(true);
       setDataReady(true);
-      if (c && s) await autoUpdateSessionCounts(c.length > 0 ? c : [], s.length > 0 ? s : []);
+      if (c && s) await syncSessionCounts(c.length > 0 ? c : [], s.length > 0 ? s : []);
     })();
   }, []);
 
@@ -1228,7 +1228,7 @@ export default function App() {
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
       // Auto-update session counts for today's/past sessions
-      await autoUpdateSessionCounts(c && c.length > 0 ? c : [], s && s.length > 0 ? s : []);
+      await syncSessionCounts(c && c.length > 0 ? c : [], s && s.length > 0 ? s : []);
       try {
         const rows = await sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)");
         console.log("[Login] settings rows:", rows);
@@ -1251,67 +1251,39 @@ export default function App() {
     }, 300);
   };
 
-  const autoUpdateSessionCounts = async (currentClients, currentSessions) => {
-    // Use LOCAL date (not UTC) to avoid timezone issues counting future sessions
+  // Calculate sessionsUsed purely from booked past sessions + a manual offset
+  // This is always correct and never drifts on sign-in
+  const syncSessionCounts = async (currentClients, currentSessions) => {
     const now = new Date();
     const todayStr = now.getFullYear() + '-' +
       String(now.getMonth() + 1).padStart(2, '0') + '-' +
       String(now.getDate()).padStart(2, '0');
 
-    // Load counted session IDs from Supabase (persistent across devices/sign-ins)
-    let counted = [];
-    try {
-      const rows = await sbFetch("app_settings?key=eq.counted_sessions");
-      if (rows && rows[0]) counted = JSON.parse(rows[0].value || "[]");
-    } catch {}
-    // Also merge any local cache to catch sessions counted before this fix
-    try {
-      const local = JSON.parse(localStorage.getItem("ml_counted_sessions") || "[]");
-      counted = [...new Set([...counted, ...local])];
-    } catch {}
-
-    // Remove any future sessions that were incorrectly added to counted list
-    const validCounted = counted.filter(id => {
-      const s = currentSessions.find(x => x.id === id);
-      return !s || s.date <= todayStr;
-    });
-
-    // Only count sessions on or before TODAY with clients assigned that haven't been counted
-    const toCount = currentSessions.filter(s =>
-      s.date && s.date <= todayStr &&
-      s.clientIds && s.clientIds.length > 0 &&
-      !validCounted.includes(s.id)
-    );
-
-    // Always persist the cleaned counted list back to Supabase
-    const newCounted = [...new Set([...validCounted, ...toCount.map(s => s.id)])];
-    if (newCounted.length !== counted.length) {
-      sbFetch("app_settings", "POST", [{ key: "counted_sessions", value: JSON.stringify(newCounted) }],
-        { Prefer: "resolution=merge-duplicates,return=minimal" });
-      try { localStorage.setItem("ml_counted_sessions", JSON.stringify(newCounted)); } catch {}
-    }
-
-    if (toCount.length === 0) return;
-
-    // Tally how many new sessions each client has
+    // Count past+today sessions per client from actual session data
     const tally = {};
-    toCount.forEach(s => {
-      s.clientIds.forEach(id => { tally[id] = (tally[id] || 0) + 1; });
+    currentSessions.forEach(s => {
+      if (s.date && s.date <= todayStr && s.clientIds && s.clientIds.length > 0) {
+        s.clientIds.forEach(id => { tally[id] = (tally[id] || 0) + 1; });
+      }
     });
 
-    // Update sessionsUsed for affected clients
+    // For each client: sessionsUsed = sessionsOffset (manual carry-over) + counted sessions
     const updatedClients = currentClients.map(c => {
-      if (!tally[c.id]) return c;
-      return { ...c, sessionsUsed: (c.sessionsUsed || 0) + tally[c.id] };
+      const offset = c.sessionsOffset || 0;      // manually entered carry-over from old system
+      const counted = tally[c.id] || 0;
+      const newUsed = offset + counted;
+      if (newUsed === (c.sessionsUsed || 0)) return c; // no change needed
+      return { ...c, sessionsUsed: newUsed };
     });
 
-    const changed = updatedClients.filter(c => tally[c.id]);
+    const changed = updatedClients.filter((c, i) => c !== currentClients[i]);
+    if (changed.length === 0) return;
+
     for (const c of changed) {
       await store.upsertOne("gym_clients", c);
     }
     setClients(updatedClients);
-
-    console.log(`[AutoCount] Counted ${toCount.length} sessions for ${changed.length} clients`);
+    console.log(`[SyncCount] Updated sessionsUsed for ${changed.length} clients`);
   };
 
   const saveClients = async (updated, changedRow=null) => {
@@ -1330,7 +1302,7 @@ export default function App() {
       await store.set("gym_sessions", updated);
     }
     // Re-check counts whenever sessions change (e.g. a session booked for today)
-    await autoUpdateSessionCounts(clients, updated);
+    await syncSessionCounts(clients, updated);
   };
 
   if (!loaded || !dataReady) return (
@@ -2189,13 +2161,13 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" });
+  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
   const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
 
   const hashPassword = async (password) => {
@@ -2223,27 +2195,10 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
       setModal(null);
     } else {
       const updatedClient = {...modal,...form};
-      await saveClients(clients.map(c=>c.id===modal.id?updatedClient:c), updatedClient);
-
-      // When sessionsUsed is manually edited, mark that client's past sessions
-      // as already counted so autoUpdateSessionCounts doesn't re-add them
-      try {
-        const now = new Date();
-        const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-        const clientPastSessions = sessions
-          .filter(s => s.date && s.date <= todayStr && s.clientIds.includes(modal.id))
-          .map(s => s.id);
-        if (clientPastSessions.length > 0) {
-          const rows = await sbFetch("app_settings?key=eq.counted_sessions");
-          let counted = [];
-          if (rows && rows[0]) try { counted = JSON.parse(rows[0].value || "[]"); } catch {}
-          const merged = [...new Set([...counted, ...clientPastSessions])];
-          sbFetch("app_settings", "POST", [{ key: "counted_sessions", value: JSON.stringify(merged) }],
-            { Prefer: "resolution=merge-duplicates,return=minimal" });
-          try { localStorage.setItem("ml_counted_sessions", JSON.stringify(merged)); } catch {}
-        }
-      } catch(e) { console.error("[Save] counted_sessions sync error", e); }
-
+      const updatedClients = clients.map(c=>c.id===modal.id?updatedClient:c);
+      await saveClients(updatedClients, updatedClient);
+      // Re-sync counts immediately so the display is correct after save
+      await syncSessionCounts(updatedClients, sessions);
       setModal(null);
     }
   };
@@ -2657,10 +2612,28 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   <input type="number" value={form.sessionsTotal} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
                 </div>
                 <div className="form-row">
-                  <label>Sessions Used</label>
-                  <input type="number" value={form.sessionsUsed} onChange={e=>setForm({...form,sessionsUsed:+e.target.value})} />
+                  <label>Sessions From Previous System</label>
+                  <input type="number" min="0" value={form.sessionsOffset||0} onChange={e=>setForm({...form,sessionsOffset:+e.target.value})} />
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Sessions already used before you started tracking here (carry-over from old software).</div>
                 </div>
               </div>
+              {modal !== "add" && (
+                <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"10px 14px",marginBottom:12,fontSize:12}}>
+                  <span style={{color:"var(--muted)"}}>Sessions used (auto-calculated): </span>
+                  <strong style={{color:"var(--accent)"}}>
+                    {(form.sessionsOffset||0) + sessions.filter(s => {
+                      const now = new Date();
+                      const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+                      return s.date && s.date <= todayStr && s.clientIds.includes(modal.id);
+                    }).length}
+                  </strong>
+                  <span style={{color:"var(--muted)"}}> = {form.sessionsOffset||0} carry-over + {sessions.filter(s => {
+                    const now = new Date();
+                    const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+                    return s.date && s.date <= todayStr && s.clientIds.includes(modal.id);
+                  }).length} tracked here</span>
+                </div>
+              )}
               <div className="form-row">
                 <label>Current Package Start Date</label>
                 <input type="date" value={form.packageStartDate||""} onChange={e=>setForm({...form,packageStartDate:e.target.value})} />
