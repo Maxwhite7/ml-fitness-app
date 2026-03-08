@@ -1151,14 +1151,13 @@ export default function App() {
     const json = JSON.stringify(next);
     try { localStorage.setItem("ml_saved_workouts", json); } catch {}
     try { localStorage.setItem("ml_saved_workouts_bak", json); } catch {}
-    // Save to Supabase using same pattern as activeWeekIdx
-    sbFetch("settings", "POST", [{ key: "saved_workouts", value: json }], { Prefer: "resolution=merge-duplicates,return=minimal" })
-      .then(r => console.log("[Save] saved_workouts →", r === null ? "FAILED ❌" : `OK ✓ (${next.length} workouts, ${json.length} bytes)`));
+    sbFetch("app_settings", "POST", [{ key: "saved_workouts", value: json }], { Prefer: "resolution=merge-duplicates,return=minimal" })
+      .then(r => console.log("[Save] saved_workouts →", r === null ? "FAILED ❌ (run SQL in Supabase)" : "OK ✓"));
   };
 
   // Load from Supabase on mount — only replace if Supabase has data
   useEffect(() => {
-    sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
+    sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
       if (!rows) return;
       rows.forEach(r => {
         try {
@@ -1186,7 +1185,7 @@ export default function App() {
     const next = typeof val === "function" ? val(assignedWorkouts) : val;
     setAssignedWorkoutsState(next);
     try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(next)); } catch {}
-    sbFetch("settings", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    sbFetch("app_settings", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
@@ -1225,7 +1224,7 @@ export default function App() {
       if (s && s.length > 0) setSessions(s);
       // Re-fetch workouts with valid JWT — await so dataReady waits
       try {
-        const rows = await sbFetch("settings?key=in.(saved_workouts,assigned_workouts)");
+        const rows = await sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)");
         console.log("[Login] settings rows:", rows);
         if (rows) rows.forEach(r => {
           try {
@@ -1394,7 +1393,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     return () => clearInterval(interval);
   }, [recurringReminders]);
   useEffect(() => {
-    sbFetch("settings?key=eq.activeWeekIdx").then(rows => {
+    sbFetch("app_settings?key=eq.activeWeekIdx").then(rows => {
       if (rows && rows[0]?.value !== undefined) {
         const saved = parseInt(rows[0].value);
         if (!isNaN(saved) && saved >= 0 && saved < NUM_WEEKS) setCurrentWeekIdx(saved);
@@ -4531,7 +4530,7 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               {isCurrentWeek
                 ? <div style={{padding:"6px 14px",borderRadius:4,background:"#22c55e18",border:"1px solid var(--green)",fontSize:13,color:"var(--green)",fontWeight:600}}>🟢 Active Week</div>
-                : <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>{ setCurrentWeekIdx(activeWeekIdx); sbFetch("settings","POST",[{key:"activeWeekIdx",value:String(activeWeekIdx)}],{Prefer:"resolution=merge-duplicates,return=minimal"}); }}>Set as Active Week</button>
+                : <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>{ setCurrentWeekIdx(activeWeekIdx); sbFetch("app_settings","POST",[{key:"activeWeekIdx",value:String(activeWeekIdx)}],{Prefer:"resolution=merge-duplicates,return=minimal"}); }}>Set as Active Week</button>
               }
               {autoWeekIdx !== currentWeekIdx && (
                 <span style={{fontSize:11,color:"var(--muted)"}}>Auto would be Week {autoWeekIdx+1}</span>
