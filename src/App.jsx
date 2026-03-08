@@ -1258,26 +1258,39 @@ export default function App() {
       String(now.getMonth() + 1).padStart(2, '0') + '-' +
       String(now.getDate()).padStart(2, '0');
 
-    // Track which session IDs have already been counted so we never double-count
+    // Load counted session IDs from Supabase (persistent across devices/sign-ins)
     let counted = [];
-    try { counted = JSON.parse(localStorage.getItem("ml_counted_sessions") || "[]"); } catch {}
+    try {
+      const rows = await sbFetch("app_settings?key=eq.counted_sessions");
+      if (rows && rows[0]) counted = JSON.parse(rows[0].value || "[]");
+    } catch {}
+    // Also merge any local cache to catch sessions counted before this fix
+    try {
+      const local = JSON.parse(localStorage.getItem("ml_counted_sessions") || "[]");
+      counted = [...new Set([...counted, ...local])];
+    } catch {}
 
     // Remove any future sessions that were incorrectly added to counted list
     const validCounted = counted.filter(id => {
       const s = currentSessions.find(x => x.id === id);
-      return !s || s.date <= todayStr; // keep if session is today/past or not found
+      return !s || s.date <= todayStr;
     });
-    if (validCounted.length !== counted.length) {
-      try { localStorage.setItem("ml_counted_sessions", JSON.stringify(validCounted)); } catch {}
-      counted = validCounted;
-    }
 
-    // Only count sessions on or before TODAY (local date) with clients assigned
+    // Only count sessions on or before TODAY with clients assigned that haven't been counted
     const toCount = currentSessions.filter(s =>
       s.date && s.date <= todayStr &&
       s.clientIds && s.clientIds.length > 0 &&
-      !counted.includes(s.id)
+      !validCounted.includes(s.id)
     );
+
+    // Always persist the cleaned counted list back to Supabase
+    const newCounted = [...new Set([...validCounted, ...toCount.map(s => s.id)])];
+    if (newCounted.length !== counted.length) {
+      sbFetch("app_settings", "POST", [{ key: "counted_sessions", value: JSON.stringify(newCounted) }],
+        { Prefer: "resolution=merge-duplicates,return=minimal" });
+      try { localStorage.setItem("ml_counted_sessions", JSON.stringify(newCounted)); } catch {}
+    }
+
     if (toCount.length === 0) return;
 
     // Tally how many new sessions each client has
@@ -1287,21 +1300,16 @@ export default function App() {
     });
 
     // Update sessionsUsed for affected clients
-    let updatedClients = currentClients.map(c => {
+    const updatedClients = currentClients.map(c => {
       if (!tally[c.id]) return c;
       return { ...c, sessionsUsed: (c.sessionsUsed || 0) + tally[c.id] };
     });
 
-    // Save each changed client
     const changed = updatedClients.filter(c => tally[c.id]);
     for (const c of changed) {
       await store.upsertOne("gym_clients", c);
     }
     setClients(updatedClients);
-
-    // Mark these sessions as counted
-    const newCounted = [...new Set([...counted, ...toCount.map(s => s.id)])];
-    try { localStorage.setItem("ml_counted_sessions", JSON.stringify(newCounted)); } catch {}
 
     console.log(`[AutoCount] Counted ${toCount.length} sessions for ${changed.length} clients`);
   };
@@ -2216,6 +2224,26 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     } else {
       const updatedClient = {...modal,...form};
       await saveClients(clients.map(c=>c.id===modal.id?updatedClient:c), updatedClient);
+
+      // When sessionsUsed is manually edited, mark that client's past sessions
+      // as already counted so autoUpdateSessionCounts doesn't re-add them
+      try {
+        const now = new Date();
+        const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+        const clientPastSessions = sessions
+          .filter(s => s.date && s.date <= todayStr && s.clientIds.includes(modal.id))
+          .map(s => s.id);
+        if (clientPastSessions.length > 0) {
+          const rows = await sbFetch("app_settings?key=eq.counted_sessions");
+          let counted = [];
+          if (rows && rows[0]) try { counted = JSON.parse(rows[0].value || "[]"); } catch {}
+          const merged = [...new Set([...counted, ...clientPastSessions])];
+          sbFetch("app_settings", "POST", [{ key: "counted_sessions", value: JSON.stringify(merged) }],
+            { Prefer: "resolution=merge-duplicates,return=minimal" });
+          try { localStorage.setItem("ml_counted_sessions", JSON.stringify(merged)); } catch {}
+        }
+      } catch(e) { console.error("[Save] counted_sessions sync error", e); }
+
       setModal(null);
     }
   };
