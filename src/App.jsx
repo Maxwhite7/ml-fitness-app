@@ -6660,7 +6660,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
                         boxShadow: shadow, position:"relative",
                       }}>
                         {isToday && <div style={{position:"absolute",top:10,right:12,fontSize:10,fontWeight:800,letterSpacing:1,color:"#fff",background:"#0008",borderRadius:20,padding:"2px 8px"}}>TODAY</div>}
-                        <div className="bebas" style={{fontSize:13,letterSpacing:2,color:"#0a0a0a",opacity:0.7,marginBottom:4}}>
+                        <div className="bebas" style={{fontSize:18,letterSpacing:2,color:"#0a0a0a",marginBottom:4}}>
                           {DAY_NAMES[d.getDay()]} · {MONTH_NAMES[d.getMonth()]} {d.getDate()}
                         </div>
                         <div className="bebas" style={{fontSize:36,lineHeight:1,color:"#0a0a0a",letterSpacing:1}}>
