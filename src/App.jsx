@@ -5225,6 +5225,20 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
 }
 
 function ExRow({ ex, idx, showMoveUp, showMoveDown, onUpdate, onRemove, onMove }) {
+  const [noteSaved, setNoteSaved] = useState(false);
+
+  const savedNote = (() => { try { return JSON.parse(localStorage.getItem("ml_exercise_notes")||"{}")[ex.exercise] || ""; } catch { return ""; }})();
+
+  const saveNote = () => {
+    try {
+      const notes = JSON.parse(localStorage.getItem("ml_exercise_notes")||"{}");
+      notes[ex.exercise] = ex.notes;
+      localStorage.setItem("ml_exercise_notes", JSON.stringify(notes));
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2000);
+    } catch {}
+  };
+
   return (
     <div style={{flex:1,padding:"10px 12px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -5244,8 +5258,19 @@ function ExRow({ ex, idx, showMoveUp, showMoveDown, onUpdate, onRemove, onMove }
           </div>
         ))}
       </div>
-      <input value={ex.notes} onChange={e=>onUpdate(ex.exercise,"notes",e.target.value)} placeholder="Coaching note..."
-        style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <input value={ex.notes} onChange={e=>onUpdate(ex.exercise,"notes",e.target.value)} placeholder="Coaching note..."
+          style={{flex:1,padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
+        {ex.notes && ex.notes !== savedNote && (
+          <button onClick={saveNote} title="Save note for this exercise"
+            style={{flexShrink:0,padding:"3px 8px",background:"transparent",border:"1px solid var(--accent)",borderRadius:4,color:noteSaved?"var(--black)":"var(--accent)",background:noteSaved?"var(--accent)":"transparent",fontSize:10,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s"}}>
+            {noteSaved ? "✓ Saved" : "💾 Save"}
+          </button>
+        )}
+        {ex.notes === savedNote && savedNote && (
+          <span style={{flexShrink:0,fontSize:10,color:"var(--muted)"}}>✓ saved</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -5365,7 +5390,8 @@ Respond with ONLY this JSON format:
         setManualExercises(prev => {
           const pendingIdx = prev.findIndex(e => e.exercise === supersetPending);
           const updated = prev.map(e => e.exercise === supersetPending ? { ...e, supersetId: ssId } : e);
-          updated.splice(pendingIdx + 1, 0, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes:"", supersetId: ssId });
+          const savedNote = (() => { try { return JSON.parse(localStorage.getItem("ml_exercise_notes")||"{}")[exercise] || ""; } catch { return ""; }})();
+          updated.splice(pendingIdx + 1, 0, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes: savedNote, supersetId: ssId });
           return updated;
         });
       }
@@ -5373,7 +5399,8 @@ Respond with ONLY this JSON format:
       return;
     }
     if (manualExercises.find(e => e.exercise === exercise)) return;
-    setManualExercises(prev => [...prev, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes:"", supersetId: null }]);
+    const savedNote = (() => { try { return JSON.parse(localStorage.getItem("ml_exercise_notes")||"{}")[exercise] || ""; } catch { return ""; }})();
+    setManualExercises(prev => [...prev, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes: savedNote, supersetId: null }]);
   };
   const removeManualExercise = (exercise) => {
     setManualExercises(prev => {
