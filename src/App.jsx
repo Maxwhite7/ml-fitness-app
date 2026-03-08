@@ -2411,12 +2411,9 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
               }}>
                 {isLegacy
                   ? <div style={{fontSize:11,color:"var(--muted)"}}>#{globalNum}</div>
-                  : <>
-                      <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>
-                        {withinPkg}/{packageSize}
-                      </div>
-                      <div style={{fontSize:9,color:"var(--muted)",marginTop:1}}>#{globalNum}</div>
-                    </>
+                  : <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>
+                      {withinPkg}/{packageSize}
+                    </div>
                 }
               </div>
               <div style={{flex:1}}>
