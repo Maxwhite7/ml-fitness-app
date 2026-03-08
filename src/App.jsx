@@ -4892,6 +4892,8 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder, recurrin
       const savedWorkoutsStr = savedWorkouts && savedWorkouts.length > 0
         ? savedWorkouts.map((w,i) => `${i+1}. "${w.title}" (${w.focus||""} · ${w.goal||""})`).join("\n")
         : "No saved workouts yet.";
+
+      const libraryStr = library ? Object.entries(library).map(([group, exs]) =>
         `${group}: ${exs.filter(e=>!e.startsWith("—")).join(", ")}`
       ).join("\n") : "";
 
