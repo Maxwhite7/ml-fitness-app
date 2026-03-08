@@ -5950,6 +5950,82 @@ function TrainerBluFAQ({ bluFAQ, setBluFAQ }) {
   );
 }
 
+function ClientWorkoutCard({ w, isLast }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{borderBottom:isLast?"none":"1px solid var(--border)"}}>
+      {/* Header row — always visible, tap to expand */}
+      <div onClick={()=>setOpen(o=>!o)} style={{padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",userSelect:"none"}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{w.title}</div>
+          <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{w.focus} · {w.goal} · {w.exercises?.length||0} exercises</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <span style={{fontSize:10,color:"var(--muted)"}}>sent {w.sentAt}</span>
+          <span style={{fontSize:12,color:"var(--accent)",transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
+        </div>
+      </div>
+
+      {/* Expanded exercise list */}
+      {open && (
+        <div style={{background:"var(--charcoal)",borderTop:"1px solid var(--border)"}}>
+          {w.warmup && (
+            <div style={{padding:"7px 14px",fontSize:11,color:"var(--muted)",borderBottom:"1px solid var(--border)"}}>🔥 <strong>Warmup:</strong> {w.warmup}</div>
+          )}
+          {(w.exercises||[]).map((ex, idx) => {
+            // Check if part of a superset
+            const isSuperset = !!ex.supersetId;
+            const nextEx = w.exercises[idx+1];
+            const isSupersetStart = isSuperset && nextEx?.supersetId === ex.supersetId;
+            const isSupersetEnd = isSuperset && w.exercises[idx-1]?.supersetId === ex.supersetId;
+            if (isSupersetEnd) return null; // rendered as part of previous
+            return (
+              <div key={idx}>
+                {isSupersetStart ? (
+                  // Superset pair — side by side
+                  <div style={{borderBottom:"1px solid var(--border)"}}>
+                    <div style={{padding:"4px 14px",fontSize:9,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,background:"#3ec9c910"}}>⚡ SUPERSET</div>
+                    <div style={{display:"flex"}}>
+                      {[ex, nextEx].map((e, si) => (
+                        <div key={si} style={{flex:1,padding:"8px 10px",borderRight:si===0?"1px solid var(--border)":"none"}}>
+                          <div style={{fontSize:11,fontWeight:700,color:"var(--text)",marginBottom:3}}>{e.exercise}</div>
+                          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                            {e.sets && <span style={{fontSize:10,color:"var(--accent)",fontWeight:600}}>{e.sets} sets</span>}
+                            {e.reps && <span style={{fontSize:10,color:"var(--muted)"}}>× {e.reps}</span>}
+                            {e.rest && <span style={{fontSize:10,color:"var(--muted)"}}>rest {e.rest}</span>}
+                          </div>
+                          {e.notes && <div style={{fontSize:10,color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>💡 {e.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  // Solo exercise
+                  <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"8px 14px",borderBottom:"1px solid var(--border)"}}>
+                    <div style={{width:22,height:22,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0,marginTop:1}}>{idx+1}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
+                      <div style={{display:"flex",gap:12,marginTop:3,flexWrap:"wrap"}}>
+                        {ex.sets && <span style={{fontSize:11,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
+                        {ex.reps && <span style={{fontSize:11,color:"var(--muted)"}}>× {ex.reps} reps</span>}
+                        {ex.rest && <span style={{fontSize:11,color:"var(--muted)"}}>rest {ex.rest}</span>}
+                      </div>
+                      {ex.notes && <div style={{fontSize:10,color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>💡 {ex.notes}</div>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {w.cooldown && (
+            <div style={{padding:"7px 14px",fontSize:11,color:"var(--muted)"}}>❄️ <strong>Cooldown:</strong> {w.cooldown}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ, assignedWorkouts }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -6001,7 +6077,7 @@ Client info:
 You can help with:
 - Telling them when their next session is
 - How many sessions they have left
-- Explaining their assigned workouts
+- Explaining their assigned workouts — tell clients to tap the workout name at the top of this chat to expand the full exercise list
 - Motivational messages and workout tips
 - Questions about their training schedule
 
@@ -6049,12 +6125,9 @@ Do NOT discuss other clients or trainer-only data.`;
           </div>
           {assignedWorkouts && assignedWorkouts.length > 0 && (
             <div style={{borderBottom:"1px solid var(--border)",background:"#3ec9c908"}}>
-              <div style={{padding:"8px 14px 4px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ YOUR WORKOUTS ({assignedWorkouts.length})</div>
+              <div style={{padding:"8px 14px 6px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ YOUR WORKOUTS ({assignedWorkouts.length})</div>
               {assignedWorkouts.map((w,i) => (
-                <div key={i} style={{padding:"6px 14px 8px",borderBottom:i<assignedWorkouts.length-1?"1px solid var(--border)":"none"}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{w.title}</div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{w.focus} · {w.goal} · {w.exercises?.length||0} exercises · sent {w.sentAt}</div>
-                </div>
+                <ClientWorkoutCard key={i} w={w} isLast={i===assignedWorkouts.length-1} />
               ))}
             </div>
           )}
