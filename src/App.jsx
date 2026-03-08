@@ -1608,6 +1608,8 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); setSelectedSessions([]); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); setSelectedSessions([]); };
+
+  const openAdd = (d) => {
     setForm({ date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"" });
     setModal("add");
   };
