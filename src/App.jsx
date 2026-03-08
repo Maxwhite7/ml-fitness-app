@@ -6633,47 +6633,37 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         <div className="page-subtitle">Your sessions, {client.name.split(" ")[0]}</div>
       </div>
 
-      {/* ── This Week — horizontal colorful cards ── */}
+      {/* ── Upcoming Sessions ── */}
       {(() => {
         const now = new Date();
         const todayStr = dateKey(now);
-        const dow = now.getDay();
-        const monday = new Date(now); monday.setDate(now.getDate() - ((dow+6)%7));
-        const weekDays = Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
-        const DAY_NAMES = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+        const DAY_NAMES = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
         const MONTH_NAMES = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-        const weekSessions = weekDays.flatMap(d =>
-          sessionsForDate(d).map(s => ({ s, d }))
-        ).filter(({d}) => dateKey(d) >= todayStr);
+        const upcoming = mySessions
+          .filter(s => s.date && s.date >= todayStr)
+          .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
         return (
           <div className="section" style={{marginBottom:16}}>
-            <div className="section-header"><span className="section-title bebas" style={{fontSize:16,letterSpacing:1}}>THIS WEEK</span></div>
-            {weekSessions.length === 0
-              ? <div style={{padding:"24px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions scheduled this week.</div>
+            <div className="section-header"><span className="section-title bebas" style={{fontSize:16,letterSpacing:1}}>UPCOMING SESSIONS</span></div>
+            {upcoming.length === 0
+              ? <div style={{padding:"24px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No upcoming sessions scheduled.</div>
               : <div style={{display:"flex",gap:12,padding:"16px",overflowX:"auto",flexWrap:"wrap"}}>
-                  {weekSessions.map(({s, d}, i) => {
-                    const isToday = dateKey(d) === todayStr;
-                    const isPast = dateKey(d) < todayStr;
-                    const dayIdx = d.getDay()===0?6:d.getDay()-1;
-                    const bg = isPast ? "#1a1a1a" : isToday ? "#3ec9c9" : "#2ab8b8";
-                    const textColor = isPast ? "#444" : "#0a0a0a";
-                    const shadow = isToday ? "0 0 32px #3ec9c9aa" : isPast ? "none" : "0 4px 20px #3ec9c955";
+                  {upcoming.map((s, i) => {
+                    const d = new Date(s.date + "T12:00:00");
+                    const isToday = s.date === todayStr;
+                    const bg = isToday ? "#3ec9c9" : "#2ab8b8";
+                    const shadow = isToday ? "0 0 32px #3ec9c9aa" : "0 4px 20px #3ec9c955";
                     return (
                       <div key={s.id} style={{
-                        background: bg,
-                        borderRadius: 12,
-                        padding: "18px 24px",
-                        minWidth: 200,
-                        flex: "1 1 200px",
-                        boxShadow: shadow,
-                        opacity: isPast ? 0.4 : 1,
-                        position: "relative",
+                        background: bg, borderRadius:12, padding:"18px 24px",
+                        minWidth:200, flex:"1 1 200px",
+                        boxShadow: shadow, position:"relative",
                       }}>
-                        {isToday && <div style={{position:"absolute",top:10,right:12,fontSize:10,fontWeight:800,letterSpacing:1,color:"#000",background:"#fff",borderRadius:20,padding:"2px 8px"}}>TODAY</div>}
-                        <div className="bebas" style={{fontSize:13,letterSpacing:2,color:textColor,opacity:0.75,marginBottom:4}}>
-                          {DAY_NAMES[dayIdx]} · {MONTH_NAMES[d.getMonth()]} {d.getDate()}
+                        {isToday && <div style={{position:"absolute",top:10,right:12,fontSize:10,fontWeight:800,letterSpacing:1,color:"#fff",background:"#0008",borderRadius:20,padding:"2px 8px"}}>TODAY</div>}
+                        <div className="bebas" style={{fontSize:13,letterSpacing:2,color:"#0a0a0a",opacity:0.7,marginBottom:4}}>
+                          {DAY_NAMES[d.getDay()]} · {MONTH_NAMES[d.getMonth()]} {d.getDate()}
                         </div>
-                        <div className="bebas" style={{fontSize:36,lineHeight:1,color:textColor,letterSpacing:1}}>
+                        <div className="bebas" style={{fontSize:36,lineHeight:1,color:"#0a0a0a",letterSpacing:1}}>
                           {s.time}
                         </div>
                       </div>
