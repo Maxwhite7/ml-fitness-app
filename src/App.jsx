@@ -2181,13 +2181,13 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true });
+  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsUsed:0, active:true }); setNewCredentials(null); setModal("add"); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
   const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
 
   const hashPassword = async (password) => {
@@ -2414,6 +2414,160 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 
         // All sessions sorted oldest → newest
+        const allClientSessions = sessions
+          .filter(s => s.date && s.clientIds.includes(historyClient.id))
+          .sort((a, b) => a.date < b.date ? -1 : 1);
+
+        const total       = historyClient.sessionsTotal || 0;
+        const used        = historyClient.sessionsUsed  || 0;
+        const left        = Math.max(0, total - used);
+        const packageSize = total || 10;
+        const startDate   = historyClient.packageStartDate || null;
+
+        // Split into: sessions before package start (legacy) and current package onwards
+        const legacySessions  = startDate ? allClientSessions.filter(s => s.date < startDate) : [];
+        const currentSessions = startDate ? allClientSessions.filter(s => s.date >= startDate) : allClientSessions;
+
+        // Current package splits into blocks of packageSize
+        const packages = [];
+        for (let i = 0; i < currentSessions.length; i += packageSize) {
+          packages.push(currentSessions.slice(i, i + packageSize));
+        }
+        if (packages.length === 0) packages.push([]);
+
+        const SessionRow = ({ s, withinPkg, packageSize, globalNum, isLegacy }) => {
+          const isPast  = s.date <= todayStr;
+          const isToday = s.date === todayStr;
+          const fmtDate = new Date(s.date + "T12:00:00").toLocaleDateString("en-CA", {weekday:"short", month:"short", day:"numeric"});
+          return (
+            <div style={{
+              display:"flex",alignItems:"center",gap:12,
+              padding:"11px 16px",borderBottom:"1px solid var(--border)",
+              background: isToday ? "#3ec9c910" : "transparent",
+            }}>
+              <div style={{
+                minWidth:48,textAlign:"center",padding:"4px 6px",borderRadius:4,flexShrink:0,
+                background: isLegacy ? "transparent" : isPast ? "var(--charcoal)" : "#3ec9c920",
+                border: `1px solid ${isLegacy ? "var(--border)" : isPast ? "var(--border)" : "var(--accent)"}`,
+              }}>
+                {isLegacy
+                  ? <div style={{fontSize:11,color:"var(--muted)"}}>#{globalNum}</div>
+                  : <>
+                      <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>
+                        {withinPkg}/{packageSize}
+                      </div>
+                      <div style={{fontSize:9,color:"var(--muted)",marginTop:1}}>#{globalNum}</div>
+                    </>
+                }
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:isToday?"var(--accent)":"var(--text)"}}>
+                  {fmtDate}
+                  {isToday && <span style={{fontSize:10,color:"var(--accent)",fontWeight:700,marginLeft:6}}>TODAY</span>}
+                </div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>
+                  {s.time}{s.clientIds.length > 1 ? ` · Group (${s.clientIds.length})` : ""}
+                </div>
+              </div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,
+                color:isToday?"var(--accent)":isPast?"var(--green)":"var(--muted)"}}>
+                {isToday ? "Today" : isPast ? "Done" : "Upcoming"}
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="modal-overlay" onClick={()=>setHistoryClient(null)}>
+            <div className="modal" style={{maxWidth:500}} onClick={e=>e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="bebas modal-title">📋 {historyClient.name}</div>
+                <button className="modal-close" onClick={()=>setHistoryClient(null)}>✕</button>
+              </div>
+
+              {/* Summary bar */}
+              <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
+                {[
+                  {label:"Package Size", value: total||"—"},
+                  {label:"Sessions Used", value: used},
+                  {label:"Sessions Left", value: left, warn: left<=5},
+                ].map((s,i) => (
+                  <div key={i} style={{flex:1,padding:"14px 16px",borderRight:i<2?"1px solid var(--border)":"none",textAlign:"center"}}>
+                    <div style={{fontSize:22,fontWeight:700,color:s.warn&&left<=3?"var(--red)":s.warn?"var(--accent)":"var(--accent)"}}>{s.value}</div>
+                    <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{maxHeight:"62vh",overflowY:"auto"}}>
+
+                {/* Current packages — newest first */}
+                {[...packages].reverse().map((pkg, revIdx) => {
+                  const pkgIdx      = packages.length - 1 - revIdx;
+                  const pkgNum      = pkgIdx + 1;
+                  const globalBase  = legacySessions.length + pkgIdx * packageSize;
+                  return (
+                    <div key={pkgIdx}>
+                      <div style={{padding:"10px 16px",background:"var(--panel)",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <div className="bebas" style={{fontSize:15,color:"var(--accent)",letterSpacing:1}}>Package #{pkgNum}</div>
+                          {startDate && pkgNum===packages.length && (
+                            <div style={{fontSize:10,color:"var(--muted)"}}>from {new Date(startDate+"T12:00:00").toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})}</div>
+                          )}
+                        </div>
+                        <div style={{fontSize:11,color:"var(--muted)"}}>
+                          {pkg.filter(s=>s.date<=todayStr).length} done · {pkg.filter(s=>s.date>todayStr).length} upcoming · {Math.max(0,packageSize-pkg.length)} open
+                        </div>
+                      </div>
+
+                      {pkg.map((s, i) => (
+                        <SessionRow key={s.id} s={s} withinPkg={i+1} packageSize={packageSize} globalNum={globalBase+i+1} />
+                      ))}
+
+                      {/* Empty slots in the most recent package only */}
+                      {revIdx === 0 && pkg.length < packageSize && (
+                        Array.from({length: packageSize - pkg.length}).map((_,i) => (
+                          <div key={"empty"+i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:"1px solid var(--border)",opacity:0.35}}>
+                            <div style={{minWidth:48,textAlign:"center",padding:"4px 6px",borderRadius:4,border:"1px dashed var(--border)",flexShrink:0}}>
+                              <div style={{fontSize:14,fontWeight:700,color:"var(--border)",lineHeight:1}}>{pkg.length+i+1}/{packageSize}</div>
+                            </div>
+                            <div style={{fontSize:12,color:"var(--border)"}}>Not yet booked</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Legacy sessions (before package start date) */}
+                {legacySessions.length > 0 && (
+                  <div>
+                    <div style={{padding:"10px 16px",background:"var(--panel)",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div className="bebas" style={{fontSize:15,color:"var(--muted)",letterSpacing:1}}>Previous History</div>
+                      <div style={{fontSize:11,color:"var(--muted)"}}>before {new Date(startDate+"T12:00:00").toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})} · {legacySessions.length} sessions</div>
+                    </div>
+                    {[...legacySessions].reverse().map((s,i) => (
+                      <SessionRow key={s.id} s={s} withinPkg={null} packageSize={null} globalNum={legacySessions.length - i} isLegacy />
+                    ))}
+                  </div>
+                )}
+
+                {allClientSessions.length === 0 && (
+                  <div style={{padding:"40px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions booked yet.</div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={()=>setHistoryClient(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+        const now = new Date();
+        const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
+        // All sessions sorted oldest → newest
         const clientSessions = sessions
           .filter(s => s.date && s.clientIds.includes(historyClient.id))
           .sort((a, b) => a.date < b.date ? -1 : 1);
@@ -2628,6 +2782,13 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 <div className="form-row">
                   <label>Sessions Used</label>
                   <input type="number" value={form.sessionsUsed} onChange={e=>setForm({...form,sessionsUsed:+e.target.value})} />
+                </div>
+              </div>
+              <div className="form-row">
+                <label>Current Package Start Date</label>
+                <input type="date" value={form.packageStartDate||""} onChange={e=>setForm({...form,packageStartDate:e.target.value})} />
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>
+                  Sessions before this date count as a previous package. Leave blank to group all sessions together.
                 </div>
               </div>
               {modal !== "add" && (
