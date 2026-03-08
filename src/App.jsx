@@ -1124,6 +1124,15 @@ const seedSessions = () => [
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
+  // Check if this tab was opened to display a standalone workout
+  const workoutParam = new URLSearchParams(window.location.search).get("workout");
+  if (workoutParam) {
+    try {
+      const w = JSON.parse(localStorage.getItem("ml_workout_view_" + workoutParam) || "null");
+      if (w) return <WorkoutView workout={w} />;
+    } catch {}
+  }
+
   const [user, setUser] = useState(null); // { role:'trainer'|'client', ...data }
   const [clients, setClients] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -5980,19 +5989,112 @@ function TrainerBluFAQ({ bluFAQ, setBluFAQ }) {
   );
 }
 
+const openWorkoutTab = (w) => {
+  const id = w.id || Date.now();
+  try { localStorage.setItem("ml_workout_view_" + id, JSON.stringify(w)); } catch {}
+  window.open(`${window.location.origin}${window.location.pathname}?workout=${id}`, "_blank");
+};
+
+function WorkoutView({ workout: w }) {
+  return (
+    <div style={{minHeight:"100vh",background:"var(--black)",color:"var(--text)",fontFamily:"var(--font)",padding:"0 0 60px"}}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg,#0d2626,#1a3a3a)",borderBottom:"1px solid var(--accent)",padding:"28px 32px 20px"}}>
+        <div style={{fontSize:11,fontWeight:700,letterSpacing:3,color:"var(--accent)",marginBottom:6,textTransform:"uppercase"}}>⚡ Workout Program</div>
+        <div className="bebas" style={{fontSize:38,color:"var(--text)",letterSpacing:1,lineHeight:1}}>{w.title}</div>
+        <div style={{display:"flex",gap:20,marginTop:10,flexWrap:"wrap"}}>
+          {w.focus && <span style={{fontSize:12,color:"var(--muted)"}}>💪 {w.focus}</span>}
+          {w.goal && <span style={{fontSize:12,color:"var(--muted)"}}>🎯 {w.goal}</span>}
+          {w.difficulty && <span style={{fontSize:12,color:"var(--muted)"}}>📊 {w.difficulty}</span>}
+          {w.duration && <span style={{fontSize:12,color:"var(--muted)"}}>⏱ {w.duration}</span>}
+          {w.sentAt && <span style={{fontSize:12,color:"var(--muted)"}}>📅 Sent {w.sentAt}</span>}
+        </div>
+      </div>
+
+      <div style={{maxWidth:700,margin:"0 auto",padding:"24px 20px"}}>
+        {/* Warmup */}
+        {w.warmup && (
+          <div style={{background:"var(--panel)",border:"1px solid var(--border)",borderRadius:10,padding:"14px 18px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
+            <span style={{fontSize:20}}>🔥</span>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,marginBottom:3}}>WARMUP</div><div style={{fontSize:13,color:"var(--text)"}}>{w.warmup}</div></div>
+          </div>
+        )}
+
+        {/* Exercises */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {(w.exercises||[]).map((ex, idx) => {
+            const nextEx = (w.exercises||[])[idx+1];
+            const isSupersetStart = ex.supersetId && nextEx?.supersetId === ex.supersetId;
+            const isSupersetEnd = ex.supersetId && (w.exercises||[])[idx-1]?.supersetId === ex.supersetId;
+            if (isSupersetEnd) return null;
+
+            if (isSupersetStart) {
+              return (
+                <div key={idx} style={{border:"2px solid var(--accent)",borderRadius:12,overflow:"hidden"}}>
+                  <div style={{background:"#3ec9c918",padding:"6px 18px",display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:13,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ SUPERSET</span>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+                    {[ex, nextEx].map((e, si) => (
+                      <div key={si} style={{padding:"16px 18px",borderRight:si===0?"1px solid var(--border)":"none"}}>
+                        <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:8}}>{e.exercise}</div>
+                        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:6}}>
+                          {e.sets && <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:"var(--accent)"}}>{e.sets}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>SETS</div></div>}
+                          {e.reps && <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>{e.reps}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>REPS</div></div>}
+                          {e.rest && <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>{e.rest}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>REST</div></div>}
+                        </div>
+                        {e.notes && <div style={{fontSize:11,color:"var(--muted)",fontStyle:"italic",borderTop:"1px solid var(--border)",paddingTop:6}}>💡 {e.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={idx} style={{background:"var(--panel)",border:"1px solid var(--border)",borderRadius:12,padding:"16px 18px",display:"flex",gap:16,alignItems:"flex-start"}}>
+                <div style={{width:36,height:36,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,flexShrink:0}}>{idx+1}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:8}}>{ex.exercise}</div>
+                  <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:ex.notes?8:0}}>
+                    {ex.sets && <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:"var(--accent)"}}>{ex.sets}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1.5}}>SETS</div></div>}
+                    {ex.reps && <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{ex.reps}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1.5}}>REPS</div></div>}
+                    {ex.rest && <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{ex.rest}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1.5}}>REST</div></div>}
+                  </div>
+                  {ex.notes && <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",borderTop:"1px solid var(--border)",paddingTop:8}}>💡 {ex.notes}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Cooldown */}
+        {w.cooldown && (
+          <div style={{background:"var(--panel)",border:"1px solid var(--border)",borderRadius:10,padding:"14px 18px",marginTop:16,display:"flex",gap:10,alignItems:"flex-start"}}>
+            <span style={{fontSize:20}}>❄️</span>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,marginBottom:3}}>COOLDOWN</div><div style={{fontSize:13,color:"var(--text)"}}>{w.cooldown}</div></div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClientWorkoutCard({ w, isLast }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{borderBottom:isLast?"none":"1px solid var(--border)"}}>
-      {/* Header row — always visible, tap to expand */}
-      <div onClick={()=>setOpen(o=>!o)} style={{padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",userSelect:"none"}}>
-        <div>
+      <div style={{padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div onClick={()=>setOpen(o=>!o)} style={{flex:1,cursor:"pointer",userSelect:"none"}}>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{w.title}</div>
           <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{w.focus} · {w.goal} · {w.exercises?.length||0} exercises</div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          <span style={{fontSize:10,color:"var(--muted)"}}>sent {w.sentAt}</span>
-          <span style={{fontSize:12,color:"var(--accent)",transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
+          <button onClick={()=>openWorkoutTab(w)}
+            style={{background:"var(--accent)",border:"none",color:"var(--black)",borderRadius:5,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+            Open ↗
+          </button>
+          <span onClick={()=>setOpen(o=>!o)} style={{fontSize:12,color:"var(--accent)",cursor:"pointer",transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
         </div>
       </div>
 
