@@ -10,7 +10,7 @@ const BluIcon = ({ size = 20 }) => (
     <polygon points="14,26 12,10 20,23" fill="#C4856A" opacity="0.6"/>
     <polygon points="50,26 52,10 44,23" fill="#C4856A" opacity="0.6"/>
     {/* Head - warm brown */}
-    <ellipse cx="32" cy="34" rx="20" ry="19" fill="#A0673A"/> 
+    <ellipse cx="32" cy="34" rx="20" ry="19" fill="#A0673A"/>
     {/* White chest/chin patch */}
     <ellipse cx="32" cy="40" rx="12" ry="10" fill="#E8DDD0"/>
     {/* Darker brown fur marking on top of head */}
@@ -1128,9 +1128,15 @@ export default function App() {
   const [bluFAQ, setBluFAQ] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_blu_faq") || "[]"); } catch { return []; }
   });
-  useEffect(() => {
-    try { localStorage.setItem("ml_blu_faq", JSON.stringify(bluFAQ)); } catch {}
-  }, [bluFAQ]);
+  const [savedWorkouts, setSavedWorkouts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
+  });
+  const [assignedWorkouts, setAssignedWorkouts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_assigned_workouts") || "{}"); } catch { return {}; }
+  });
+  useEffect(() => { try { localStorage.setItem("ml_blu_faq", JSON.stringify(bluFAQ)); } catch {} }, [bluFAQ]);
+  useEffect(() => { try { localStorage.setItem("ml_saved_workouts", JSON.stringify(savedWorkouts)); } catch {} }, [savedWorkouts]);
+  useEffect(() => { try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(assignedWorkouts)); } catch {} }, [assignedWorkouts]);
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
   }, [hiddenBlocks]);
@@ -1207,7 +1213,7 @@ export default function App() {
     <>
       <GlobalStyle />
       {user.role === "trainer" && !previewClient
-        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} bluFAQ={bluFAQ} setBluFAQ={setBluFAQ} />
+        ? <TrainerApp user={user} clients={clients} sessions={sessions} setSessions={setSessions} saveClients={saveClients} saveSessions={saveSessions} onLogout={() => { auth.clear(); setUser(null); }} onPreviewClient={setPreviewClient} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} bluFAQ={bluFAQ} setBluFAQ={setBluFAQ} savedWorkouts={savedWorkouts} setSavedWorkouts={setSavedWorkouts} assignedWorkouts={assignedWorkouts} setAssignedWorkouts={setAssignedWorkouts} />
         : user.role === "trainer" && previewClient
         ? (
           <>
@@ -1224,11 +1230,11 @@ export default function App() {
               }}>← Back to Trainer View</button>
             </div>
             <div style={{marginTop:40}}>
-              <ClientApp user={{role:"client",...previewClient}} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={()=>setPreviewClient(null)} bluFAQ={bluFAQ} />
+              <ClientApp user={{role:"client",...previewClient}} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={()=>setPreviewClient(null)} bluFAQ={bluFAQ} assignedWorkouts={assignedWorkouts} />
             </div>
           </>
           )
-        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => { auth.clear(); setUser(null); }} bluFAQ={bluFAQ} />
+        : <ClientApp user={user} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={() => { auth.clear(); setUser(null); }} bluFAQ={bluFAQ} assignedWorkouts={assignedWorkouts} />
       }
     </>
   );
@@ -1284,7 +1290,7 @@ function LoginScreen({ clients, onLogin, saveClients }) {
 }
 
 // ─── Trainer App ──────────────────────────────────────────────────────────────
-function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient, hiddenBlocks, setHiddenBlocks, bluFAQ, setBluFAQ }) {
+function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSessions, onLogout, onPreviewClient, hiddenBlocks, setHiddenBlocks, bluFAQ, setBluFAQ, savedWorkouts, setSavedWorkouts, assignedWorkouts, setAssignedWorkouts }) {
   const [tab, setTab] = useState("schedule");
   const [weekPlans, setWeekPlans] = useState(Array.from({length:NUM_WEEKS}, ()=>[]));
   const [library, setLibrary] = useState(ALL_EXERCISES_DEFAULT);
@@ -1344,9 +1350,9 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
         <div style={{display:tab==="blufaq"?"":"none"}}><TrainerBluFAQ bluFAQ={bluFAQ} setBluFAQ={setBluFAQ} /></div>
-        <div style={{display:tab==="workoutgen"?"":"none"}}><WorkoutGenerator library={library} clients={clients} /></div>
+        <div style={{display:tab==="workoutgen"?"":"none"}}><WorkoutGenerator library={library} clients={clients} savedWorkouts={savedWorkouts} setSavedWorkouts={setSavedWorkouts} /></div>
       </div>
-      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} recurringReminders={recurringReminders} setRecurringReminders={setRecurringReminders} />
+      <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} recurringReminders={recurringReminders} setRecurringReminders={setRecurringReminders} savedWorkouts={savedWorkouts} assignedWorkouts={assignedWorkouts} setAssignedWorkouts={setAssignedWorkouts} />
       {reminder && (
         <div onClick={()=>setReminder(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000}}>
           <div onClick={e=>e.stopPropagation()} style={{background:"var(--panel)",border:"2px solid var(--accent)",borderRadius:16,padding:"32px 36px",maxWidth:420,width:"90%",textAlign:"center",boxShadow:"0 8px 60px rgba(62,201,201,0.3)",position:"relative"}}>
@@ -4713,7 +4719,7 @@ function TrainerAnalytics({ clients, sessions }) {
 }
 
 // ─── AI Agent ─────────────────────────────────────────────────────────────────
-function AIAgent({ clients, sessions, setSessions, library, onReminder, recurringReminders, setRecurringReminders }) {
+function AIAgent({ clients, sessions, setSessions, library, onReminder, recurringReminders, setRecurringReminders, savedWorkouts, assignedWorkouts, setAssignedWorkouts }) {
   const [messages, setMessages] = useState([
     { role: "assistant", text: "Woof! 🐾 I'm Blu, your gym assistant. I can help you manage your schedule, clients, and workouts. What do you need?" }
   ]);
@@ -4761,7 +4767,17 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder, recurrin
         setSessions(updated);
         return `✓ Cleared ${cleared.length} sessions for the selected week.`;
       }
-      case "send_reminder": {
+      case "send_workout": {
+        const { clientName, workoutTitle } = params;
+        const client = clients.find(c => c.name.toLowerCase().includes((clientName||"").toLowerCase()));
+        if (!client) return `⚠️ Could not find client "${clientName}".`;
+        const workout = (savedWorkouts||[]).find(w => w.title?.toLowerCase().includes((workoutTitle||"").toLowerCase()));
+        if (!workout) return `⚠️ Could not find a saved workout matching "${workoutTitle}". Save it in Workout Builder first.`;
+        const clientWorkouts = assignedWorkouts?.[client.id] || [];
+        const updated = { ...assignedWorkouts, [client.id]: [{ ...workout, sentAt: new Date().toLocaleDateString(), sentBy: "trainer" }, ...clientWorkouts] };
+        setAssignedWorkouts(updated);
+        return `✓ Sent "${workout.title}" to ${client.name}! They'll see it in their Blu chat.`;
+      }
         const msg = params?.message || "Don't forget!";
         onReminder(msg);
         return `✓ Reminder sent!`;
@@ -4872,7 +4888,9 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder, recurrin
           }).join("\n")
         : "No partially-filled upcoming sessions.";
 
-      const libraryStr = library ? Object.entries(library).map(([group, exs]) =>
+      const savedWorkoutsStr = savedWorkouts && savedWorkouts.length > 0
+        ? savedWorkouts.map((w,i) => `${i+1}. "${w.title}" (${w.focus||""} · ${w.goal||""})`).join("\n")
+        : "No saved workouts yet.";
         `${group}: ${exs.filter(e=>!e.startsWith("—")).join(", ")}`
       ).join("\n") : "";
 
@@ -4888,7 +4906,10 @@ Current gym data:
 Upcoming sessions with open spots (has at least 1 client booked, not yet full — max ${MAX_GROUP_SIZE} per session):
 ${availableSlotsStr}
 
-Exercise library (use ONLY these exercises when generating workouts):
+Saved workouts (available to send to clients):
+${savedWorkoutsStr}
+
+
 ${libraryStr}
 
 You can execute the following actions by responding with a JSON block like this:
@@ -4899,7 +4920,7 @@ Available actions:
 - show_stats — shows gym statistics
 - list_clients — lists all clients
 - available_slots — lists all upcoming sessions that have open spots (already have clients but aren't full)
-- send_reminder — pops a one-time reminder message in the middle of the screen. Use format: <action>{"type":"send_reminder","params":{"message":"Your reminder text here"}}</action>
+- send_workout — sends a saved workout to a client. Format: <action>{"type":"send_workout","params":{"clientName":"Sarah","workoutTitle":"Full Body Strength"}}</action>. The workout title must match a saved workout. When trainer says "send [workout] to [client]", use this action. Use format: <action>{"type":"send_reminder","params":{"message":"Your reminder text here"}}</action>
 - set_recurring_reminder — sets a recurring reminder. Use format: <action>{"type":"set_recurring_reminder","params":{"message":"Check availability submissions","frequency":"daily","time":"09:00"}}</action>. frequency can be "daily", "weekdays", or "weekly" (weekly requires a "day" param e.g. "monday"). time must be in 24h HH:MM format.
 - list_reminders — lists all active recurring reminders
 - delete_reminder — deletes a recurring reminder by number: <action>{"type":"delete_reminder","params":{"index":1}}</action>
@@ -5161,7 +5182,7 @@ ${actionResult}` : displayText),
 }
 
 // ─── Client App ───────────────────────────────────────────────────────────────
-function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ }) {
+function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, assignedWorkouts }) {
   const [tab, setTab] = useState("schedule");
   const nav = [
     { id:"schedule", icon:"📅", label:"My Schedule" },
@@ -5195,12 +5216,12 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ }) {
         {tab==="progress" && <ClientProgress client={client} mySessions={mySessions} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
-      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} />
+      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} assignedWorkouts={assignedWorkouts?.[client.id] || []} />
     </div>
   );
 }
 
-function WorkoutGenerator({ library, clients }) {
+function WorkoutGenerator({ library, clients, savedWorkouts, setSavedWorkouts }) {
   const [focus, setFocus] = useState([]);
   const [goal, setGoal] = useState("strength");
   const [difficulty, setDifficulty] = useState("intermediate");
@@ -5208,9 +5229,6 @@ function WorkoutGenerator({ library, clients }) {
   const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(false);
   const [workout, setWorkout] = useState(null);
-  const [savedWorkouts, setSavedWorkouts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
-  });
   const [viewSaved, setViewSaved] = useState(false);
 
   const muscleGroups = Object.keys(library || {}).filter(g => !g.startsWith("—"));
@@ -5284,15 +5302,11 @@ Respond with ONLY this JSON format:
 
   const saveWorkout = () => {
     if (!workout || workout.error) return;
-    const updated = [{ ...workout, id: Date.now() }, ...savedWorkouts];
-    setSavedWorkouts(updated);
-    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(updated)); } catch {}
+    setSavedWorkouts([{ ...workout, id: Date.now() }, ...savedWorkouts]);
   };
 
   const deleteSaved = (id) => {
-    const updated = savedWorkouts.filter(w=>w.id!==id);
-    setSavedWorkouts(updated);
-    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(updated)); } catch {}
+    setSavedWorkouts(savedWorkouts.filter(w=>w.id!==id));
   };
 
   const WorkoutCard = ({ w, showDelete, onDelete }) => (
@@ -5557,7 +5571,7 @@ function TrainerBluFAQ({ bluFAQ, setBluFAQ }) {
   );
 }
 
-function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ }) {
+function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ, assignedWorkouts }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role:"assistant", text:`Hey ${client?.name?.split(" ")[0] || "there"}! 🐾 I'm Blu. Ask me about your schedule, upcoming sessions, or anything about your training!` }
@@ -5587,6 +5601,10 @@ function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ }) {
         ? past.map(s=>`${s.date} at ${s.time}`).join(", ")
         : "None.";
 
+      const assignedStr = assignedWorkouts && assignedWorkouts.length > 0
+        ? assignedWorkouts.map((w,i) => `${i+1}. "${w.title}" (${w.focus||""} · ${w.goal||""}) — sent ${w.sentAt||""}`).join("\n")
+        : "No workouts assigned yet.";
+
       const faqStr = bluFAQ && bluFAQ.length > 0
         ? "\n\nFrequently asked questions — use these answers when relevant:\n" + bluFAQ.map((f,i) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")
         : "";
@@ -5604,8 +5622,12 @@ Client info:
 You can help with:
 - Telling them when their next session is
 - How many sessions they have left
+- Explaining their assigned workouts
 - Motivational messages and workout tips
-- Questions about their training schedule${faqStr}
+- Questions about their training schedule
+
+Workouts assigned to this client by their trainer:
+${assignedStr}${faqStr}
 
 Keep responses short, friendly, and encouraging. You're like a supportive gym buddy.
 Do NOT discuss other clients or trainer-only data.`;
@@ -5646,6 +5668,17 @@ Do NOT discuss other clients or trainer-only data.`;
             </div>
             <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer"}}>✕</button>
           </div>
+          {assignedWorkouts && assignedWorkouts.length > 0 && (
+            <div style={{borderBottom:"1px solid var(--border)",background:"#3ec9c908"}}>
+              <div style={{padding:"8px 14px 4px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ YOUR WORKOUTS ({assignedWorkouts.length})</div>
+              {assignedWorkouts.map((w,i) => (
+                <div key={i} style={{padding:"6px 14px 8px",borderBottom:i<assignedWorkouts.length-1?"1px solid var(--border)":"none"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{w.title}</div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{w.focus} · {w.goal} · {w.exercises?.length||0} exercises · sent {w.sentAt}</div>
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
             {messages.map((m,i) => (
               <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:12}}>
