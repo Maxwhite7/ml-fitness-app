@@ -6633,6 +6633,48 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         <div className="page-subtitle">Your sessions, {client.name.split(" ")[0]}</div>
       </div>
 
+      {/* ── This Week — shown first, big and obvious ── */}
+      {(() => {
+        const now = new Date();
+        const todayStr = dateKey(now);
+        const dow = now.getDay(); // 0=Sun
+        const monday = new Date(now); monday.setDate(now.getDate() - ((dow+6)%7));
+        const weekDays = Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
+        const FULL_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+        const hasAnySessions = weekDays.some(d => sessionsForDate(d).length > 0);
+        return (
+          <div className="section" style={{marginBottom:16}}>
+            <div className="section-header"><span className="section-title bebas" style={{fontSize:16,letterSpacing:1}}>THIS WEEK</span></div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,borderTop:"1px solid var(--border)"}}>
+              {weekDays.map((d,i) => {
+                const isToday = dateKey(d) === todayStr;
+                const daySessions = sessionsForDate(d);
+                const isPast = dateKey(d) < todayStr;
+                return (
+                  <div key={i} style={{borderRight:i<6?"1px solid var(--border)":"none",borderBottom:"1px solid var(--border)",minHeight:80}}>
+                    <div style={{padding:"6px 0",textAlign:"center",fontSize:10,textTransform:"uppercase",letterSpacing:1,color:isToday?"var(--accent)":"var(--muted)",fontWeight:isToday?700:400,borderBottom:"1px solid var(--border)",background:isToday?"#3ec9c910":"transparent"}}>
+                      {FULL_DAYS[i]}
+                      <div style={{fontSize:13,fontWeight:700,color:isToday?"var(--accent)":"var(--text)",marginTop:1}}>{d.getDate()}</div>
+                    </div>
+                    <div style={{padding:"6px 4px",display:"flex",flexDirection:"column",gap:4}}>
+                      {daySessions.length === 0
+                        ? <div style={{height:24}} />
+                        : daySessions.map(s => (
+                          <div key={s.id} style={{background:isToday?"var(--accent)":isPast?"var(--charcoal)":"#3ec9c920",border:`1px solid ${isToday?"var(--accent)":isPast?"var(--border)":"var(--accent)"}`,borderRadius:4,padding:"3px 5px",fontSize:10,fontWeight:600,color:isToday?"var(--black)":isPast?"var(--muted)":"var(--accent)",textAlign:"center",lineHeight:1.3}}>
+                            {s.time}
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {!hasAnySessions && <div style={{padding:"16px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions scheduled this week.</div>}
+          </div>
+        );
+      })()}
+
       <div className="stats-grid">
         <StatCard label="Total Sessions" value={mySessions.length} sub="scheduled" />
         <StatCard label="Sessions Left" value={left} sub={`of ${client.sessionsTotal} purchased`} accent={left<5?"red":undefined} />
