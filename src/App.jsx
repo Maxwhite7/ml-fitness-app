@@ -5224,6 +5224,32 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
   );
 }
 
+function ExRow({ ex, idx, showMoveUp, showMoveDown, onUpdate, onRemove, onMove }) {
+  return (
+    <div style={{flex:1,padding:"10px 12px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text)",flex:1,lineHeight:1.3}}>{ex.exercise}</div>
+        <div style={{display:"flex",gap:2,alignItems:"center",flexShrink:0}}>
+          {showMoveUp && <div onClick={()=>onMove(idx,-1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:13,padding:"1px 4px",userSelect:"none"}}>↑</div>}
+          {showMoveDown && <div onClick={()=>onMove(idx,1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:13,padding:"1px 4px",userSelect:"none"}}>↓</div>}
+          <div onClick={()=>onRemove(ex.exercise)} style={{cursor:"pointer",color:"var(--red)",fontSize:12,padding:"1px 5px",userSelect:"none"}}>✕</div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:5}}>
+        {[["sets","Sets"],["reps","Reps"],["rest","Rest"]].map(([field,label])=>(
+          <div key={field}>
+            <div style={{fontSize:9,color:"var(--muted)",marginBottom:2,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+            <input value={ex[field]} onChange={e=>onUpdate(ex.exercise,field,e.target.value)}
+              style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
+          </div>
+        ))}
+      </div>
+      <input value={ex.notes} onChange={e=>onUpdate(ex.exercise,"notes",e.target.value)} placeholder="Coaching note..."
+        style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
+    </div>
+  );
+}
+
 function WorkoutGenerator({ library, clients, savedWorkouts, setSavedWorkouts }) {
   const [mode, setMode] = useState("ai"); // "ai" | "manual"
   const [focus, setFocus] = useState([]);
@@ -5661,36 +5687,12 @@ Respond with ONLY this JSON format:
                     rendered.push({ type:"solo", ex, idx });
                   });
 
-                  const ExRow = ({ ex, idx, borderRadius, showMoveUp, showMoveDown }) => (
-                    <div style={{flex:1,padding:"10px 12px"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                        <div style={{fontSize:12,fontWeight:700,color:"var(--text)",flex:1,lineHeight:1.3}}>{ex.exercise}</div>
-                        <div style={{display:"flex",gap:2,alignItems:"center",flexShrink:0}}>
-                          {showMoveUp && <div onClick={()=>moveExercise(idx,-1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:13,padding:"1px 4px",userSelect:"none"}}>↑</div>}
-                          {showMoveDown && <div onClick={()=>moveExercise(idx,1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:13,padding:"1px 4px",userSelect:"none"}}>↓</div>}
-                          <div onClick={()=>removeManualExercise(ex.exercise)} style={{cursor:"pointer",color:"var(--red)",fontSize:12,padding:"1px 5px",userSelect:"none"}}>✕</div>
-                        </div>
-                      </div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:5}}>
-                        {[["sets","Sets"],["reps","Reps"],["rest","Rest"]].map(([field,label])=>(
-                          <div key={field}>
-                            <div style={{fontSize:9,color:"var(--muted)",marginBottom:2,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
-                            <input value={ex[field]} onChange={e=>updateManualExercise(ex.exercise,field,e.target.value)}
-                              style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
-                          </div>
-                        ))}
-                      </div>
-                      <input value={ex.notes} onChange={e=>updateManualExercise(ex.exercise,"notes",e.target.value)} placeholder="Coaching note..."
-                        style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
-                    </div>
-                  );
-
                   return rendered.map((row, ri) => {
                     if (row.type === "solo") {
                       const isLast = ri === rendered.length - 1;
                       return (
                         <div key={row.ex.exercise} style={{background:"var(--charcoal)",border:`1px solid ${supersetPending===row.ex.exercise?"#f59e0b":"var(--border)"}`,borderRadius:8,marginBottom:8,overflow:"hidden"}}>
-                          <ExRow ex={row.ex} idx={row.idx} showMoveUp={ri>0} showMoveDown={!isLast} />
+                          <ExRow ex={row.ex} idx={row.idx} showMoveUp={ri>0} showMoveDown={!isLast} onUpdate={updateManualExercise} onRemove={removeManualExercise} onMove={moveExercise} />
                           <div style={{borderTop:"1px solid var(--border)",padding:"6px 12px",display:"flex",alignItems:"center",gap:8}}>
                             <button onClick={()=>setSupersetPending(supersetPending===row.ex.exercise?null:row.ex.exercise)}
                               style={{background:supersetPending===row.ex.exercise?"#f59e0b":"transparent",border:`1px solid ${supersetPending===row.ex.exercise?"#f59e0b":"var(--border)"}`,color:supersetPending===row.ex.exercise?"var(--black)":"var(--muted)",borderRadius:4,padding:"3px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>
@@ -5714,13 +5716,13 @@ Respond with ONLY this JSON format:
                         </div>
                         <div style={{display:"flex",gap:0}}>
                           <div style={{flex:1,borderRight:"2px solid #f59e0b44"}}>
-                            <ExRow ex={row.a} idx={row.aIdx} showMoveUp={ri>0} showMoveDown={false} />
+                            <ExRow ex={row.a} idx={row.aIdx} showMoveUp={ri>0} showMoveDown={false} onUpdate={updateManualExercise} onRemove={removeManualExercise} onMove={moveExercise} />
                           </div>
                           <div style={{width:20,display:"flex",alignItems:"center",justifyContent:"center",background:"#f59e0b11",flexShrink:0}}>
                             <span style={{fontSize:12,color:"#f59e0b",fontWeight:700}}>⚡</span>
                           </div>
                           <div style={{flex:1,borderLeft:"2px solid #f59e0b44"}}>
-                            <ExRow ex={row.b} idx={row.bIdx} showMoveUp={false} showMoveDown={!isLast} />
+                            <ExRow ex={row.b} idx={row.bIdx} showMoveUp={false} showMoveDown={!isLast} onUpdate={updateManualExercise} onRemove={removeManualExercise} onMove={moveExercise} />
                           </div>
                         </div>
                       </div>
