@@ -620,6 +620,13 @@ const GlobalStyle = () => (
       .topbar-logo-text { font-size: 18px; }
       .user-name { display: none; }
 
+      /* Prevent ALL horizontal overflow */
+      body, #root, .app-shell, .main-content {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+      }
+      * { box-sizing: border-box; }
+
       /* Bottom navigation bar */
       .bottom-nav {
         display: flex !important;
@@ -664,13 +671,13 @@ const GlobalStyle = () => (
       }
       /* Main content padding for bottom nav */
       .main-content {
-        padding: 20px 16px 80px;
+        padding: 16px 12px 80px;
       }
 
       /* Page header smaller */
       .page-title { font-size: 28px; }
       .page-subtitle { font-size: 12px; }
-      .page-header { margin-bottom: 16px; }
+      .page-header { margin-bottom: 16px; padding: 16px 12px 0; }
 
       /* Stats grid 2 col */
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -679,12 +686,13 @@ const GlobalStyle = () => (
 
       /* Sections */
       .section { margin-bottom: 16px; }
-      .section-body { padding: 14px; }
-      .section-header { padding: 12px 14px; }
+      .section-body { padding: 12px; }
+      .section-header { padding: 12px; }
 
-      /* Tables scroll horizontally */
-      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      table { min-width: 500px; }
+      /* Tables — scroll within wrapper only, not full page */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+      table { min-width: 0; width: 100%; }
+      th, td { padding: 8px 6px; font-size: 12px; }
 
       /* Modals full screen on mobile */
       .modal-overlay { align-items: flex-end; padding: 0; }
@@ -6950,15 +6958,15 @@ function ClientAccount({ client, sessionsLeft }) {
         <div className="bebas page-title">ACCOUNT</div>
         <div className="page-subtitle">Your profile and package details</div>
       </div>
-      <div className="two-col">
+      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:"100%"}}>
         <div className="section">
           <div className="section-header"><span className="section-title">Profile</span></div>
           <div className="section-body">
-            <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
-              <div className="user-avatar" style={{width:56,height:56,fontSize:20}}>{client.name.split(" ").map(x=>x[0]).join("")}</div>
-              <div>
-                <div style={{fontWeight:600,fontSize:16}}>{client.name}</div>
-                <div style={{color:"var(--muted)",fontSize:13}}>{client.email}</div>
+            <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+              <div className="user-avatar" style={{width:56,height:56,fontSize:20,flexShrink:0}}>{client.name.split(" ").map(x=>x[0]).join("")}</div>
+              <div style={{minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:16,wordBreak:"break-word"}}>{client.name}</div>
+                <div style={{color:"var(--muted)",fontSize:13,wordBreak:"break-all"}}>{client.email}</div>
               </div>
             </div>
             <div style={{color:"var(--muted)",fontSize:12,lineHeight:1.8}}>
