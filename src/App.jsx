@@ -2355,19 +2355,6 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                         title="Click to cycle: Active → Inactive → Former"
                         onClick={()=>cycleStatus(c)}
                       >{label}</span>
-                      {((!c.email) || c.email.endsWith(".mlfit@gmail.com")) && (
-                        <span
-                          className="badge badge-muted"
-                          style={{cursor:"pointer",userSelect:"none",fontSize:11}}
-                          title="Copy signup link"
-                          onClick={(e)=>{
-                            e.stopPropagation();
-                            const link = `${window.location.origin}?signup=${c.id}`;
-                            navigator.clipboard.writeText(link);
-                            alert(`Signup link copied for ${c.name}!\n\n${link}`);
-                          }}
-                        >🔗 Invite</span>
-                      )}
                       <span
                         className="badge"
                         style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
