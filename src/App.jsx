@@ -1820,6 +1820,21 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                       border:"1px dashed var(--border)",fontSize:10,color:"var(--muted)",
                       textAlign:"center",marginTop:2
                     }}>+ Add</div>
+                    {daySessions.length > 0 && (
+                      <div onClick={async (e)=>{
+                        e.stopPropagation();
+                        if (!confirm(`Clear all sessions on ${DAY_NAMES[d.getDay()]} ${d.getDate()}?`)) return;
+                        const dateStr = dateKey(d);
+                        const toDelete = sessions.filter(s => s.date === dateStr);
+                        const remaining = sessions.filter(s => s.date !== dateStr);
+                        for (const s of toDelete) await sbFetch(`sessions?id=eq.${encodeURIComponent(s.id)}`, "DELETE");
+                        await saveSessions(remaining);
+                      }} style={{
+                        padding:"4px 8px",borderRadius:2,cursor:"pointer",
+                        border:"1px dashed var(--red)",fontSize:10,color:"var(--red)",
+                        textAlign:"center",marginTop:2
+                      }}>🗑 Clear</div>
+                    )}
                   </div>
                 </div>
               );
@@ -1972,7 +1987,24 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   <span className="bebas" style={{fontSize:18,color:"var(--text)"}}>
                     {DAY_NAMES[selectedDate.getDay()]} {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}
                   </span>
-                  <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={()=>openAdd(selectedDate)}>+ Add Session</button>
+                  <div style={{display:"flex",gap:8}}>
+                    {sessionsForDate(selectedDate).length > 0 && (
+                      <button className="btn-secondary" style={{width:"auto",padding:"8px 14px",fontSize:12,color:"var(--red)",borderColor:"var(--red)"}}
+                        onClick={async () => {
+                          if (!confirm(`Remove all ${sessionsForDate(selectedDate).length} sessions on ${MONTH_NAMES[selectedDate.getMonth()]} ${selectedDate.getDate()}?`)) return;
+                          const dateStr = dateKey(selectedDate);
+                          const toDelete = sessions.filter(s => s.date === dateStr);
+                          const remaining = sessions.filter(s => s.date !== dateStr);
+                          // Delete from Supabase
+                          for (const s of toDelete) {
+                            await sbFetch(`sessions?id=eq.${encodeURIComponent(s.id)}`, "DELETE");
+                          }
+                          await saveSessions(remaining);
+                          setSelectedDate(null);
+                        }}>🗑 Clear Day</button>
+                    )}
+                    <button className="btn-primary" style={{width:"auto",padding:"8px 18px",fontSize:13}} onClick={()=>openAdd(selectedDate)}>+ Add Session</button>
+                  </div>
                 </div>
                 {sessionsForDate(selectedDate).length === 0
                   ? <div className="empty-state" style={{padding:"20px"}}><div className="empty-icon">🗓</div><div className="empty-text">No sessions. Click + Add Session.</div></div>
