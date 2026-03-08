@@ -4778,6 +4778,7 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder, recurrin
         setAssignedWorkouts(updated);
         return `✓ Sent "${workout.title}" to ${client.name}! They'll see it in their Blu chat.`;
       }
+      case "send_reminder": {
         const msg = params?.message || "Don't forget!";
         onReminder(msg);
         return `✓ Reminder sent!`;
