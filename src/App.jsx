@@ -1131,6 +1131,20 @@ const seedSessions = () => [
   { id:"s_2026-02-28_11", date:"2026-02-28", time:"11:00 AM", clientIds:[], notes:"" },
 ];
 
+// ─── Session count helper ─────────────────────────────────────────────────────
+// Always calculated fresh from real session data — never drifts on sign-in
+// sessionsUsed = sessions on/after packageStartDate (or all sessions if no start date)
+function calcSessionsUsed(client, sessions) {
+  const now = new Date();
+  const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const start = client.packageStartDate || null;
+  return sessions.filter(s =>
+    s.date && s.date <= todayStr &&
+    s.clientIds && s.clientIds.includes(client.id) &&
+    (!start || s.date >= start)
+  ).length;
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null); // { role:'trainer'|'client', ...data }
@@ -1214,7 +1228,6 @@ export default function App() {
       if (s && s.length > 0) setSessions(s);
       setLoaded(true);
       setDataReady(true);
-      if (c && s) await syncSessionCounts(c.length > 0 ? c : [], s.length > 0 ? s : []);
     })();
   }, []);
 
@@ -1228,7 +1241,6 @@ export default function App() {
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
       // Auto-update session counts for today's/past sessions
-      await syncSessionCounts(c && c.length > 0 ? c : [], s && s.length > 0 ? s : []);
       try {
         const rows = await sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)");
         console.log("[Login] settings rows:", rows);
@@ -1251,40 +1263,6 @@ export default function App() {
     }, 300);
   };
 
-  // Calculate sessionsUsed purely from booked past sessions + a manual offset
-  // This is always correct and never drifts on sign-in
-  const syncSessionCounts = async (currentClients, currentSessions) => {
-    const now = new Date();
-    const todayStr = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0');
-
-    // Count past+today sessions per client from actual session data
-    const tally = {};
-    currentSessions.forEach(s => {
-      if (s.date && s.date <= todayStr && s.clientIds && s.clientIds.length > 0) {
-        s.clientIds.forEach(id => { tally[id] = (tally[id] || 0) + 1; });
-      }
-    });
-
-    // For each client: sessionsUsed = sessionsOffset (manual carry-over) + counted sessions
-    const updatedClients = currentClients.map(c => {
-      const offset = c.sessionsOffset || 0;      // manually entered carry-over from old system
-      const counted = tally[c.id] || 0;
-      const newUsed = offset + counted;
-      if (newUsed === (c.sessionsUsed || 0)) return c; // no change needed
-      return { ...c, sessionsUsed: newUsed };
-    });
-
-    const changed = updatedClients.filter((c, i) => c !== currentClients[i]);
-    if (changed.length === 0) return;
-
-    for (const c of changed) {
-      await store.upsertOne("gym_clients", c);
-    }
-    setClients(updatedClients);
-    console.log(`[SyncCount] Updated sessionsUsed for ${changed.length} clients`);
-  };
 
   const saveClients = async (updated, changedRow=null) => {
     setClients(updated);
@@ -1302,7 +1280,6 @@ export default function App() {
       await store.set("gym_sessions", updated);
     }
     // Re-check counts whenever sessions change (e.g. a session booked for today)
-    await syncSessionCounts(clients, updated);
   };
 
   if (!loaded || !dataReady) return (
@@ -2161,13 +2138,13 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" });
+  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
   const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
 
   const hashPassword = async (password) => {
@@ -2198,7 +2175,6 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
       const updatedClients = clients.map(c=>c.id===modal.id?updatedClient:c);
       await saveClients(updatedClients, updatedClient);
       // Re-sync counts immediately so the display is correct after save
-      await syncSessionCounts(updatedClients, sessions);
       setModal(null);
     }
   };
@@ -2318,8 +2294,8 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                     <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
                     <td style={{textAlign:"center"}}>
                       {c.sessionsTotal > 0
-                        ? <span style={{color: (c.sessionsTotal - c.sessionsUsed) <= 3 ? "var(--red)" : (c.sessionsTotal - c.sessionsUsed) <= 5 ? "var(--accent)" : "var(--green)", fontWeight:600}}>
-                            {Math.max(0, c.sessionsTotal - c.sessionsUsed)}
+                        ? <span style={{color: (c.sessionsTotal - calcSessionsUsed(c,sessions)) <= 3 ? "var(--red)" : (c.sessionsTotal - calcSessionsUsed(c,sessions)) <= 5 ? "var(--accent)" : "var(--green)", fontWeight:600}}>
+                            {Math.max(0, c.sessionsTotal - calcSessionsUsed(c,sessions))}
                             <span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}> / {c.sessionsTotal}</span>
                           </span>
                         : <span style={{color:"var(--muted)"}}>—</span>}
@@ -2402,7 +2378,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
           .sort((a, b) => a.date < b.date ? -1 : 1);
 
         const total       = historyClient.sessionsTotal || 0;
-        const used        = historyClient.sessionsUsed  || 0;
+        const used        = calcSessionsUsed(historyClient, sessions);
         const left        = Math.max(0, total - used);
         const packageSize = total || 10;
         const startDate   = historyClient.packageStartDate || null;
@@ -2612,28 +2588,12 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   <input type="number" value={form.sessionsTotal} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
                 </div>
                 <div className="form-row">
-                  <label>Sessions From Previous System</label>
-                  <input type="number" min="0" value={form.sessionsOffset||0} onChange={e=>setForm({...form,sessionsOffset:+e.target.value})} />
-                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Sessions already used before you started tracking here (carry-over from old software).</div>
+                  <label>Sessions Used</label>
+                  <input disabled style={{opacity:0.5,cursor:"not-allowed"}} value={modal && modal !== "add" ? calcSessionsUsed(modal, sessions) : 0} readOnly />
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Auto-calculated from sessions on/after the package start date below.</div>
                 </div>
               </div>
-              {modal !== "add" && (
-                <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"10px 14px",marginBottom:12,fontSize:12}}>
-                  <span style={{color:"var(--muted)"}}>Sessions used (auto-calculated): </span>
-                  <strong style={{color:"var(--accent)"}}>
-                    {(form.sessionsOffset||0) + sessions.filter(s => {
-                      const now = new Date();
-                      const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-                      return s.date && s.date <= todayStr && s.clientIds.includes(modal.id);
-                    }).length}
-                  </strong>
-                  <span style={{color:"var(--muted)"}}> = {form.sessionsOffset||0} carry-over + {sessions.filter(s => {
-                    const now = new Date();
-                    const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-                    return s.date && s.date <= todayStr && s.clientIds.includes(modal.id);
-                  }).length} tracked here</span>
-                </div>
-              )}
+
               <div className="form-row">
                 <label>Current Package Start Date</label>
                 <input type="date" value={form.packageStartDate||""} onChange={e=>setForm({...form,packageStartDate:e.target.value})} />
@@ -4986,10 +4946,10 @@ function TrainerAnalytics({ clients, sessions }) {
     .filter(c => c.active)
     .map(c => ({
       name: c.name.split(" ")[0],
-      used: c.sessionsUsed || 0,
+      used: calcSessionsUsed(c, sessions),
       total: c.sessionsTotal || 0,
-      left: Math.max(0, (c.sessionsTotal||0) - (c.sessionsUsed||0)),
-      pct: c.sessionsTotal > 0 ? Math.round(((c.sessionsUsed||0)/c.sessionsTotal)*100) : 0
+      left: Math.max(0, (c.sessionsTotal||0) - calcSessionsUsed(c, sessions)),
+      pct: c.sessionsTotal > 0 ? Math.round((calcSessionsUsed(c, sessions)/c.sessionsTotal)*100) : 0
     }))
     .sort((a,b) => b.pct - a.pct);
 
@@ -5746,7 +5706,7 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
     const da = a.date||"", db = b.date||"";
     return da < db ? -1 : da > db ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time);
   });
-  const sessionsLeft = client ? client.sessionsTotal - client.sessionsUsed : 0;
+  const sessionsLeft = client ? Math.max(0, client.sessionsTotal - calcSessionsUsed(client, mySessions)) : 0;
   const myWorkouts = (assignedWorkouts?.[user.id] || []);
 
   if (!client) return (
@@ -6656,8 +6616,9 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
 
-  const pct = client.sessionsTotal > 0 ? Math.round((client.sessionsUsed/client.sessionsTotal)*100) : 0;
-  const left = client.sessionsTotal - client.sessionsUsed;
+  const used = calcSessionsUsed(client, mySessions);
+  const pct = client.sessionsTotal > 0 ? Math.round((used/client.sessionsTotal)*100) : 0;
+  const left = Math.max(0, client.sessionsTotal - used);
 
   return (
     <>
@@ -6669,7 +6630,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
       <div className="stats-grid">
         <StatCard label="Total Sessions" value={mySessions.length} sub="scheduled" />
         <StatCard label="Sessions Left" value={left} sub={`of ${client.sessionsTotal} purchased`} accent={left<5?"red":undefined} />
-        <StatCard label="Sessions Used" value={client.sessionsUsed} sub="completed" />
+        <StatCard label="Sessions Used" value={used} sub="completed" />
         <StatCard label="Completion" value={`${pct}%`} sub="of package used" />
       </div>
 
@@ -6678,7 +6639,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         <div className="section-body">
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13}}>
             <span style={{color:"var(--muted)"}}>Progress</span>
-            <span>{client.sessionsUsed} / {client.sessionsTotal} sessions</span>
+            <span>{used} / {client.sessionsTotal} sessions</span>
           </div>
           <div className="progress-wrap">
             <div className="progress-fill" style={{width:`${pct}%`,background:left===0?"var(--red)":left<5?"var(--accent2)":"var(--accent)"}} />
