@@ -2410,75 +2410,150 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
 
       {/* ── Booking History Modal ── */}
       {historyClient && (() => {
+        const now = new Date();
+        const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
+        // All sessions sorted oldest → newest
         const clientSessions = sessions
           .filter(s => s.date && s.clientIds.includes(historyClient.id))
-          .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
-        const today = new Date().toISOString().slice(0,10);
-        const past = clientSessions.filter(s => s.date <= today);
-        const upcoming = clientSessions.filter(s => s.date > today);
+          .sort((a, b) => a.date < b.date ? -1 : 1);
+
+        const total = historyClient.sessionsTotal || 0;
+        const used  = historyClient.sessionsUsed  || 0;
+        const left  = Math.max(0, total - used);
+
+        // Split into packages of `total` sessions each
+        // Each package = one purchased block (e.g. 10-session pack)
+        const packageSize = total || 10;
+        const packages = [];
+        for (let i = 0; i < clientSessions.length; i += packageSize) {
+          packages.push(clientSessions.slice(i, i + packageSize));
+        }
+        // If no sessions at all, still show one empty package
+        if (packages.length === 0) packages.push([]);
+
         return (
           <div className="modal-overlay" onClick={()=>setHistoryClient(null)}>
-            <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+            <div className="modal" style={{maxWidth:500}} onClick={e=>e.stopPropagation()}>
               <div className="modal-header">
-                <div className="bebas modal-title">📋 {historyClient.name} — Booking History</div>
+                <div className="bebas modal-title">📋 {historyClient.name}</div>
+                <button className="modal-close" onClick={()=>setHistoryClient(null)}>✕</button>
               </div>
-              <div className="modal-body" style={{maxHeight:"60vh",overflowY:"auto",padding:0}}>
-                {/* Summary row */}
-                <div style={{display:"flex",gap:0,borderBottom:"1px solid var(--border)"}}>
-                  {[
-                    {label:"Total Booked", value:clientSessions.length},
-                    {label:"Sessions Used", value:historyClient.sessionsUsed||0},
-                    {label:"Sessions Left", value:Math.max(0,(historyClient.sessionsTotal||0)-(historyClient.sessionsUsed||0))},
-                  ].map((s,i)=>(
-                    <div key={i} style={{flex:1,padding:"14px 16px",borderRight:i<2?"1px solid var(--border)":"none",textAlign:"center"}}>
-                      <div style={{fontSize:22,fontWeight:700,color:"var(--accent)"}}>{s.value}</div>
-                      <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>{s.label}</div>
+
+              {/* Summary bar */}
+              <div style={{display:"flex",borderBottom:"1px solid var(--border)"}}>
+                {[
+                  {label:"Package Size", value: total || "—"},
+                  {label:"Sessions Used", value: used},
+                  {label:"Sessions Left", value: left, red: left <= 3, amber: left <= 5 && left > 3},
+                ].map((s,i) => (
+                  <div key={i} style={{flex:1,padding:"14px 16px",borderRight:i<2?"1px solid var(--border)":"none",textAlign:"center"}}>
+                    <div style={{fontSize:22,fontWeight:700,color:s.red?"var(--red)":s.amber?"var(--accent)":"var(--accent)"}}>{s.value}</div>
+                    <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{maxHeight:"62vh",overflowY:"auto"}}>
+                {packages.map((pkgSessions, pkgIdx) => {
+                  const pkgNum = packages.length - pkgIdx; // newest package first
+                  const pkg = packages[packages.length - 1 - pkgIdx]; // reverse order display
+                  const pkgStart = (packages.length - 1 - pkgIdx) * packageSize;
+                  return (
+                    <div key={pkgIdx}>
+                      {/* Package header */}
+                      <div style={{
+                        padding:"10px 16px",
+                        background:"var(--panel)",
+                        borderBottom:"1px solid var(--border)",
+                        display:"flex",justifyContent:"space-between",alignItems:"center"
+                      }}>
+                        <div className="bebas" style={{fontSize:15,color:"var(--accent)",letterSpacing:1}}>
+                          Package #{pkgNum}
+                        </div>
+                        <div style={{fontSize:11,color:"var(--muted)"}}>
+                          {pkg.filter(s=>s.date<=todayStr).length} done · {pkg.filter(s=>s.date>todayStr).length} upcoming · {Math.max(0,packageSize-pkg.length)} remaining
+                        </div>
+                      </div>
+
+                      {/* Sessions in this package */}
+                      {pkg.length === 0 && (
+                        <div style={{padding:"20px 16px",color:"var(--muted)",fontSize:13,textAlign:"center"}}>No sessions yet.</div>
+                      )}
+                      {pkg.map((s, i) => {
+                        const sessionNum = pkgStart + i + 1; // global session number
+                        const withinPkg  = i + 1;            // number within this package
+                        const isPast     = s.date <= todayStr;
+                        const isToday    = s.date === todayStr;
+                        const fmtDate    = new Date(s.date + "T12:00:00").toLocaleDateString("en-CA", {weekday:"short", month:"short", day:"numeric"});
+                        return (
+                          <div key={s.id} style={{
+                            display:"flex",alignItems:"center",gap:12,
+                            padding:"11px 16px",
+                            borderBottom:"1px solid var(--border)",
+                            background: isToday ? "#3ec9c910" : "transparent",
+                          }}>
+                            {/* Session number badge */}
+                            <div style={{
+                              minWidth:44,textAlign:"center",
+                              padding:"4px 6px",borderRadius:4,
+                              background: isPast ? "var(--charcoal)" : "#3ec9c920",
+                              border: `1px solid ${isPast ? "var(--border)" : "var(--accent)"}`,
+                              flexShrink:0,
+                            }}>
+                              <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>
+                                {withinPkg}/{packageSize}
+                              </div>
+                              <div style={{fontSize:9,color:"var(--muted)",marginTop:1}}>#{sessionNum}</div>
+                            </div>
+
+                            {/* Date + time */}
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:13,fontWeight:600,color: isToday ? "var(--accent)" : isPast ? "var(--text)" : "var(--text)"}}>
+                                {fmtDate} {isToday && <span style={{fontSize:10,color:"var(--accent)",fontWeight:700,marginLeft:4}}>TODAY</span>}
+                              </div>
+                              <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>
+                                {s.time}{s.clientIds.length > 1 ? ` · Group (${s.clientIds.length})` : ""}
+                              </div>
+                            </div>
+
+                            {/* Status */}
+                            <div style={{
+                              fontSize:10,fontWeight:700,
+                              color: isToday ? "var(--accent)" : isPast ? "var(--green)" : "var(--muted)",
+                              textTransform:"uppercase",letterSpacing:0.5
+                            }}>
+                              {isToday ? "Today" : isPast ? "Done" : "Upcoming"}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Empty slots left in this package */}
+                      {packageSize > pkg.length && pkgIdx === 0 && (
+                        Array.from({length: packageSize - pkg.length}).map((_,i) => (
+                          <div key={"empty"+i} style={{
+                            display:"flex",alignItems:"center",gap:12,
+                            padding:"11px 16px",borderBottom:"1px solid var(--border)",
+                            opacity:0.35
+                          }}>
+                            <div style={{
+                              minWidth:44,textAlign:"center",padding:"4px 6px",borderRadius:4,
+                              border:"1px dashed var(--border)",flexShrink:0
+                            }}>
+                              <div style={{fontSize:14,fontWeight:700,color:"var(--border)",lineHeight:1}}>
+                                {pkg.length + i + 1}/{packageSize}
+                              </div>
+                            </div>
+                            <div style={{fontSize:12,color:"var(--border)"}}>Not yet booked</div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  ))}
-                </div>
-
-                {/* Upcoming */}
-                {upcoming.length > 0 && (
-                  <div>
-                    <div style={{padding:"10px 16px 4px",fontSize:10,fontWeight:700,letterSpacing:2,color:"var(--accent)",textTransform:"uppercase"}}>Upcoming — {upcoming.length}</div>
-                    {upcoming.map((s,i) => (
-                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:"1px solid var(--border)",background:"#3ec9c905"}}>
-                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>
-                          {i+1}
-                        </div>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.date}</div>
-                          <div style={{fontSize:11,color:"var(--muted)"}}>{s.time}{s.clientIds.length > 1 ? ` · Group (${s.clientIds.length})` : ""}</div>
-                        </div>
-                        <div style={{fontSize:10,color:"var(--accent)",fontWeight:700}}>UPCOMING</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Past */}
-                {past.length > 0 && (
-                  <div>
-                    <div style={{padding:"10px 16px 4px",fontSize:10,fontWeight:700,letterSpacing:2,color:"var(--muted)",textTransform:"uppercase"}}>Past — {past.length}</div>
-                    {[...past].reverse().map((s,i) => (
-                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:"1px solid var(--border)"}}>
-                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>
-                          {past.length - i}
-                        </div>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.date}</div>
-                          <div style={{fontSize:11,color:"var(--muted)"}}>{s.time}{s.clientIds.length > 1 ? ` · Group (${s.clientIds.length})` : ""}</div>
-                        </div>
-                        <div style={{fontSize:10,color:"var(--muted)"}}>#{past.length - i}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {clientSessions.length === 0 && (
-                  <div style={{padding:"40px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions booked yet.</div>
-                )}
+                  );
+                })}
               </div>
+
               <div className="modal-footer">
                 <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={()=>setHistoryClient(null)}>Close</button>
               </div>
