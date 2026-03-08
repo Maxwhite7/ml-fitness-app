@@ -1135,9 +1135,20 @@ export default function App() {
   const [bluFAQ, setBluFAQ] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_blu_faq") || "[]"); } catch { return []; }
   });
-  const [savedWorkouts, setSavedWorkouts] = useState(() => {
+  const [savedWorkouts, setSavedWorkoutsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
   });
+  const _swRef = useRef([]);
+  useEffect(() => { _swRef.current = savedWorkouts; }, [savedWorkouts]);
+
+  const setSavedWorkouts = (val) => {
+    const next = typeof val === "function" ? val(_swRef.current) : val;
+    setSavedWorkoutsRaw(next);
+    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(next)); } catch {}
+    sbFetch("settings?on_conflict=key", "POST", [{ key: "saved_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" })
+      .then(r => console.log("[Workouts] Supabase save:", r === null ? "FAILED" : `OK (${next.length})`));
+  };
+
   const [assignedWorkouts, setAssignedWorkoutsState] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_assigned_workouts") || "{}"); } catch { return {}; }
   });
@@ -1149,19 +1160,7 @@ export default function App() {
     await sbFetch("settings?on_conflict=key", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
 
-  // Sync savedWorkouts to Supabase + localStorage whenever it changes
-  const savedWorkoutsRef = useRef(false);
-  useEffect(() => {
-    if (!savedWorkoutsRef.current) { savedWorkoutsRef.current = true; return; } // skip initial mount
-    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(savedWorkouts)); } catch {}
-    sbFetch("settings?on_conflict=key", "POST", [{ key: "saved_workouts", value: JSON.stringify(savedWorkouts) }], { Prefer: "resolution=merge-duplicates,return=minimal" })
-      .then(r => {
-        if (r === null) console.error("[Workouts] Supabase save failed");
-        else console.log("[Workouts] Saved", savedWorkouts.length, "workouts to Supabase");
-      });
-  }, [savedWorkouts]);
-
-  // Load from Supabase on mount, Supabase wins over localStorage if it has data
+  // Load from Supabase once on mount — only overwrite if it has more workouts than localStorage
   useEffect(() => {
     sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
       if (!rows) return;
@@ -1169,11 +1168,17 @@ export default function App() {
         try {
           if (r.key === "saved_workouts") {
             const p = JSON.parse(r.value) || [];
-            console.log("[Workouts] Loaded", p.length, "workouts from Supabase");
-            if (p.length > 0) { setSavedWorkouts(p); savedWorkoutsRef.current = false; }
+            console.log("[Workouts] Supabase returned", p.length, "workouts");
+            setSavedWorkoutsRaw(prev => {
+              if (p.length >= prev.length) {
+                try { localStorage.setItem("ml_saved_workouts", JSON.stringify(p)); } catch {}
+                return p;
+              }
+              return prev;
+            });
           }
           if (r.key === "assigned_workouts") setAssignedWorkoutsState(JSON.parse(r.value) || {});
-        } catch(e) { console.error("[Workouts] Load parse error", e); }
+        } catch(e) { console.error("[Workouts] Load error", e); }
       });
     });
   }, []);
