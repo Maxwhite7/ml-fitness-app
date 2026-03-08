@@ -1136,7 +1136,11 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("ml_blu_faq") || "[]"); } catch { return []; }
   });
   const [savedWorkouts, setSavedWorkoutsRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
+    try {
+      const a = JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]");
+      const b = JSON.parse(localStorage.getItem("ml_saved_workouts_bak") || "[]");
+      return a.length >= b.length ? a : b; // use whichever backup has more
+    } catch { return []; }
   });
   const _swRef = useRef([]);
   useEffect(() => { _swRef.current = savedWorkouts; }, [savedWorkouts]);
@@ -1144,44 +1148,20 @@ export default function App() {
   const setSavedWorkouts = (val) => {
     const next = typeof val === "function" ? val(_swRef.current) : val;
     setSavedWorkoutsRaw(next);
-    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(next)); } catch {}
-    sbFetch("settings?on_conflict=key", "POST", [{ key: "saved_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" })
-      .then(r => console.log("[Workouts] Supabase save:", r === null ? "FAILED" : `OK (${next.length})`));
+    const json = JSON.stringify(next);
+    try { localStorage.setItem("ml_saved_workouts", json); } catch {}
+    try { localStorage.setItem("ml_saved_workouts_bak", json); } catch {} // backup copy
   };
 
   const [assignedWorkouts, setAssignedWorkoutsState] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_assigned_workouts") || "{}"); } catch { return {}; }
   });
 
-  const setAssignedWorkouts = async (val) => {
+  const setAssignedWorkouts = (val) => {
     const next = typeof val === "function" ? val(assignedWorkouts) : val;
     setAssignedWorkoutsState(next);
     try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(next)); } catch {}
-    await sbFetch("settings?on_conflict=key", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
-
-  // Load from Supabase once on mount — only overwrite if it has more workouts than localStorage
-  useEffect(() => {
-    sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
-      if (!rows) return;
-      rows.forEach(r => {
-        try {
-          if (r.key === "saved_workouts") {
-            const p = JSON.parse(r.value) || [];
-            console.log("[Workouts] Supabase returned", p.length, "workouts");
-            setSavedWorkoutsRaw(prev => {
-              if (p.length >= prev.length) {
-                try { localStorage.setItem("ml_saved_workouts", JSON.stringify(p)); } catch {}
-                return p;
-              }
-              return prev;
-            });
-          }
-          if (r.key === "assigned_workouts") setAssignedWorkoutsState(JSON.parse(r.value) || {});
-        } catch(e) { console.error("[Workouts] Load error", e); }
-      });
-    });
-  }, []);
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
   }, [hiddenBlocks]);
