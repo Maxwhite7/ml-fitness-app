@@ -4592,17 +4592,19 @@ function TrainerAnalytics({ clients, sessions }) {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, -1 = last week, etc.
 
   // ── helpers ──
   const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   const todayStr = dk(now);
 
-  // Current week (Mon–Sun)
+  // Selected week (Mon–Sun) based on offset
   const getMonday = (d) => { const day = d.getDay(); const diff = (day===0?-6:1-day); const m = new Date(d); m.setDate(d.getDate()+diff); m.setHours(0,0,0,0); return m; };
-  const weekStart = getMonday(now);
+  const weekStart = getMonday(new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7));
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6);
   const weekStartStr = dk(weekStart);
   const weekEndStr = dk(weekEnd);
+  const isCurrentWeek = weekOffset === 0;
 
   // All sessions with a date
   const dated = sessions.filter(s => s.date);
@@ -4680,10 +4682,20 @@ function TrainerAnalytics({ clients, sessions }) {
         <div className="page-subtitle">Session trends, capacity, and client progress</div>
       </div>
 
-      {/* ── This Week ── */}
+      {/* ── Week Selector ── */}
       <div style={{padding:"0 24px 8px"}}>
-        <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)",marginBottom:12}}>
-          This Week — {MONTHS[weekStart.getMonth()]} {weekStart.getDate()} – {MONTHS[weekEnd.getMonth()]} {weekEnd.getDate()}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <button onClick={()=>setWeekOffset(w=>w-1)} style={{background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--text)",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:14}}>‹</button>
+          <div style={{flex:1,textAlign:"center"}}>
+            <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--accent)"}}>
+              {isCurrentWeek ? "This Week" : weekOffset === -1 ? "Last Week" : weekOffset < 0 ? `${Math.abs(weekOffset)} Weeks Ago` : `${weekOffset} Week${weekOffset!==1?"s":""} Ahead`}
+            </div>
+            <div style={{fontSize:13,color:"var(--muted)",marginTop:2}}>
+              {MONTHS[weekStart.getMonth()]} {weekStart.getDate()} – {MONTHS[weekEnd.getMonth()]} {weekEnd.getDate()}, {weekEnd.getFullYear()}
+            </div>
+          </div>
+          <button onClick={()=>setWeekOffset(w=>w+1)} style={{background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--text)",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:14}}>›</button>
+          {!isCurrentWeek && <button onClick={()=>setWeekOffset(0)} style={{background:"none",border:"1px solid var(--accent)",color:"var(--accent)",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontWeight:700}}>Today</button>}
         </div>
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
           <StatCard label="Sessions" value={weekSessions.length} sub={`${weekUpcoming.length} upcoming`} />
@@ -4705,9 +4717,10 @@ function TrainerAnalytics({ clients, sessions }) {
                 const booked = daySess.reduce((a,s)=>a+s.clientIds.length,0);
                 const cap = daySess.length * MAX_GROUP_SIZE;
                 const open = daySess.reduce((a,s)=>a+Math.max(0,MAX_GROUP_SIZE-s.clientIds.length),0);
-                const isToday = dStr === todayStr;
+                  const isPast = dStr < todayStr;
+                  const isToday = dStr === todayStr;
                 return (
-                  <div key={i} style={{flex:1,background:isToday?"#3ec9c910":"var(--panel)",borderRadius:6,padding:"10px 8px",border:`1px solid ${isToday?"var(--accent)":"var(--border)"}`}}>
+                  <div key={i} style={{flex:1,background:isToday?"#3ec9c910":isPast?"#ffffff05":"var(--panel)",borderRadius:6,padding:"10px 8px",border:`1px solid ${isToday?"var(--accent)":"var(--border)"}`}}>
                     <div style={{fontSize:10,fontWeight:700,color:isToday?"var(--accent)":"var(--muted)",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{weekDayNames[i]}</div>
                     <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>{d.getDate()}</div>
                     {daySess.length===0
