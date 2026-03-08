@@ -6655,9 +6655,9 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
                     const isToday = dateKey(d) === todayStr;
                     const isPast = dateKey(d) < todayStr;
                     const dayIdx = d.getDay()===0?6:d.getDay()-1;
-                    // Cycle through vivid colors for upcoming, grey for past, teal+glow for today
-                    const bg = isPast ? "var(--charcoal)" : isToday ? "#3ec9c9" : "#3ec9c920";
-                    const textColor = isPast ? "var(--muted)" : isToday ? "#0a0a0a" : "var(--accent)";
+                    const bg = isPast ? "#1a1a1a" : isToday ? "#3ec9c9" : "#2ab8b8";
+                    const textColor = isPast ? "#444" : "#0a0a0a";
+                    const shadow = isToday ? "0 0 32px #3ec9c9aa" : isPast ? "none" : "0 4px 20px #3ec9c955";
                     return (
                       <div key={s.id} style={{
                         background: bg,
@@ -6665,8 +6665,8 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
                         padding: "18px 24px",
                         minWidth: 200,
                         flex: "1 1 200px",
-                        boxShadow: isToday ? "0 0 24px #3ec9c988" : isPast ? "none" : "0 0 0 1px #3ec9c9",
-                        opacity: isPast ? 0.5 : 1,
+                        boxShadow: shadow,
+                        opacity: isPast ? 0.4 : 1,
                         position: "relative",
                       }}>
                         {isToday && <div style={{position:"absolute",top:10,right:12,fontSize:10,fontWeight:800,letterSpacing:1,color:"#000",background:"#fff",borderRadius:20,padding:"2px 8px"}}>TODAY</div>}
