@@ -1521,6 +1521,8 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const [form, setForm] = useState({ date:"", time:"7:00 AM", clientIds:[], notes:"" });
   const [availabilities, setAvailabilities] = useState([]);
   const [showAvailOnly, setShowAvailOnly] = useState(false);
+  const [selectedSessions, setSelectedSessions] = useState([]);
+  const toggleSessionSelect = (id) => setSelectedSessions(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
 
   useEffect(() => {
     store.get("gym_availability").then(a => setAvailabilities(a||[]));
@@ -1565,10 +1567,8 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
     return d.getMonth() === viewMonth ? d : null;
   });
 
-  const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
-  const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
-
-  const openAdd = (d) => {
+  const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); setSelectedSessions([]); };
+  const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); setSelectedSessions([]); };
     setForm({ date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"" });
     setModal("add");
   };
@@ -1987,18 +1987,36 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   <span className="bebas" style={{fontSize:18,color:"var(--text)"}}>
                     {DAY_NAMES[selectedDate.getDay()]} {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}
                   </span>
-                  <div style={{display:"flex",gap:8}}>
-                    {sessionsForDate(selectedDate).length > 0 && (
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                    {selectedSessions.length > 0 && (
+                      <button className="btn-secondary" style={{width:"auto",padding:"8px 14px",fontSize:12,color:"var(--red)",borderColor:"var(--red)"}}
+                        onClick={async () => {
+                          if (!confirm(`Delete ${selectedSessions.length} selected session${selectedSessions.length>1?"s":""}?`)) return;
+                          const toDelete = sessions.filter(s => selectedSessions.includes(s.id));
+                          const remaining = sessions.filter(s => !selectedSessions.includes(s.id));
+                          for (const s of toDelete) await sbFetch(`sessions?id=eq.${encodeURIComponent(s.id)}`, "DELETE");
+                          await saveSessions(remaining);
+                          setSelectedSessions([]);
+                        }}>🗑 Delete ({selectedSessions.length})</button>
+                    )}
+                    {sessionsForDate(selectedDate).length > 1 && (
+                      <button className="btn-secondary" style={{width:"auto",padding:"8px 14px",fontSize:12}}
+                        onClick={() => {
+                          const dayIds = sessionsForDate(selectedDate).map(s=>s.id);
+                          const allSelected = dayIds.every(id => selectedSessions.includes(id));
+                          setSelectedSessions(allSelected ? selectedSessions.filter(id=>!dayIds.includes(id)) : [...new Set([...selectedSessions, ...dayIds])]);
+                        }}>
+                        {sessionsForDate(selectedDate).map(s=>s.id).every(id=>selectedSessions.includes(id)) ? "☑ Deselect All" : "☐ Select All"}
+                      </button>
+                    )}
+                    {sessionsForDate(selectedDate).length > 0 && selectedSessions.length === 0 && (
                       <button className="btn-secondary" style={{width:"auto",padding:"8px 14px",fontSize:12,color:"var(--red)",borderColor:"var(--red)"}}
                         onClick={async () => {
                           if (!confirm(`Remove all ${sessionsForDate(selectedDate).length} sessions on ${MONTH_NAMES[selectedDate.getMonth()]} ${selectedDate.getDate()}?`)) return;
                           const dateStr = dateKey(selectedDate);
                           const toDelete = sessions.filter(s => s.date === dateStr);
                           const remaining = sessions.filter(s => s.date !== dateStr);
-                          // Delete from Supabase
-                          for (const s of toDelete) {
-                            await sbFetch(`sessions?id=eq.${encodeURIComponent(s.id)}`, "DELETE");
-                          }
+                          for (const s of toDelete) await sbFetch(`sessions?id=eq.${encodeURIComponent(s.id)}`, "DELETE");
                           await saveSessions(remaining);
                           setSelectedDate(null);
                         }}>🗑 Clear Day</button>
@@ -2008,7 +2026,25 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                 </div>
                 {sessionsForDate(selectedDate).length === 0
                   ? <div className="empty-state" style={{padding:"20px"}}><div className="empty-icon">🗓</div><div className="empty-text">No sessions. Click + Add Session.</div></div>
-                  : sessionsForDate(selectedDate).map(s => <SessionCard key={s.id} s={s} onClick={()=>openEdit(s)} />)
+                  : <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {sessionsForDate(selectedDate).map(s => {
+                        const checked = selectedSessions.includes(s.id);
+                        return (
+                          <div key={s.id} style={{display:"flex",alignItems:"center",gap:10}}>
+                            <div onClick={()=>toggleSessionSelect(s.id)} style={{
+                              width:18,height:18,borderRadius:3,flexShrink:0,cursor:"pointer",
+                              border:`2px solid ${checked?"var(--red)":"var(--border)"}`,
+                              background:checked?"var(--red)":"transparent",
+                              display:"flex",alignItems:"center",justifyContent:"center",
+                              fontSize:11,color:"white",fontWeight:900,transition:"all 0.15s"
+                            }}>{checked?"✓":""}</div>
+                            <div style={{flex:1,opacity:checked?0.5:1,transition:"opacity 0.15s"}}>
+                              <SessionCard s={s} onClick={()=>{ if(selectedSessions.length>0) toggleSessionSelect(s.id); else openEdit(s); }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                 }
               </div>
             )}
