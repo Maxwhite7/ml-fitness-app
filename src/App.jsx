@@ -3852,9 +3852,14 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                 <tbody>
                   {(() => {
                     const allEx = allExercisesForGroup(activeGroup);
-                    const weekOnes = allEx.filter(e => !e.startsWith("—") && currentWeekPlan.includes(e));
-                    const rest = allEx.filter(e => e.startsWith("—") || !currentWeekPlan.includes(e));
-                    const sorted = weekOnes.length > 0 ? [...weekOnes, ...rest] : allEx;
+                    const weekOnes = allEx.filter(e => !e.startsWith("—") && currentWeekPlan.includes(e)).sort((a,b)=>a.localeCompare(b));
+                    const rest = allEx.filter(e => e.startsWith("—") || !currentWeekPlan.includes(e)).sort((a,b)=>{
+                      if (a.startsWith("—") && b.startsWith("—")) return 0;
+                      if (a.startsWith("—")) return 1;
+                      if (b.startsWith("—")) return -1;
+                      return a.localeCompare(b);
+                    });
+                    const sorted = weekOnes.length > 0 ? [...weekOnes, ...rest] : rest;
                     return sorted.map(exercise => {
                       if (exercise.startsWith("—")) return (
                         <tr key={exercise}>
