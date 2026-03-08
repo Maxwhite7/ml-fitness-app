@@ -1132,17 +1132,17 @@ const seedSessions = () => [
 ];
 
 // ─── Session count helper ─────────────────────────────────────────────────────
-// Always calculated fresh from real session data — never drifts on sign-in
-// sessionsUsed = sessions on/after packageStartDate (or all sessions if no start date)
+// sessionsUsed = sessionsOffset (carry-over) + sessions on/after packageStartDate
 function calcSessionsUsed(client, sessions) {
   const now = new Date();
   const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   const start = client.packageStartDate || null;
-  return sessions.filter(s =>
+  const tracked = sessions.filter(s =>
     s.date && s.date <= todayStr &&
     s.clientIds && s.clientIds.includes(client.id) &&
     (!start || s.date >= start)
   ).length;
+  return (client.sessionsOffset || 0) + tracked;
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -2138,13 +2138,13 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" });
+  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsUsed:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
   const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
 
   const hashPassword = async (password) => {
@@ -2581,23 +2581,31 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
               </div>
               <div className="two-col">
                 <div className="form-row">
-                  <label>Total Sessions Purchased</label>
-                  <input type="number" value={form.sessionsTotal} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
+                  <label>Package Size (Total Sessions)</label>
+                  <input type="number" min="0" value={form.sessionsTotal} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
                 </div>
                 <div className="form-row">
-                  <label>Sessions Used</label>
-                  <input disabled style={{opacity:0.5,cursor:"not-allowed"}} value={modal && modal !== "add" ? calcSessionsUsed(modal, sessions) : 0} readOnly />
-                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Auto-calculated from sessions on/after the package start date below.</div>
+                  <label>Starting Session #</label>
+                  <input type="number" min="0" value={form.sessionsOffset||0} onChange={e=>setForm({...form,sessionsOffset:+e.target.value})} />
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Sessions already done before the start date (e.g. enter 7 to start counting from 7).</div>
                 </div>
               </div>
 
               <div className="form-row">
-                <label>Current Package Start Date</label>
+                <label>Package Start Date</label>
                 <input type="date" value={form.packageStartDate||""} onChange={e=>setForm({...form,packageStartDate:e.target.value})} />
                 <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>
-                  Sessions before this date count as a previous package. Leave blank to group all sessions together.
+                  Sessions on/after this date are counted. Leave blank to count all sessions.
                 </div>
               </div>
+
+              {modal !== "add" && (
+                <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"10px 14px",fontSize:12,display:"flex",gap:16}}>
+                  <div><span style={{color:"var(--muted)"}}>Used: </span><strong style={{color:"var(--accent)"}}>{(form.sessionsOffset||0) + sessions.filter(s => { const now=new Date(); const t=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'); return s.date&&s.date<=t&&s.clientIds.includes(modal.id)&&(!form.packageStartDate||s.date>=form.packageStartDate); }).length}</strong></div>
+                  <div><span style={{color:"var(--muted)"}}>Left: </span><strong style={{color:"var(--green)"}}>{Math.max(0, (form.sessionsTotal||0) - ((form.sessionsOffset||0) + sessions.filter(s => { const now=new Date(); const t=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'); return s.date&&s.date<=t&&s.clientIds.includes(modal.id)&&(!form.packageStartDate||s.date>=form.packageStartDate); }).length))}</strong></div>
+                  <div style={{color:"var(--muted)"}}>{form.sessionsOffset||0} carry-over + {sessions.filter(s => { const now=new Date(); const t=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'); return s.date&&s.date<=t&&s.clientIds.includes(modal.id)&&(!form.packageStartDate||s.date>=form.packageStartDate); }).length} tracked</div>
+                </div>
+              )}
               {modal !== "add" && (
                 <div style={{fontSize:12,color:"var(--muted)",marginTop:8}}>
                   Email: {form.email}
