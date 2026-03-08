@@ -3340,7 +3340,11 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
   const allExercisesForGroup = (group) => {
     const base = (library || ALL_EXERCISES_DEFAULT)[group] || [];
     const custom = (customExercises[clientKey] || {})[group] || [];
-    return [...base, ...custom];
+    return [...base, ...custom].sort((a, b) => {
+      if (a.startsWith("—")) return 1;
+      if (b.startsWith("—")) return -1;
+      return a.localeCompare(b);
+    });
   };
 
   const clientProgressData = progressData[clientKey] || {};
@@ -5921,7 +5925,7 @@ Respond with ONLY this JSON format:
                 <input value={exSearch} onChange={e=>setExSearch(e.target.value)} placeholder="Search exercises..." style={{width:"100%",padding:"8px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:12,outline:"none",boxSizing:"border-box",marginBottom:10}} />
                 <div style={{maxHeight:400,overflowY:"auto"}}>
                   {Object.entries(library||{}).map(([group, exs]) => {
-                    const filtered = exs.filter(e=>!e.startsWith("—") && (!exSearch || e.toLowerCase().includes(exSearch.toLowerCase())));
+                    const filtered = exs.filter(e=>!e.startsWith("—") && (!exSearch || e.toLowerCase().includes(exSearch.toLowerCase()))).sort((a,b)=>a.localeCompare(b));
                     if (filtered.length === 0) return null;
                     return (
                       <div key={group}>
