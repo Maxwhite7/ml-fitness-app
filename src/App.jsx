@@ -4143,39 +4143,21 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
 
   useEffect(() => {
     sbFetch("exercise_library?select=*").then(async rows => {
-      if (!rows || rows.length === 0) {
-        // First ever load — seed defaults (no position column)
-        const seedRows = Object.entries(ALL_EXERCISES_DEFAULT).flatMap(([group, exs]) =>
-          exs.filter(e => !e.startsWith("—")).map((exercise) => ({ group, exercise }))
-        );
-        await sbFetch("exercise_library", "POST", seedRows, { Prefer: "return=minimal" });
-        setLibrary(ALL_EXERCISES_DEFAULT);
-        return;
+      // Always start with full defaults so the list is never empty
+      const lib = {};
+      Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, exs]) => {
+        lib[group] = [...exs];
+      });
+
+      // If DB has rows, append any custom exercises not already in defaults
+      if (rows && rows.length > 0) {
+        rows.forEach(r => {
+          if (!lib[r.group]) lib[r.group] = [];
+          const alreadyIn = lib[r.group].includes(r.exercise);
+          if (!alreadyIn) lib[r.group].push(r.exercise);
+        });
       }
 
-      // Build a set of DB exercises per group
-      const dbByGroup = {};
-      rows.forEach(r => {
-        if (!dbByGroup[r.group]) dbByGroup[r.group] = new Set();
-        dbByGroup[r.group].add(r.exercise);
-      });
-
-      // Rebuild each group: use defaults as skeleton (preserves separators + order)
-      // then append any custom exercises not in defaults
-      const lib = {};
-      Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, defaultExs]) => {
-        const dbExs = dbByGroup[group] || new Set();
-        const defaultNonSep = new Set(defaultExs.filter(e => !e.startsWith("—")));
-        // Keep default exercises still in DB, drop deleted ones
-        const kept = defaultExs.filter(e => e.startsWith("—") || dbExs.has(e));
-        // Append custom exercises (in DB but not in defaults)
-        const customs = [...dbExs].filter(e => !defaultNonSep.has(e));
-        lib[group] = [...kept, ...customs];
-      });
-      // Add any completely new groups not in defaults
-      Object.keys(dbByGroup).forEach(group => {
-        if (!lib[group]) lib[group] = [...dbByGroup[group]];
-      });
       setLibrary(lib);
     });
     sbFetch("exercise_week_plans?select=*&order=weekIdx.asc,position.asc").then(rows => {
