@@ -10,7 +10,7 @@ const BluIcon = ({ size = 20 }) => (
     <polygon points="14,26 12,10 20,23" fill="#C4856A" opacity="0.6"/>
     <polygon points="50,26 52,10 44,23" fill="#C4856A" opacity="0.6"/>
     {/* Head - warm brown */}
-    <ellipse cx="32" cy="34" rx="20" ry="19" fill="#A0673A"/>
+    <ellipse cx="32" cy="34" rx="20" ry="19" fill="#A0673A"/> 
     {/* White chest/chin patch */}
     <ellipse cx="32" cy="40" rx="12" ry="10" fill="#E8DDD0"/>
     {/* Darker brown fur marking on top of head */}
@@ -1330,6 +1330,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     { id:"exercises", icon:"🏋️", label:"Exercises" },
     { id:"analytics", icon:"📊", label:"Analytics" },
     { id:"blufaq", icon:"🐾", label:"Blu FAQ" },
+    { id:"workoutgen", icon:"⚡", label:"Workout Builder" },
   ];
 
   return (
@@ -1343,6 +1344,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
         <div style={{display:tab==="blufaq"?"":"none"}}><TrainerBluFAQ bluFAQ={bluFAQ} setBluFAQ={setBluFAQ} /></div>
+        <div style={{display:tab==="workoutgen"?"":"none"}}><WorkoutGenerator library={library} clients={clients} /></div>
       </div>
       <AIAgent clients={clients} sessions={sessions} setSessions={setSessions} library={library} onReminder={setReminder} recurringReminders={recurringReminders} setRecurringReminders={setRecurringReminders} />
       {reminder && (
@@ -5195,6 +5197,259 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ }) {
       </div>
       <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} />
     </div>
+  );
+}
+
+function WorkoutGenerator({ library, clients }) {
+  const [focus, setFocus] = useState([]);
+  const [goal, setGoal] = useState("strength");
+  const [difficulty, setDifficulty] = useState("intermediate");
+  const [numExercises, setNumExercises] = useState(6);
+  const [clientId, setClientId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [workout, setWorkout] = useState(null);
+  const [savedWorkouts, setSavedWorkouts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
+  });
+  const [viewSaved, setViewSaved] = useState(false);
+
+  const muscleGroups = Object.keys(library || {}).filter(g => !g.startsWith("—"));
+  const goals = ["Strength","Hypertrophy","Endurance","Fat Loss","Full Body","Cardio & Core"];
+  const difficulties = ["Beginner","Intermediate","Advanced"];
+
+  const toggleFocus = (g) => setFocus(prev => prev.includes(g) ? prev.filter(x=>x!==g) : [...prev, g]);
+
+  const generate = async () => {
+    if (focus.length === 0) return;
+    setLoading(true);
+    setWorkout(null);
+
+    const libraryStr = Object.entries(library || {})
+      .filter(([g]) => focus.includes(g))
+      .map(([g, exs]) => `${g}: ${exs.filter(e=>!e.startsWith("—")).join(", ")}`)
+      .join("\n");
+
+    const selectedClient = clients.find(c=>c.id===clientId);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1500,
+          system:`You are a professional personal trainer building structured workouts. Always respond ONLY with valid JSON — no markdown, no explanation, just the JSON object.`,
+          messages:[{
+            role:"user",
+            content:`Generate a ${goal.toLowerCase()} workout for ${difficulty.toLowerCase()} level with exactly ${numExercises} exercises.
+${selectedClient ? `This is for client: ${selectedClient.name}.` : ""}
+Focus muscle groups: ${focus.join(", ")}.
+
+Use ONLY exercises from this library:
+${libraryStr}
+
+Respond with ONLY this JSON format:
+{
+  "title": "Workout name",
+  "focus": "${focus.join(" & ")}",
+  "goal": "${goal}",
+  "difficulty": "${difficulty}",
+  "duration": "estimated duration e.g. 45-60 min",
+  "exercises": [
+    {
+      "exercise": "Exercise name exactly as in library",
+      "muscleGroup": "muscle group",
+      "sets": "3",
+      "reps": "8-10",
+      "rest": "60s",
+      "notes": "coaching tip"
+    }
+  ],
+  "warmup": "brief warmup suggestion",
+  "cooldown": "brief cooldown suggestion"
+}`
+          }]
+        })
+      });
+      const data = await response.json();
+      const raw = data.content?.[0]?.text || "{}";
+      const clean = raw.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(clean);
+      setWorkout({ ...parsed, clientName: selectedClient?.name || null, generatedAt: new Date().toLocaleDateString() });
+    } catch(e) {
+      setWorkout({ error: "Couldn't generate workout. Try again." });
+    }
+    setLoading(false);
+  };
+
+  const saveWorkout = () => {
+    if (!workout || workout.error) return;
+    const updated = [{ ...workout, id: Date.now() }, ...savedWorkouts];
+    setSavedWorkouts(updated);
+    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(updated)); } catch {}
+  };
+
+  const deleteSaved = (id) => {
+    const updated = savedWorkouts.filter(w=>w.id!==id);
+    setSavedWorkouts(updated);
+    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(updated)); } catch {}
+  };
+
+  const WorkoutCard = ({ w, showDelete, onDelete }) => (
+    <div style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:10,overflow:"hidden",marginBottom:16}}>
+      <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"16px 20px",borderBottom:"1px solid var(--accent)",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div>
+          <div className="bebas" style={{fontSize:22,color:"var(--accent)",letterSpacing:1}}>{w.title}</div>
+          <div style={{display:"flex",gap:12,marginTop:4,flexWrap:"wrap"}}>
+            {w.focus && <span style={{fontSize:11,color:"var(--muted)"}}>💪 {w.focus}</span>}
+            {w.goal && <span style={{fontSize:11,color:"var(--muted)"}}>🎯 {w.goal}</span>}
+            {w.difficulty && <span style={{fontSize:11,color:"var(--muted)"}}>📊 {w.difficulty}</span>}
+            {w.duration && <span style={{fontSize:11,color:"var(--muted)"}}>⏱ {w.duration}</span>}
+            {w.clientName && <span style={{fontSize:11,color:"var(--accent)"}}>👤 {w.clientName}</span>}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          {!showDelete && <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={saveWorkout}>Save ↓</button>}
+          {showDelete && <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12,color:"var(--red)",borderColor:"var(--red)"}} onClick={onDelete}>Delete</button>}
+        </div>
+      </div>
+      {w.warmup && <div style={{padding:"10px 20px",borderBottom:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>🔥 <strong>Warmup:</strong> {w.warmup}</div>}
+      <div style={{padding:"8px 0"}}>
+        {(w.exercises||[]).map((ex,idx) => (
+          <div key={idx} style={{display:"flex",alignItems:"flex-start",gap:14,padding:"12px 20px",borderBottom:idx<w.exercises.length-1?"1px solid var(--border)":"none"}}>
+            <div style={{width:30,height:30,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>{idx+1}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
+              <div style={{display:"flex",gap:16,marginTop:4,flexWrap:"wrap"}}>
+                {ex.sets && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
+                {ex.reps && <span style={{fontSize:12,color:"var(--muted)"}}>× {ex.reps} reps</span>}
+                {ex.rest && <span style={{fontSize:12,color:"var(--muted)"}}>Rest: {ex.rest}</span>}
+                <span style={{fontSize:11,color:"var(--border)",background:"var(--charcoal)",padding:"1px 8px",borderRadius:10}}>{ex.muscleGroup}</span>
+              </div>
+              {ex.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontStyle:"italic"}}>💡 {ex.notes}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {w.cooldown && <div style={{padding:"10px 20px",borderTop:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>❄️ <strong>Cooldown:</strong> {w.cooldown}</div>}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">WORKOUT BUILDER</div>
+        <div className="page-subtitle">Generate structured workouts from your exercise library</div>
+      </div>
+
+      <div style={{display:"flex",gap:16,padding:"0 0 24px",flexWrap:"wrap"}}>
+        <button className={viewSaved?"btn-secondary":"btn-primary"} style={{width:"auto",padding:"8px 20px"}} onClick={()=>setViewSaved(false)}>⚡ Generate</button>
+        <button className={viewSaved?"btn-primary":"btn-secondary"} style={{width:"auto",padding:"8px 20px"}} onClick={()=>setViewSaved(true)}>📋 Saved ({savedWorkouts.length})</button>
+      </div>
+
+      {!viewSaved ? (
+        <>
+          <div className="section">
+            <div className="section-header"><span className="section-title">Build Your Workout</span></div>
+            <div className="section-body" style={{display:"flex",flexDirection:"column",gap:20}}>
+
+              {/* Muscle group focus */}
+              <div>
+                <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:10}}>Muscle Groups (select all that apply)</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {muscleGroups.map(g => (
+                    <div key={g} onClick={()=>toggleFocus(g)} style={{
+                      padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:13,fontWeight:600,userSelect:"none",transition:"all 0.15s",
+                      background:focus.includes(g)?"var(--accent)":"var(--charcoal)",
+                      color:focus.includes(g)?"var(--black)":"var(--text)",
+                      border:`2px solid ${focus.includes(g)?"var(--accent)":"var(--border)"}`
+                    }}>{g}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:16}}>
+                {/* Goal */}
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>Goal</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {goals.map(g => (
+                      <div key={g} onClick={()=>setGoal(g)} style={{
+                        padding:"8px 14px",borderRadius:6,cursor:"pointer",fontSize:13,userSelect:"none",
+                        background:goal===g?"var(--accent)":"var(--charcoal)",
+                        color:goal===g?"var(--black)":"var(--text)",
+                        border:`1px solid ${goal===g?"var(--accent)":"var(--border)"}`
+                      }}>{g}</div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Difficulty */}
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>Difficulty</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {difficulties.map(d => (
+                      <div key={d} onClick={()=>setDifficulty(d)} style={{
+                        padding:"8px 14px",borderRadius:6,cursor:"pointer",fontSize:13,userSelect:"none",
+                        background:difficulty===d?"var(--accent)":"var(--charcoal)",
+                        color:difficulty===d?"var(--black)":"var(--text)",
+                        border:`1px solid ${difficulty===d?"var(--accent)":"var(--border)"}`
+                      }}>{d}</div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Exercises count + client */}
+                <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>Number of Exercises: {numExercises}</div>
+                    <input type="range" min={3} max={12} value={numExercises} onChange={e=>setNumExercises(Number(e.target.value))}
+                      style={{width:"100%",accentColor:"var(--accent)"}} />
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginTop:4}}><span>3</span><span>12</span></div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:8}}>For Client (optional)</div>
+                    <select value={clientId} onChange={e=>setClientId(e.target.value)}
+                      style={{width:"100%",padding:"8px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13}}>
+                      <option value="">General workout</option>
+                      {[...clients].filter(c=>c.active&&!c.former).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>(
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <button className="btn-primary" style={{width:"auto",padding:"14px 32px",fontSize:15,opacity:focus.length===0||loading?0.5:1}}
+                onClick={generate} disabled={focus.length===0||loading}>
+                {loading ? "Generating..." : focus.length===0 ? "Select at least one muscle group" : "⚡ Generate Workout"}
+              </button>
+            </div>
+          </div>
+
+          {loading && (
+            <div style={{textAlign:"center",padding:"40px",color:"var(--muted)"}}>
+              <div style={{fontSize:32,marginBottom:12}}>⚡</div>
+              <div>Building your workout...</div>
+            </div>
+          )}
+
+          {workout && !workout.error && <WorkoutCard w={workout} showDelete={false} />}
+          {workout?.error && <div style={{padding:"20px",color:"var(--red)",background:"var(--charcoal)",borderRadius:8,border:"1px solid var(--red)"}}>{workout.error}</div>}
+        </>
+      ) : (
+        <div>
+          {savedWorkouts.length === 0 ? (
+            <div style={{textAlign:"center",padding:"48px",color:"var(--muted)"}}>
+              <div style={{fontSize:32,marginBottom:12}}>📋</div>
+              No saved workouts yet — generate one and hit Save.
+            </div>
+          ) : savedWorkouts.map(w => (
+            <WorkoutCard key={w.id} w={w} showDelete={true} onDelete={()=>deleteSaved(w.id)} />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
