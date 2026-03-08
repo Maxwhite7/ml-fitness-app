@@ -1151,31 +1151,34 @@ export default function App() {
     const next = typeof val === "function" ? val(savedWorkouts) : val;
     setSavedWorkoutsState(next);
     try { localStorage.setItem("ml_saved_workouts", JSON.stringify(next)); } catch {}
-    await sbFetch("settings", "POST", [{ key: "saved_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    const result = await sbFetch("settings?on_conflict=key", "POST", [{ key: "saved_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    if (result === null) console.error("[Workouts] Failed to save saved_workouts to Supabase");
+    else console.log("[Workouts] saved_workouts saved OK, count:", next.length);
   };
 
   const setAssignedWorkouts = async (val) => {
     const next = typeof val === "function" ? val(assignedWorkouts) : val;
     setAssignedWorkoutsState(next);
     try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(next)); } catch {}
-    await sbFetch("settings", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    const result = await sbFetch("settings?on_conflict=key", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+    if (result === null) console.error("[Workouts] Failed to save assigned_workouts to Supabase");
   };
 
   // Load saved/assigned workouts from Supabase on mount, fall back to localStorage
   useEffect(() => {
     sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
+      console.log("[Workouts] Loaded from Supabase:", rows);
       if (!rows) return;
       rows.forEach(r => {
         try {
-          if (r.key === "saved_workouts") setSavedWorkoutsState(JSON.parse(r.value) || []);
+          if (r.key === "saved_workouts") { const p = JSON.parse(r.value)||[]; console.log("[Workouts] Restoring", p.length, "saved workouts"); setSavedWorkoutsState(p); }
           if (r.key === "assigned_workouts") setAssignedWorkoutsState(JSON.parse(r.value) || {});
-        } catch {}
+        } catch(e) { console.error("[Workouts] Parse error", e); }
       });
     });
-    // Also seed from localStorage while Supabase loads
     try {
       const ls = localStorage.getItem("ml_saved_workouts");
-      if (ls) setSavedWorkoutsState(JSON.parse(ls));
+      if (ls) { const p = JSON.parse(ls); console.log("[Workouts] localStorage seed:", p.length); setSavedWorkoutsState(p); }
       const la = localStorage.getItem("ml_assigned_workouts");
       if (la) setAssignedWorkoutsState(JSON.parse(la));
     } catch {}
