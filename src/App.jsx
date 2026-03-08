@@ -1139,7 +1139,7 @@ export default function App() {
     try {
       const a = JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]");
       const b = JSON.parse(localStorage.getItem("ml_saved_workouts_bak") || "[]");
-      return a.length >= b.length ? a : b; // use whichever backup has more
+      return a.length >= b.length ? a : b;
     } catch { return []; }
   });
   const _swRef = useRef([]);
@@ -1150,8 +1150,32 @@ export default function App() {
     setSavedWorkoutsRaw(next);
     const json = JSON.stringify(next);
     try { localStorage.setItem("ml_saved_workouts", json); } catch {}
-    try { localStorage.setItem("ml_saved_workouts_bak", json); } catch {} // backup copy
+    try { localStorage.setItem("ml_saved_workouts_bak", json); } catch {}
+    // Save to Supabase using same pattern as activeWeekIdx
+    sbFetch("settings", "POST", [{ key: "saved_workouts", value: json }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
+
+  // Load from Supabase on mount — only replace if Supabase has data
+  useEffect(() => {
+    sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
+      if (!rows) return;
+      rows.forEach(r => {
+        try {
+          if (r.key === "saved_workouts") {
+            const p = JSON.parse(r.value) || [];
+            if (p.length > 0) {
+              setSavedWorkoutsRaw(prev => p.length >= prev.length ? p : prev);
+              try { localStorage.setItem("ml_saved_workouts", JSON.stringify(p)); } catch {}
+            }
+          }
+          if (r.key === "assigned_workouts") {
+            const p = JSON.parse(r.value) || {};
+            if (Object.keys(p).length > 0) setAssignedWorkoutsState(p);
+          }
+        } catch {}
+      });
+    });
+  }, []);
 
   const [assignedWorkouts, setAssignedWorkoutsState] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_assigned_workouts") || "{}"); } catch { return {}; }
@@ -1161,6 +1185,7 @@ export default function App() {
     const next = typeof val === "function" ? val(assignedWorkouts) : val;
     setAssignedWorkoutsState(next);
     try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(next)); } catch {}
+    sbFetch("settings", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
