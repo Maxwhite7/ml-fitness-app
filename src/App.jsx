@@ -6633,7 +6633,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         <div className="page-subtitle">Your sessions, {client.name.split(" ")[0]}</div>
       </div>
 
-      {/* ── This Week — big bold session list ── */}
+      {/* ── This Week — horizontal colorful cards ── */}
       {(() => {
         const now = new Date();
         const todayStr = dateKey(now);
@@ -6641,7 +6641,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         const monday = new Date(now); monday.setDate(now.getDate() - ((dow+6)%7));
         const weekDays = Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
         const DAY_NAMES = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
-        const MONTH_NAMES = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+        const MONTH_NAMES = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const weekSessions = weekDays.flatMap(d =>
           sessionsForDate(d).map(s => ({ s, d }))
         );
@@ -6650,26 +6650,37 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
             <div className="section-header"><span className="section-title bebas" style={{fontSize:16,letterSpacing:1}}>THIS WEEK</span></div>
             {weekSessions.length === 0
               ? <div style={{padding:"24px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions scheduled this week.</div>
-              : weekSessions.map(({s, d}, i) => {
-                  const isToday = dateKey(d) === todayStr;
-                  const isPast = dateKey(d) < todayStr;
-                  return (
-                    <div key={s.id} style={{
-                      padding:"20px 24px",
-                      borderBottom:"1px solid var(--border)",
-                      background: isToday ? "#3ec9c910" : "transparent",
-                      opacity: isPast ? 0.45 : 1,
-                    }}>
-                      <div className="bebas" style={{fontSize:32,lineHeight:1,color:isToday?"var(--accent)":"var(--text)",letterSpacing:2}}>
-                        {DAY_NAMES[d.getDay()===0?6:d.getDay()-1]} {MONTH_NAMES[d.getMonth()]} {d.getDate()}
+              : <div style={{display:"flex",gap:12,padding:"16px",overflowX:"auto",flexWrap:"wrap"}}>
+                  {weekSessions.map(({s, d}, i) => {
+                    const isToday = dateKey(d) === todayStr;
+                    const isPast = dateKey(d) < todayStr;
+                    const dayIdx = d.getDay()===0?6:d.getDay()-1;
+                    // Cycle through vivid colors for upcoming, grey for past, teal+glow for today
+                    const colors = ["#3ec9c9","#a78bfa","#f472b6","#fb923c","#34d399","#60a5fa","#facc15"];
+                    const bg = isPast ? "var(--charcoal)" : isToday ? "#3ec9c9" : colors[dayIdx % colors.length];
+                    const textColor = isPast ? "var(--muted)" : "var(--black)";
+                    return (
+                      <div key={s.id} style={{
+                        background: bg,
+                        borderRadius: 12,
+                        padding: "18px 24px",
+                        minWidth: 200,
+                        flex: "1 1 200px",
+                        boxShadow: isToday ? "0 0 24px #3ec9c988" : isPast ? "none" : "0 4px 16px rgba(0,0,0,0.3)",
+                        opacity: isPast ? 0.5 : 1,
+                        position: "relative",
+                      }}>
+                        {isToday && <div style={{position:"absolute",top:10,right:12,fontSize:10,fontWeight:800,letterSpacing:1,color:"#000",background:"#fff",borderRadius:20,padding:"2px 8px"}}>TODAY</div>}
+                        <div className="bebas" style={{fontSize:13,letterSpacing:2,color:textColor,opacity:0.75,marginBottom:4}}>
+                          {DAY_NAMES[dayIdx]} · {MONTH_NAMES[d.getMonth()]} {d.getDate()}
+                        </div>
+                        <div className="bebas" style={{fontSize:36,lineHeight:1,color:textColor,letterSpacing:1}}>
+                          {s.time}
+                        </div>
                       </div>
-                      <div className="bebas" style={{fontSize:22,color:isToday?"var(--accent)":"var(--muted)",letterSpacing:2,marginTop:4}}>
-                        {s.time}
-                      </div>
-                      {isToday && <div style={{fontSize:11,color:"var(--accent)",fontWeight:700,letterSpacing:1,marginTop:6,textTransform:"uppercase"}}>Today</div>}
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
             }
           </div>
         );
