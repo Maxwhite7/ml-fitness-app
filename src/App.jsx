@@ -2208,8 +2208,26 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                       </div>
                     </td>
                     <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
-                    <td></td>
-                    <td></td>
+                    <td style={{textAlign:"center"}}>
+                      {c.sessionsTotal > 0
+                        ? <span style={{color: (c.sessionsTotal - c.sessionsUsed) <= 3 ? "var(--red)" : (c.sessionsTotal - c.sessionsUsed) <= 5 ? "var(--accent)" : "var(--green)", fontWeight:600}}>
+                            {Math.max(0, c.sessionsTotal - c.sessionsUsed)}
+                            <span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}> / {c.sessionsTotal}</span>
+                          </span>
+                        : <span style={{color:"var(--muted)"}}>—</span>}
+                    </td>
+                    <td style={{textAlign:"center"}}>
+                      {(() => {
+                        const today = new Date();
+                        const mon = new Date(today); mon.setDate(today.getDate() - (today.getDay()===0?6:today.getDay()-1)); mon.setHours(0,0,0,0);
+                        const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+                        const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                        const count = sessions.filter(s => s.clientIds.includes(c.id) && s.date >= fmt(mon) && s.date <= fmt(sun)).length;
+                        return count > 0
+                          ? <span style={{color:"var(--accent)",fontWeight:600}}>{count}</span>
+                          : <span style={{color:"var(--border)"}}>0</span>;
+                      })()}
+                    </td>
                     <td onClick={e=>e.stopPropagation()} style={{display:"flex",gap:8,alignItems:"center"}}>
                       <span
                         className={`badge ${cls}`}
