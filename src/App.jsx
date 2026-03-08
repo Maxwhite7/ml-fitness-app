@@ -2059,6 +2059,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsUsed:0, active:true });
   const [newCredentials, setNewCredentials] = useState(null);
+  const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
@@ -2253,6 +2254,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                         style={{cursor:"pointer",userSelect:"none",fontSize:11,background:"#3ec9c915",color:"var(--accent)",border:"1px solid var(--accent)"}}
                         onClick={e=>{e.stopPropagation(); onPreviewClient(c);}}
                       >👁 View Account</span>
+                      <span
+                        className="badge badge-muted"
+                        style={{cursor:"pointer",userSelect:"none",fontSize:11}}
+                        onClick={e=>{e.stopPropagation(); setHistoryClient(c);}}
+                      >📋 History</span>
                     </td>
                   </tr>
                   </Fragment>
@@ -2277,6 +2283,85 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
           </div>
         </div>
       </div>
+
+      {/* ── Booking History Modal ── */}
+      {historyClient && (() => {
+        const clientSessions = sessions
+          .filter(s => s.date && s.clientIds.includes(historyClient.id))
+          .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+        const today = new Date().toISOString().slice(0,10);
+        const past = clientSessions.filter(s => s.date <= today);
+        const upcoming = clientSessions.filter(s => s.date > today);
+        return (
+          <div className="modal-overlay" onClick={()=>setHistoryClient(null)}>
+            <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="bebas modal-title">📋 {historyClient.name} — Booking History</div>
+              </div>
+              <div className="modal-body" style={{maxHeight:"60vh",overflowY:"auto",padding:0}}>
+                {/* Summary row */}
+                <div style={{display:"flex",gap:0,borderBottom:"1px solid var(--border)"}}>
+                  {[
+                    {label:"Total Booked", value:clientSessions.length},
+                    {label:"Sessions Used", value:historyClient.sessionsUsed||0},
+                    {label:"Sessions Left", value:Math.max(0,(historyClient.sessionsTotal||0)-(historyClient.sessionsUsed||0))},
+                  ].map((s,i)=>(
+                    <div key={i} style={{flex:1,padding:"14px 16px",borderRight:i<2?"1px solid var(--border)":"none",textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:700,color:"var(--accent)"}}>{s.value}</div>
+                      <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Upcoming */}
+                {upcoming.length > 0 && (
+                  <div>
+                    <div style={{padding:"10px 16px 4px",fontSize:10,fontWeight:700,letterSpacing:2,color:"var(--accent)",textTransform:"uppercase"}}>Upcoming — {upcoming.length}</div>
+                    {upcoming.map((s,i) => (
+                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:"1px solid var(--border)",background:"#3ec9c905"}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>
+                          {i+1}
+                        </div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.date}</div>
+                          <div style={{fontSize:11,color:"var(--muted)"}}>{s.time}{s.clientIds.length > 1 ? ` · Group (${s.clientIds.length})` : ""}</div>
+                        </div>
+                        <div style={{fontSize:10,color:"var(--accent)",fontWeight:700}}>UPCOMING</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Past */}
+                {past.length > 0 && (
+                  <div>
+                    <div style={{padding:"10px 16px 4px",fontSize:10,fontWeight:700,letterSpacing:2,color:"var(--muted)",textTransform:"uppercase"}}>Past — {past.length}</div>
+                    {[...past].reverse().map((s,i) => (
+                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:"1px solid var(--border)"}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--charcoal)",border:"1px solid var(--border)",color:"var(--muted)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>
+                          {past.length - i}
+                        </div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{s.date}</div>
+                          <div style={{fontSize:11,color:"var(--muted)"}}>{s.time}{s.clientIds.length > 1 ? ` · Group (${s.clientIds.length})` : ""}</div>
+                        </div>
+                        <div style={{fontSize:10,color:"var(--muted)"}}>#{past.length - i}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {clientSessions.length === 0 && (
+                  <div style={{padding:"40px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions booked yet.</div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn-primary" style={{width:"auto",padding:"10px 24px"}} onClick={()=>setHistoryClient(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {newCredentials && (
         <div className="modal-overlay">
