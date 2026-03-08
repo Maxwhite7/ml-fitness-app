@@ -5235,12 +5235,13 @@ function WorkoutGenerator({ library, clients, savedWorkouts, setSavedWorkouts })
   const [workout, setWorkout] = useState(null);
   const [viewSaved, setViewSaved] = useState(false);
 
-  // Manual mode state
-  const [manualTitle, setManualTitle] = useState("");
-  const [manualGoal, setManualGoal] = useState("Strength");
-  const [manualDifficulty, setManualDifficulty] = useState("Intermediate");
-  const [manualClientId, setManualClientId] = useState("");
-  const [manualExercises, setManualExercises] = useState([]); // [{exercise, muscleGroup, sets, reps, rest, notes}]
+  // Manual mode state — restore draft from localStorage
+  const [manualTitle, setManualTitle] = useState(() => { try { return JSON.parse(localStorage.getItem("ml_workout_draft")||"{}").title||""; } catch { return ""; }});
+  const [manualGoal, setManualGoal] = useState(() => { try { return JSON.parse(localStorage.getItem("ml_workout_draft")||"{}").goal||"Strength"; } catch { return "Strength"; }});
+  const [manualDifficulty, setManualDifficulty] = useState(() => { try { return JSON.parse(localStorage.getItem("ml_workout_draft")||"{}").difficulty||"Intermediate"; } catch { return "Intermediate"; }});
+  const [manualClientId, setManualClientId] = useState(() => { try { return JSON.parse(localStorage.getItem("ml_workout_draft")||"{}").clientId||""; } catch { return ""; }});
+  const [manualExercises, setManualExercises] = useState(() => { try { return JSON.parse(localStorage.getItem("ml_workout_draft")||"{}").exercises||[]; } catch { return []; }});
+  const [hasDraft] = useState(() => { try { const d = JSON.parse(localStorage.getItem("ml_workout_draft")||"{}"); return !!(d.title||d.exercises?.length); } catch { return false; }});
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [exSearch, setExSearch] = useState("");
   const [supersetPending, setSupersetPending] = useState(null);
@@ -5388,8 +5389,24 @@ Respond with ONLY this JSON format:
       generatedAt: new Date().toLocaleDateString()
     };
     setSavedWorkouts([w, ...savedWorkouts]);
+    try { localStorage.removeItem("ml_workout_draft"); } catch {}
     setManualTitle(""); setManualExercises([]); setManualClientId("");
     setViewSaved(true);
+  };
+
+  const saveDraft = () => {
+    try {
+      localStorage.setItem("ml_workout_draft", JSON.stringify({
+        title: manualTitle, goal: manualGoal, difficulty: manualDifficulty,
+        clientId: manualClientId, exercises: manualExercises
+      }));
+    } catch {}
+  };
+
+  const clearDraft = () => {
+    try { localStorage.removeItem("ml_workout_draft"); } catch {}
+    setManualTitle(""); setManualGoal("Strength"); setManualDifficulty("Intermediate");
+    setManualClientId(""); setManualExercises([]); setSupersetPending(null);
   };
 
   const WorkoutCard = ({ w, showDelete, onDelete }) => (
@@ -5537,6 +5554,12 @@ Respond with ONLY this JSON format:
         </>
       ) : !viewSaved && mode === "manual" ? (
         <>
+          {hasDraft && (manualTitle || manualExercises.length > 0) && (
+            <div style={{background:"#3ec9c915",border:"1px solid var(--accent)",borderRadius:8,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,color:"var(--accent)"}}>📝 Draft restored — <strong>{manualTitle||"Untitled"}</strong> · {manualExercises.length} exercise{manualExercises.length!==1?"s":""}</span>
+              <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11,color:"var(--red)",borderColor:"var(--red)"}} onClick={clearDraft}>Discard</button>
+            </div>
+          )}
           <div className="section">
             <div className="section-header"><span className="section-title">Workout Details</span></div>
             <div className="section-body" style={{display:"flex",flexDirection:"column",gap:16}}>
@@ -5708,10 +5731,20 @@ Respond with ONLY this JSON format:
             </div>
           </div>
 
-          <button className="btn-primary" style={{width:"auto",padding:"14px 32px",fontSize:15,marginBottom:24,opacity:(!manualTitle.trim()||manualExercises.length===0)?0.5:1}}
-            onClick={saveManual} disabled={!manualTitle.trim()||manualExercises.length===0}>
-            💾 Save Workout ({manualExercises.length} exercises)
-          </button>
+          <div style={{display:"flex",gap:10,marginBottom:24,flexWrap:"wrap",alignItems:"center"}}>
+            <button className="btn-primary" style={{width:"auto",padding:"14px 32px",fontSize:15,opacity:(!manualTitle.trim()||manualExercises.length===0)?0.5:1}}
+              onClick={saveManual} disabled={!manualTitle.trim()||manualExercises.length===0}>
+              💾 Save Workout ({manualExercises.length} exercises)
+            </button>
+            <button className="btn-secondary" style={{width:"auto",padding:"14px 20px",fontSize:14}} onClick={saveDraft}>
+              📝 Save Draft
+            </button>
+            {(manualTitle || manualExercises.length > 0) && (
+              <button className="btn-secondary" style={{width:"auto",padding:"14px 20px",fontSize:14,color:"var(--red)",borderColor:"var(--red)"}} onClick={clearDraft}>
+                Clear
+              </button>
+            )}
+          </div>
         </>
       ) : (
         <div>
