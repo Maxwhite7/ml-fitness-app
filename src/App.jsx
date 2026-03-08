@@ -775,7 +775,14 @@ const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
     const text = await res.text();
     if (!text) return [];
     const data = JSON.parse(text);
-    if (data && data.code) { console.error("Supabase error:", data.message); return null; }
+    if (data && data.code) {
+      console.error(`Supabase error [${method} ${path}]:`, data.code, data.message, data.hint || "");
+      return null;
+    }
+    if (!res.ok) {
+      console.error(`Supabase HTTP ${res.status} [${method} ${path}]:`, text);
+      return null;
+    }
     return data;
   } catch(e) {
     console.error("sbFetch error:", e);
