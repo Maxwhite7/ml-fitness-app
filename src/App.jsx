@@ -1205,20 +1205,16 @@ export default function App() {
 
   const [dataReady, setDataReady] = useState(false);
 
-  const loadData = async (onlyIfData=false) => {
-    let c = await store.get("gym_clients");
-    let s = await store.get("gym_sessions");
-    // Only update state if we actually got data back
-    if (c && c.length > 0) setClients(c);
-    if (s && s.length > 0) setSessions(s);
-  };
-
   // Load on mount (for returning users with existing JWT)
   useEffect(() => {
     (async () => {
-      await loadData();
+      let c = await store.get("gym_clients");
+      let s = await store.get("gym_sessions");
+      if (c && c.length > 0) setClients(c);
+      if (s && s.length > 0) setSessions(s);
       setLoaded(true);
       setDataReady(true);
+      if (c && s) await autoUpdateSessionCounts(c.length > 0 ? c : [], s.length > 0 ? s : []);
     })();
   }, []);
 
@@ -1231,7 +1227,8 @@ export default function App() {
       let s = await store.get("gym_sessions");
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
-      // Re-fetch workouts with valid JWT — await so dataReady waits
+      // Auto-update session counts for today's/past sessions
+      await autoUpdateSessionCounts(c && c.length > 0 ? c : [], s && s.length > 0 ? s : []);
       try {
         const rows = await sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)");
         console.log("[Login] settings rows:", rows);
@@ -1254,6 +1251,46 @@ export default function App() {
     }, 300);
   };
 
+  const autoUpdateSessionCounts = async (currentClients, currentSessions) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    // Track which session IDs have already been counted so we never double-count
+    let counted = [];
+    try { counted = JSON.parse(localStorage.getItem("ml_counted_sessions") || "[]"); } catch {}
+
+    // Find sessions on or before today that have at least 1 client and haven't been counted
+    const toCount = currentSessions.filter(s =>
+      s.date && s.date <= todayStr &&
+      s.clientIds && s.clientIds.length > 0 &&
+      !counted.includes(s.id)
+    );
+    if (toCount.length === 0) return;
+
+    // Tally how many new sessions each client has
+    const tally = {};
+    toCount.forEach(s => {
+      s.clientIds.forEach(id => { tally[id] = (tally[id] || 0) + 1; });
+    });
+
+    // Update sessionsUsed for affected clients
+    let updatedClients = currentClients.map(c => {
+      if (!tally[c.id]) return c;
+      return { ...c, sessionsUsed: (c.sessionsUsed || 0) + tally[c.id] };
+    });
+
+    // Save each changed client
+    const changed = updatedClients.filter(c => tally[c.id]);
+    for (const c of changed) {
+      await store.upsertOne("gym_clients", c);
+    }
+    setClients(updatedClients);
+
+    // Mark these sessions as counted
+    const newCounted = [...new Set([...counted, ...toCount.map(s => s.id)])];
+    try { localStorage.setItem("ml_counted_sessions", JSON.stringify(newCounted)); } catch {}
+
+    console.log(`[AutoCount] Counted ${toCount.length} sessions for ${changed.length} clients`);
+  };
+
   const saveClients = async (updated, changedRow=null) => {
     setClients(updated);
     if (changedRow) {
@@ -1269,6 +1306,8 @@ export default function App() {
     } else {
       await store.set("gym_sessions", updated);
     }
+    // Re-check counts whenever sessions change (e.g. a session booked for today)
+    await autoUpdateSessionCounts(clients, updated);
   };
 
   if (!loaded || !dataReady) return (
