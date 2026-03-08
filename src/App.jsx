@@ -5285,6 +5285,19 @@ function WorkoutGenerator({ library, clients, savedWorkouts, setSavedWorkouts })
   const [loading, setLoading] = useState(false);
   const [workout, setWorkout] = useState(null);
   const [viewSaved, setViewSaved] = useState(false);
+  const [editingWorkoutId, setEditingWorkoutId] = useState(null);
+
+  const loadForEdit = (w) => {
+    setManualTitle(w.title || "");
+    setManualGoal(w.goal || "Strength");
+    setManualDifficulty(w.difficulty || "Intermediate");
+    setManualClientId(clients.find(c => c.name === w.clientName)?.id || "");
+    setManualExercises((w.exercises || []).map(e => ({ ...e, supersetId: e.supersetId || null })));
+    setEditingWorkoutId(w.id);
+    setSupersetPending(null);
+    setMode("manual");
+    setViewSaved(false);
+  };
 
   // Manual mode state — restore draft from localStorage
   const [manualTitle, setManualTitle] = useState(() => { try { return JSON.parse(localStorage.getItem("ml_workout_draft")||"{}").title||""; } catch { return ""; }});
@@ -5441,9 +5454,14 @@ Respond with ONLY this JSON format:
       clientName: selectedClient?.name || null,
       generatedAt: new Date().toLocaleDateString()
     };
-    setSavedWorkouts([w, ...savedWorkouts]);
+    setSavedWorkouts(prev => {
+      const w2 = { ...w, id: editingWorkoutId || w.id };
+      if (editingWorkoutId) return prev.map(x => x.id === editingWorkoutId ? w2 : x);
+      return [w2, ...prev];
+    });
     try { localStorage.removeItem("ml_workout_draft"); } catch {}
     setManualTitle(""); setManualExercises([]); setManualClientId("");
+    setEditingWorkoutId(null);
     setViewSaved(true);
   };
 
@@ -5459,10 +5477,10 @@ Respond with ONLY this JSON format:
   const clearDraft = () => {
     try { localStorage.removeItem("ml_workout_draft"); } catch {}
     setManualTitle(""); setManualGoal("Strength"); setManualDifficulty("Intermediate");
-    setManualClientId(""); setManualExercises([]); setSupersetPending(null);
+    setManualClientId(""); setManualExercises([]); setSupersetPending(null); setEditingWorkoutId(null);
   };
 
-  const WorkoutCard = ({ w, showDelete, onDelete }) => (
+  const WorkoutCard = ({ w, showDelete, onDelete, onEdit }) => (
     <div style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:10,overflow:"hidden",marginBottom:16}}>
       <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"16px 20px",borderBottom:"1px solid var(--accent)",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <div>
@@ -5475,8 +5493,9 @@ Respond with ONLY this JSON format:
             {w.clientName && <span style={{fontSize:11,color:"var(--accent)"}}>👤 {w.clientName}</span>}
           </div>
         </div>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
           {!showDelete && <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={saveWorkout}>Save ↓</button>}
+          {showDelete && onEdit && <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>onEdit(w)}>✏️ Edit</button>}
           {showDelete && <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12,color:"var(--red)",borderColor:"var(--red)"}} onClick={onDelete}>Delete</button>}
         </div>
       </div>
@@ -5607,7 +5626,13 @@ Respond with ONLY this JSON format:
         </>
       ) : !viewSaved && mode === "manual" ? (
         <>
-          {hasDraft && (manualTitle || manualExercises.length > 0) && (
+          {editingWorkoutId && (
+            <div style={{background:"#3ec9c915",border:"1px solid var(--accent)",borderRadius:8,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,color:"var(--accent)"}}>✏️ Editing <strong>{manualTitle||"workout"}</strong> — changes will overwrite the saved version</span>
+              <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11}} onClick={()=>{setEditingWorkoutId(null);setManualTitle("");setManualExercises([]);setManualClientId("");}}>Cancel</button>
+            </div>
+          )}
+          {hasDraft && !editingWorkoutId && (manualTitle || manualExercises.length > 0) && (
             <div style={{background:"#3ec9c915",border:"1px solid var(--accent)",borderRadius:8,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:13,color:"var(--accent)"}}>📝 Draft restored — <strong>{manualTitle||"Untitled"}</strong> · {manualExercises.length} exercise{manualExercises.length!==1?"s":""}</span>
               <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11,color:"var(--red)",borderColor:"var(--red)"}} onClick={clearDraft}>Discard</button>
@@ -5763,7 +5788,7 @@ Respond with ONLY this JSON format:
           <div style={{display:"flex",gap:10,marginBottom:24,flexWrap:"wrap",alignItems:"center"}}>
             <button className="btn-primary" style={{width:"auto",padding:"14px 32px",fontSize:15,opacity:(!manualTitle.trim()||manualExercises.length===0)?0.5:1}}
               onClick={saveManual} disabled={!manualTitle.trim()||manualExercises.length===0}>
-              💾 Save Workout ({manualExercises.length} exercises)
+              💾 {editingWorkoutId ? "Update Workout" : `Save Workout (${manualExercises.length} exercises)`}
             </button>
             <button className="btn-secondary" style={{width:"auto",padding:"14px 20px",fontSize:14}} onClick={saveDraft}>
               📝 Save Draft
@@ -5783,7 +5808,7 @@ Respond with ONLY this JSON format:
               No saved workouts yet — generate one and hit Save.
             </div>
           ) : savedWorkouts.map(w => (
-            <WorkoutCard key={w.id} w={w} showDelete={true} onDelete={()=>deleteSaved(w.id)} />
+            <WorkoutCard key={w.id} w={w} showDelete={true} onDelete={()=>deleteSaved(w.id)} onEdit={loadForEdit} />
           ))}
         </div>
       )}
