@@ -5742,7 +5742,7 @@ Respond with ONLY this JSON format:
                 {manualExercises.length > 0 && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11}} onClick={()=>{setManualExercises([]);setSupersetPending(null);}}>Clear all</button>}
               </div>
               {supersetPending && (
-                <div style={{background:"#f59e0b18",border:"1px solid #f59e0b",borderRadius:6,margin:"0 8px 8px",padding:"8px 12px",fontSize:12,color:"#f59e0b",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{background:"#3ec9c918",border:"1px solid var(--accent)",borderRadius:6,margin:"0 8px 8px",padding:"8px 12px",fontSize:12,color:"var(--accent)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span>⚡ Pick an exercise from the library to superset with <strong>{supersetPending}</strong></span>
                   <span onClick={()=>setSupersetPending(null)} style={{cursor:"pointer",fontSize:16,marginLeft:8}}>✕</span>
                 </div>
@@ -5773,11 +5773,11 @@ Respond with ONLY this JSON format:
                     if (row.type === "solo") {
                       const isLast = ri === rendered.length - 1;
                       return (
-                        <div key={row.ex.exercise} style={{background:"var(--charcoal)",border:`1px solid ${supersetPending===row.ex.exercise?"#f59e0b":"var(--border)"}`,borderRadius:8,marginBottom:8,overflow:"hidden"}}>
+                        <div key={row.ex.exercise} style={{background:"var(--charcoal)",border:`1px solid ${supersetPending===row.ex.exercise?"var(--accent)":"var(--border)"}`,borderRadius:8,marginBottom:8,overflow:"hidden"}}>
                           <ExRow ex={row.ex} idx={row.idx} showMoveUp={ri>0} showMoveDown={!isLast} onUpdate={updateManualExercise} onRemove={removeManualExercise} onMove={moveExercise} />
                           <div style={{borderTop:"1px solid var(--border)",padding:"6px 12px",display:"flex",alignItems:"center",gap:8}}>
                             <button onClick={()=>setSupersetPending(supersetPending===row.ex.exercise?null:row.ex.exercise)}
-                              style={{background:supersetPending===row.ex.exercise?"#f59e0b":"transparent",border:`1px solid ${supersetPending===row.ex.exercise?"#f59e0b":"var(--border)"}`,color:supersetPending===row.ex.exercise?"var(--black)":"var(--muted)",borderRadius:4,padding:"3px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>
+                              style={{background:supersetPending===row.ex.exercise?"var(--accent)":"transparent",border:`1px solid ${supersetPending===row.ex.exercise?"var(--accent)":"var(--border)"}`,color:supersetPending===row.ex.exercise?"var(--black)":"var(--muted)",borderRadius:4,padding:"3px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>
                               ⚡ Superset
                             </button>
                             <span style={{fontSize:10,color:"var(--muted)"}}>pair with another exercise</span>
@@ -5788,22 +5788,22 @@ Respond with ONLY this JSON format:
                     // Superset card — split in 2
                     const isLast = ri === rendered.length - 1;
                     return (
-                      <div key={row.supersetId} style={{border:"1px solid #f59e0b",borderRadius:8,marginBottom:8,overflow:"hidden",background:"var(--charcoal)"}}>
-                        <div style={{background:"#f59e0b22",padding:"4px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span style={{fontSize:10,fontWeight:700,color:"#f59e0b",letterSpacing:1.5}}>⚡ SUPERSET</span>
+                      <div key={row.supersetId} style={{border:"1px solid var(--accent)",borderRadius:8,marginBottom:8,overflow:"hidden",background:"var(--charcoal)"}}>
+                        <div style={{background:"#3ec9c922",padding:"4px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ SUPERSET</span>
                           <button onClick={()=>unlinkSuperset(row.supersetId)}
-                            style={{background:"transparent",border:"1px solid #f59e0b44",color:"#f59e0b",borderRadius:4,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>
+                            style={{background:"transparent",border:"1px solid var(--accent2)",color:"var(--accent)",borderRadius:4,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>
                             Unlink
                           </button>
                         </div>
                         <div style={{display:"flex",gap:0}}>
-                          <div style={{flex:1,borderRight:"2px solid #f59e0b44"}}>
+                          <div style={{flex:1,borderRight:"2px solid var(--accent2)"}}>
                             <ExRow ex={row.a} idx={row.aIdx} showMoveUp={ri>0} showMoveDown={false} onUpdate={updateManualExercise} onRemove={removeManualExercise} onMove={moveExercise} />
                           </div>
-                          <div style={{width:20,display:"flex",alignItems:"center",justifyContent:"center",background:"#f59e0b11",flexShrink:0}}>
-                            <span style={{fontSize:12,color:"#f59e0b",fontWeight:700}}>⚡</span>
+                          <div style={{width:20,display:"flex",alignItems:"center",justifyContent:"center",background:"#3ec9c911",flexShrink:0}}>
+                            <span style={{fontSize:12,color:"var(--accent)",fontWeight:700}}>⚡</span>
                           </div>
-                          <div style={{flex:1,borderLeft:"2px solid #f59e0b44"}}>
+                          <div style={{flex:1,borderLeft:"2px solid var(--accent2)"}}>
                             <ExRow ex={row.b} idx={row.bIdx} showMoveUp={false} showMoveDown={!isLast} onUpdate={updateManualExercise} onRemove={removeManualExercise} onMove={moveExercise} />
                           </div>
                         </div>
