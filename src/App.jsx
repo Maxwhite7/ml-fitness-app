@@ -6644,7 +6644,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         const MONTH_NAMES = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
         const weekSessions = weekDays.flatMap(d =>
           sessionsForDate(d).map(s => ({ s, d }))
-        );
+        ).filter(({d}) => dateKey(d) >= todayStr);
         return (
           <div className="section" style={{marginBottom:16}}>
             <div className="section-header"><span className="section-title bebas" style={{fontSize:16,letterSpacing:1}}>THIS WEEK</span></div>
