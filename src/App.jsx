@@ -5225,14 +5225,24 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
 }
 
 function WorkoutGenerator({ library, clients, savedWorkouts, setSavedWorkouts }) {
+  const [mode, setMode] = useState("ai"); // "ai" | "manual"
   const [focus, setFocus] = useState([]);
-  const [goal, setGoal] = useState("strength");
-  const [difficulty, setDifficulty] = useState("intermediate");
+  const [goal, setGoal] = useState("Strength");
+  const [difficulty, setDifficulty] = useState("Intermediate");
   const [numExercises, setNumExercises] = useState(6);
   const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(false);
   const [workout, setWorkout] = useState(null);
   const [viewSaved, setViewSaved] = useState(false);
+
+  // Manual mode state
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualGoal, setManualGoal] = useState("Strength");
+  const [manualDifficulty, setManualDifficulty] = useState("Intermediate");
+  const [manualClientId, setManualClientId] = useState("");
+  const [manualExercises, setManualExercises] = useState([]); // [{exercise, muscleGroup, sets, reps, rest, notes}]
+  const [expandedGroup, setExpandedGroup] = useState(null);
+  const [exSearch, setExSearch] = useState("");
 
   const muscleGroups = Object.keys(library || {}).filter(g => !g.startsWith("—"));
   const goals = ["Strength","Hypertrophy","Endurance","Fat Loss","Full Body","Cardio & Core"];
@@ -5312,6 +5322,39 @@ Respond with ONLY this JSON format:
     setSavedWorkouts(savedWorkouts.filter(w=>w.id!==id));
   };
 
+  // Manual mode helpers
+  const addManualExercise = (exercise, muscleGroup) => {
+    if (manualExercises.find(e=>e.exercise===exercise)) return;
+    setManualExercises(prev => [...prev, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes:"" }]);
+  };
+  const removeManualExercise = (exercise) => setManualExercises(prev => prev.filter(e=>e.exercise!==exercise));
+  const updateManualExercise = (exercise, field, value) => setManualExercises(prev => prev.map(e=>e.exercise===exercise?{...e,[field]:value}:e));
+  const moveExercise = (idx, dir) => {
+    const arr = [...manualExercises];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= arr.length) return;
+    [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
+    setManualExercises(arr);
+  };
+  const saveManual = () => {
+    if (!manualTitle.trim() || manualExercises.length === 0) return;
+    const selectedClient = clients.find(c=>c.id===manualClientId);
+    const w = {
+      id: Date.now(),
+      title: manualTitle.trim(),
+      focus: [...new Set(manualExercises.map(e=>e.muscleGroup))].join(", "),
+      goal: manualGoal,
+      difficulty: manualDifficulty,
+      duration: `${manualExercises.length * 5}-${manualExercises.length * 8} min`,
+      exercises: manualExercises,
+      clientName: selectedClient?.name || null,
+      generatedAt: new Date().toLocaleDateString()
+    };
+    setSavedWorkouts([w, ...savedWorkouts]);
+    setManualTitle(""); setManualExercises([]); setManualClientId("");
+    setViewSaved(true);
+  };
+
   const WorkoutCard = ({ w, showDelete, onDelete }) => (
     <div style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:10,overflow:"hidden",marginBottom:16}}>
       <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"16px 20px",borderBottom:"1px solid var(--accent)",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -5356,15 +5399,16 @@ Respond with ONLY this JSON format:
     <>
       <div className="page-header">
         <div className="bebas page-title">WORKOUT BUILDER</div>
-        <div className="page-subtitle">Generate structured workouts from your exercise library</div>
+        <div className="page-subtitle">Generate with AI or build manually from your exercise library</div>
       </div>
 
-      <div style={{display:"flex",gap:16,padding:"0 0 24px",flexWrap:"wrap"}}>
-        <button className={viewSaved?"btn-secondary":"btn-primary"} style={{width:"auto",padding:"8px 20px"}} onClick={()=>setViewSaved(false)}>⚡ Generate</button>
+      <div style={{display:"flex",gap:8,padding:"0 0 20px",flexWrap:"wrap"}}>
+        <button className={mode==="ai"&&!viewSaved?"btn-primary":"btn-secondary"} style={{width:"auto",padding:"8px 20px"}} onClick={()=>{setMode("ai");setViewSaved(false);}}>⚡ AI Generate</button>
+        <button className={mode==="manual"&&!viewSaved?"btn-primary":"btn-secondary"} style={{width:"auto",padding:"8px 20px"}} onClick={()=>{setMode("manual");setViewSaved(false);}}>✏️ Manual Build</button>
         <button className={viewSaved?"btn-primary":"btn-secondary"} style={{width:"auto",padding:"8px 20px"}} onClick={()=>setViewSaved(true)}>📋 Saved ({savedWorkouts.length})</button>
       </div>
 
-      {!viewSaved ? (
+      {!viewSaved && mode === "ai" ? (
         <>
           <div className="section">
             <div className="section-header"><span className="section-title">Build Your Workout</span></div>
@@ -5453,6 +5497,118 @@ Respond with ONLY this JSON format:
 
           {workout && !workout.error && <WorkoutCard w={workout} showDelete={false} />}
           {workout?.error && <div style={{padding:"20px",color:"var(--red)",background:"var(--charcoal)",borderRadius:8,border:"1px solid var(--red)"}}>{workout.error}</div>}
+        </>
+      ) : !viewSaved && mode === "manual" ? (
+        <>
+          <div className="section">
+            <div className="section-header"><span className="section-title">Workout Details</span></div>
+            <div className="section-body" style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:16}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:6}}>Workout Name</div>
+                  <input value={manualTitle} onChange={e=>setManualTitle(e.target.value)} placeholder="e.g. Push Day A" style={{width:"100%",padding:"10px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13,outline:"none",boxSizing:"border-box"}} />
+                </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:6}}>Goal</div>
+                  <select value={manualGoal} onChange={e=>setManualGoal(e.target.value)} style={{width:"100%",padding:"10px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13}}>
+                    {["Strength","Hypertrophy","Endurance","Fat Loss","Full Body","Cardio & Core"].map(g=><option key={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:6}}>Difficulty</div>
+                  <select value={manualDifficulty} onChange={e=>setManualDifficulty(e.target.value)} style={{width:"100%",padding:"10px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13}}>
+                    {["Beginner","Intermediate","Advanced"].map(d=><option key={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",marginBottom:6}}>For Client (optional)</div>
+                  <select value={manualClientId} onChange={e=>setManualClientId(e.target.value)} style={{width:"100%",padding:"10px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:13}}>
+                    <option value="">General workout</option>
+                    {[...clients].filter(c=>c.active&&!c.former).sort((a,b)=>a.name.localeCompare(b.name)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            {/* Exercise picker */}
+            <div className="section">
+              <div className="section-header"><span className="section-title">Exercise Library</span></div>
+              <div className="section-body" style={{padding:"12px"}}>
+                <input value={exSearch} onChange={e=>setExSearch(e.target.value)} placeholder="Search exercises..." style={{width:"100%",padding:"8px 12px",background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:12,outline:"none",boxSizing:"border-box",marginBottom:10}} />
+                <div style={{maxHeight:400,overflowY:"auto"}}>
+                  {Object.entries(library||{}).map(([group, exs]) => {
+                    const filtered = exs.filter(e=>!e.startsWith("—") && (!exSearch || e.toLowerCase().includes(exSearch.toLowerCase())));
+                    if (filtered.length === 0) return null;
+                    return (
+                      <div key={group}>
+                        <div onClick={()=>setExpandedGroup(expandedGroup===group?null:group)} style={{padding:"6px 10px",fontSize:11,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,cursor:"pointer",userSelect:"none",display:"flex",justifyContent:"space-between"}}>
+                          <span>{group}</span><span>{expandedGroup===group||exSearch?"▲":"▼"}</span>
+                        </div>
+                        {(expandedGroup===group||exSearch) && filtered.map(ex => {
+                          const added = manualExercises.find(e=>e.exercise===ex);
+                          return (
+                            <div key={ex} onClick={()=>added?removeManualExercise(ex):addManualExercise(ex,group)} style={{
+                              padding:"7px 12px",fontSize:12,cursor:"pointer",userSelect:"none",
+                              background:added?"#3ec9c920":"transparent",
+                              color:added?"var(--accent)":"var(--text)",
+                              borderLeft:added?"3px solid var(--accent)":"3px solid transparent",
+                              transition:"all 0.1s"
+                            }}>
+                              {added?"✓ ":""}{ex}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Selected exercises */}
+            <div className="section">
+              <div className="section-header">
+                <span className="section-title">Selected ({manualExercises.length})</span>
+                {manualExercises.length > 0 && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11}} onClick={()=>setManualExercises([])}>Clear all</button>}
+              </div>
+              <div className="section-body" style={{padding:"8px",maxHeight:460,overflowY:"auto"}}>
+                {manualExercises.length === 0 ? (
+                  <div style={{textAlign:"center",padding:"32px 16px",color:"var(--muted)",fontSize:12}}>Click exercises on the left to add them</div>
+                ) : manualExercises.map((ex,idx) => (
+                  <div key={ex.exercise} style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--text)",flex:1}}>{ex.exercise}</div>
+                      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                        <div onClick={()=>moveExercise(idx,-1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:14,padding:"0 4px",userSelect:"none"}}>↑</div>
+                        <div onClick={()=>moveExercise(idx,1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:14,padding:"0 4px",userSelect:"none"}}>↓</div>
+                        <div onClick={()=>removeManualExercise(ex.exercise)} style={{cursor:"pointer",color:"var(--red)",fontSize:13,padding:"0 4px",userSelect:"none"}}>✕</div>
+                      </div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                      {[["sets","Sets"],["reps","Reps"],["rest","Rest"]].map(([field,label])=>(
+                        <div key={field}>
+                          <div style={{fontSize:9,color:"var(--muted)",marginBottom:2,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+                          <input value={ex[field]} onChange={e=>updateManualExercise(ex.exercise,field,e.target.value)}
+                            style={{width:"100%",padding:"5px 7px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:12,outline:"none",boxSizing:"border-box"}} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{marginTop:6}}>
+                      <input value={ex.notes} onChange={e=>updateManualExercise(ex.exercise,"notes",e.target.value)} placeholder="Coaching note (optional)"
+                        style={{width:"100%",padding:"5px 7px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button className="btn-primary" style={{width:"auto",padding:"14px 32px",fontSize:15,marginBottom:24,opacity:(!manualTitle.trim()||manualExercises.length===0)?0.5:1}}
+            onClick={saveManual} disabled={!manualTitle.trim()||manualExercises.length===0}>
+            💾 Save Workout ({manualExercises.length} exercises)
+          </button>
         </>
       ) : (
         <div>
