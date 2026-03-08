@@ -6675,13 +6675,6 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         );
       })()}
 
-      <div className="stats-grid">
-        <StatCard label="Total Sessions" value={mySessions.length} sub="scheduled" />
-        <StatCard label="Sessions Left" value={left} sub={`of ${client.sessionsTotal} purchased`} accent={left<5?"red":undefined} />
-        <StatCard label="Sessions Used" value={used} sub="completed" />
-        <StatCard label="Completion" value={`${pct}%`} sub="of package used" />
-      </div>
-
       <div className="section" style={{marginBottom:16}}>
         <div className="section-header"><span className="section-title">Session Package</span></div>
         <div className="section-body">
