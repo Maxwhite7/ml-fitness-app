@@ -1144,44 +1144,47 @@ export default function App() {
   const [bluFAQ, setBluFAQ] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_blu_faq") || "[]"); } catch { return []; }
   });
-  const [savedWorkouts, setSavedWorkoutsState] = useState([]);
-  const [assignedWorkouts, setAssignedWorkoutsState] = useState({});
-
-  const setSavedWorkouts = async (val) => {
-    const next = typeof val === "function" ? val(savedWorkouts) : val;
-    setSavedWorkoutsState(next);
-    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(next)); } catch {}
-    const result = await sbFetch("settings?on_conflict=key", "POST", [{ key: "saved_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
-    if (result === null) console.error("[Workouts] Failed to save saved_workouts to Supabase");
-    else console.log("[Workouts] saved_workouts saved OK, count:", next.length);
-  };
+  const [savedWorkouts, setSavedWorkouts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
+  });
+  const [assignedWorkouts, setAssignedWorkoutsState] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_assigned_workouts") || "{}"); } catch { return {}; }
+  });
 
   const setAssignedWorkouts = async (val) => {
     const next = typeof val === "function" ? val(assignedWorkouts) : val;
     setAssignedWorkoutsState(next);
     try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(next)); } catch {}
-    const result = await sbFetch("settings?on_conflict=key", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
-    if (result === null) console.error("[Workouts] Failed to save assigned_workouts to Supabase");
+    await sbFetch("settings?on_conflict=key", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
 
-  // Load saved/assigned workouts from Supabase on mount, fall back to localStorage
+  // Sync savedWorkouts to Supabase + localStorage whenever it changes
+  const savedWorkoutsRef = useRef(false);
+  useEffect(() => {
+    if (!savedWorkoutsRef.current) { savedWorkoutsRef.current = true; return; } // skip initial mount
+    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(savedWorkouts)); } catch {}
+    sbFetch("settings?on_conflict=key", "POST", [{ key: "saved_workouts", value: JSON.stringify(savedWorkouts) }], { Prefer: "resolution=merge-duplicates,return=minimal" })
+      .then(r => {
+        if (r === null) console.error("[Workouts] Supabase save failed");
+        else console.log("[Workouts] Saved", savedWorkouts.length, "workouts to Supabase");
+      });
+  }, [savedWorkouts]);
+
+  // Load from Supabase on mount, Supabase wins over localStorage if it has data
   useEffect(() => {
     sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
-      console.log("[Workouts] Loaded from Supabase:", rows);
       if (!rows) return;
       rows.forEach(r => {
         try {
-          if (r.key === "saved_workouts") { const p = JSON.parse(r.value)||[]; console.log("[Workouts] Restoring", p.length, "saved workouts"); setSavedWorkoutsState(p); }
+          if (r.key === "saved_workouts") {
+            const p = JSON.parse(r.value) || [];
+            console.log("[Workouts] Loaded", p.length, "workouts from Supabase");
+            if (p.length > 0) { setSavedWorkouts(p); savedWorkoutsRef.current = false; }
+          }
           if (r.key === "assigned_workouts") setAssignedWorkoutsState(JSON.parse(r.value) || {});
-        } catch(e) { console.error("[Workouts] Parse error", e); }
+        } catch(e) { console.error("[Workouts] Load parse error", e); }
       });
     });
-    try {
-      const ls = localStorage.getItem("ml_saved_workouts");
-      if (ls) { const p = JSON.parse(ls); console.log("[Workouts] localStorage seed:", p.length); setSavedWorkoutsState(p); }
-      const la = localStorage.getItem("ml_assigned_workouts");
-      if (la) setAssignedWorkoutsState(JSON.parse(la));
-    } catch {}
   }, []);
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
