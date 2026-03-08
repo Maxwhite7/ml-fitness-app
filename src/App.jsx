@@ -1135,18 +1135,48 @@ export default function App() {
   const [bluFAQ, setBluFAQ] = useState(() => {
     try { return JSON.parse(localStorage.getItem("ml_blu_faq") || "[]"); } catch { return []; }
   });
-  const [savedWorkouts, setSavedWorkouts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ml_saved_workouts") || "[]"); } catch { return []; }
-  });
-  const [assignedWorkouts, setAssignedWorkouts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ml_assigned_workouts") || "{}"); } catch { return {}; }
-  });
-  useEffect(() => { try { localStorage.setItem("ml_blu_faq", JSON.stringify(bluFAQ)); } catch {} }, [bluFAQ]);
-  useEffect(() => { try { localStorage.setItem("ml_saved_workouts", JSON.stringify(savedWorkouts)); } catch {} }, [savedWorkouts]);
-  useEffect(() => { try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(assignedWorkouts)); } catch {} }, [assignedWorkouts]);
+  const [savedWorkouts, setSavedWorkoutsState] = useState([]);
+  const [assignedWorkouts, setAssignedWorkoutsState] = useState({});
+
+  const setSavedWorkouts = async (val) => {
+    const next = typeof val === "function" ? val(savedWorkouts) : val;
+    setSavedWorkoutsState(next);
+    try { localStorage.setItem("ml_saved_workouts", JSON.stringify(next)); } catch {}
+    await sbFetch("settings", "POST", [{ key: "saved_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+  };
+
+  const setAssignedWorkouts = async (val) => {
+    const next = typeof val === "function" ? val(assignedWorkouts) : val;
+    setAssignedWorkoutsState(next);
+    try { localStorage.setItem("ml_assigned_workouts", JSON.stringify(next)); } catch {}
+    await sbFetch("settings", "POST", [{ key: "assigned_workouts", value: JSON.stringify(next) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+  };
+
+  // Load saved/assigned workouts from Supabase on mount, fall back to localStorage
+  useEffect(() => {
+    sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
+      if (!rows) return;
+      rows.forEach(r => {
+        try {
+          if (r.key === "saved_workouts") setSavedWorkoutsState(JSON.parse(r.value) || []);
+          if (r.key === "assigned_workouts") setAssignedWorkoutsState(JSON.parse(r.value) || {});
+        } catch {}
+      });
+    });
+    // Also seed from localStorage while Supabase loads
+    try {
+      const ls = localStorage.getItem("ml_saved_workouts");
+      if (ls) setSavedWorkoutsState(JSON.parse(ls));
+      const la = localStorage.getItem("ml_assigned_workouts");
+      if (la) setAssignedWorkoutsState(JSON.parse(la));
+    } catch {}
+  }, []);
   useEffect(() => {
     try { localStorage.setItem("ml_hidden_blocks", JSON.stringify(hiddenBlocks)); } catch {}
   }, [hiddenBlocks]);
+  useEffect(() => {
+    try { localStorage.setItem("ml_blu_faq", JSON.stringify(bluFAQ)); } catch {}
+  }, [bluFAQ]);
 
   const [dataReady, setDataReady] = useState(false);
 
