@@ -4134,24 +4134,44 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
   const dragOverItem = useRef(null);
 
   useEffect(() => {
-    // Load from Supabase
     sbFetch("exercise_library?select=*&order=position.asc").then(async rows => {
       if (rows && rows.length > 0) {
-        // Build library purely from DB — do NOT merge defaults so deletions persist
+        // Build library from DB in position order — separators and exercises interleaved correctly
         const merged = {};
-        // Preserve separator headers from defaults (lines starting with "—")
-        Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, exs]) => {
-          merged[group] = exs.filter(e => e.startsWith("—"));
-        });
         rows.forEach(r => {
           if (!merged[r.group]) merged[r.group] = [];
           if (!merged[r.group].includes(r.exercise)) merged[r.group].push(r.exercise);
         });
+        // Add any groups from defaults that have no DB rows yet (edge case)
+        Object.keys(ALL_EXERCISES_DEFAULT).forEach(group => {
+          if (!merged[group]) merged[group] = ALL_EXERCISES_DEFAULT[group];
+        });
+        // Migration: if a group is missing separators, re-seed that group with full order
+        const needsMigration = Object.entries(ALL_EXERCISES_DEFAULT).some(([group, exs]) =>
+          exs.some(e => e.startsWith("—") && !(merged[group]||[]).includes(e))
+        );
+        if (needsMigration) {
+          const customByGroup = {};
+          rows.forEach(r => {
+            if (!customByGroup[r.group]) customByGroup[r.group] = [];
+            if (!r.exercise.startsWith("—")) customByGroup[r.group].push(r.exercise);
+          });
+          const migratedLib = {};
+          for (const [group, defaultExs] of Object.entries(ALL_EXERCISES_DEFAULT)) {
+            const customs = (customByGroup[group]||[]).filter(e => !defaultExs.includes(e));
+            migratedLib[group] = [...defaultExs, ...customs];
+            await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}`, "DELETE");
+            const migrRows = migratedLib[group].map((ex, i) => ({ group, exercise: ex, position: i }));
+            await sbFetch("exercise_library", "POST", migrRows, { Prefer: "return=minimal" });
+          }
+          setLibrary(migratedLib);
+          return;
+        }
         setLibrary(merged);
       } else {
-        // Seed defaults into Supabase so future adds/deletions persist correctly
+        // Seed defaults into Supabase including separators so full order persists
         const seedRows = Object.entries(ALL_EXERCISES_DEFAULT).flatMap(([group, exs]) =>
-          exs.filter(e => !e.startsWith("—")).map((exercise, i) => ({ group, exercise, position: i }))
+          exs.map((exercise, i) => ({ group, exercise, position: i }))
         );
         await sbFetch("exercise_library", "POST", seedRows, { Prefer: "return=minimal" });
       }
@@ -4208,7 +4228,10 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
     setLibrary(updated);
     const updatedPlans = weekPlans.map(plan => plan.filter(e => e !== exercise));
     setWeekPlans(updatedPlans);
-    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}&exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
+    // Rewrite full group so positions stay correct
+    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}`, "DELETE");
+    const rows = updated[group].map((ex, i) => ({ group, exercise: ex, position: i }));
+    if (rows.length > 0) await sbFetch("exercise_library", "POST", rows, { Prefer: "return=minimal" });
     await sbFetch(`exercise_week_plans?exercise=eq.${encodeURIComponent(exercise)}`, "DELETE");
   };
 
@@ -4216,12 +4239,10 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
     if (!newExName.trim()) return;
     const name = newExName.trim();
     const groupExs = [...(library[newExGroup] || [])];
-    let insertIdx = groupExs.length; // default: append at end
+    let insertIdx = groupExs.length;
     if (newExSubGroup) {
-      // Find the subdivision header and insert after all exercises already in that section
       const headerIdx = groupExs.indexOf(newExSubGroup);
       if (headerIdx !== -1) {
-        // Find the end of this section (next header or end of array)
         let endIdx = groupExs.findIndex((e, i) => i > headerIdx && e.startsWith("—"));
         insertIdx = endIdx === -1 ? groupExs.length : endIdx;
       }
@@ -4229,9 +4250,9 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
     groupExs.splice(insertIdx, 0, name);
     const updated = { ...library, [newExGroup]: groupExs };
     setLibrary(updated);
-    // Persist full reordered group
+    // Persist full group including separators so order is fully restored on reload
     await sbFetch(`exercise_library?group=eq.${encodeURIComponent(newExGroup)}`, "DELETE");
-    const rows = groupExs.filter(e => !e.startsWith("—")).map((exercise, i) => ({ group: newExGroup, exercise, position: i }));
+    const rows = groupExs.map((exercise, i) => ({ group: newExGroup, exercise, position: i }));
     if (rows.length > 0) await sbFetch("exercise_library", "POST", rows, { Prefer: "return=minimal" });
     setNewExName("");
   };
