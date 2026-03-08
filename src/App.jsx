@@ -1252,12 +1252,27 @@ export default function App() {
   };
 
   const autoUpdateSessionCounts = async (currentClients, currentSessions) => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    // Use LOCAL date (not UTC) to avoid timezone issues counting future sessions
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0');
+
     // Track which session IDs have already been counted so we never double-count
     let counted = [];
     try { counted = JSON.parse(localStorage.getItem("ml_counted_sessions") || "[]"); } catch {}
 
-    // Find sessions on or before today that have at least 1 client and haven't been counted
+    // Remove any future sessions that were incorrectly added to counted list
+    const validCounted = counted.filter(id => {
+      const s = currentSessions.find(x => x.id === id);
+      return !s || s.date <= todayStr; // keep if session is today/past or not found
+    });
+    if (validCounted.length !== counted.length) {
+      try { localStorage.setItem("ml_counted_sessions", JSON.stringify(validCounted)); } catch {}
+      counted = validCounted;
+    }
+
+    // Only count sessions on or before TODAY (local date) with clients assigned
     const toCount = currentSessions.filter(s =>
       s.date && s.date <= todayStr &&
       s.clientIds && s.clientIds.length > 0 &&
