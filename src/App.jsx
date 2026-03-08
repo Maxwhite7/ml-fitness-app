@@ -1362,7 +1362,7 @@ export default function App() {
               <button onClick={()=>setPreviewClient(null)} style={{
                 background:"var(--black)",color:"var(--accent)",border:"none",
                 padding:"4px 14px",borderRadius:2,cursor:"pointer",fontWeight:700,fontSize:12
-              }}>← Back to Trainer View</button>
+              }}>&laquo; Back to Trainer View</button>
             </div>
             <div style={{marginTop:40}}>
               <ClientApp user={{role:"client",...previewClient}} clients={clients} sessions={sessions} saveClients={saveClients} onLogout={()=>setPreviewClient(null)} bluFAQ={bluFAQ} assignedWorkouts={assignedWorkouts} />
@@ -2413,7 +2413,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         const now = new Date();
         const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 
-        // All sessions sorted oldest → newest
+        // All sessions sorted oldest to newest
         const allClientSessions = sessions
           .filter(s => s.date && s.clientIds.includes(historyClient.id))
           .sort((a, b) => a.date < b.date ? -1 : 1);
@@ -2567,7 +2567,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         const now = new Date();
         const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 
-        // All sessions sorted oldest → newest
+        // All sessions sorted oldest to newest
         const clientSessions = sessions
           .filter(s => s.date && s.clientIds.includes(historyClient.id))
           .sort((a, b) => a.date < b.date ? -1 : 1);
@@ -4265,13 +4265,13 @@ function TrainerProgress({ clients, sessions, weekPlans, currentWeekIdx, library
                     {currentExerciseIdx > 0 && (
                       <div onClick={()=>setCurrentExerciseIdx(i=>i-1)}
                         style={{padding:"8px 16px",borderRadius:4,cursor:"pointer",background:"var(--panel)",border:"1px solid var(--border)",color:"var(--text)",fontSize:13}}>
-                        ← Prev
+                        &larr; Prev
                       </div>
                     )}
                     {currentExerciseIdx < currentWeekPlan.length - 1 ? (
                       <div onClick={()=>setCurrentExerciseIdx(i=>i+1)}
                         style={{padding:"8px 20px",borderRadius:4,cursor:"pointer",background:"var(--accent)",color:"var(--black)",fontSize:13,fontWeight:700}}>
-                        Next →
+                        Next &rarr;
                       </div>
                     ) : (
                       <div onClick={()=>setCurrentExerciseIdx(null)}
