@@ -810,7 +810,9 @@ const store = {
         return rows.map(r => ({
           ...r,
           clientIds: Array.isArray(r.clientIds) ? r.clientIds : 
-            (typeof r.clientIds === "string" ? JSON.parse(r.clientIds) : [])
+            (typeof r.clientIds === "string" ? JSON.parse(r.clientIds) : []),
+          exceptions: Array.isArray(r.exceptions) ? r.exceptions :
+            (typeof r.exceptions === "string" && r.exceptions ? JSON.parse(r.exceptions) : [])
         }));
       }
       return rows;
@@ -1140,7 +1142,8 @@ function calcSessionsUsed(client, sessions) {
   const tracked = sessions.filter(s =>
     s.date && s.date <= todayStr &&
     s.clientIds && s.clientIds.includes(client.id) &&
-    (!start || s.date >= start)
+    (!start || s.date >= start) &&
+    !(s.exceptions && s.exceptions.includes(client.id))  // free session — don't count
   ).length;
   return (client.sessionsOffset || 0) + tracked;
 }
@@ -1582,10 +1585,19 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); setSelectedSessions([]); };
 
   const openAdd = (d) => {
-    setForm({ date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"" });
+    setForm({ date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"", exceptions:[] });
     setModal("add");
   };
-  const openEdit = (s) => { setForm({...s}); setModal(s); };
+  const openEdit = (s) => { setForm({...s, exceptions: s.exceptions||[]}); setModal(s); };
+
+  const toggleException = (id) => {
+    setForm(f => ({
+      ...f,
+      exceptions: (f.exceptions||[]).includes(id)
+        ? f.exceptions.filter(x=>x!==id)
+        : [...(f.exceptions||[]), id]
+    }));
+  };
 
   const save = async () => {
     if (modal === "add") {
@@ -2122,6 +2134,30 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                 <label>Notes</label>
                 <textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="e.g. Upper body focus" />
               </div>
+              {form.clientIds.length > 0 && (
+                <div className="form-row">
+                  <label>Free Sessions (not counted toward package)</label>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                    {form.clientIds.map(id => {
+                      const c = clients.find(x=>x.id===id);
+                      if (!c) return null;
+                      const isFree = (form.exceptions||[]).includes(id);
+                      return (
+                        <div key={id} onClick={()=>toggleException(id)} style={{
+                          display:"flex",alignItems:"center",gap:6,
+                          padding:"5px 12px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",
+                          background: isFree ? "#f472b620" : "var(--charcoal)",
+                          border: `1px solid ${isFree ? "#f472b6" : "var(--border)"}`,
+                          color: isFree ? "#f472b6" : "var(--muted)",
+                        }}>
+                          {isFree ? "🎁" : "○"} {c.name.split(" ")[0]}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Click a name to mark their session as free — it won't count toward their package.</div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Delete</button>}
@@ -2395,9 +2431,10 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         }
         if (packages.length === 0) packages.push([]);
 
-        const SessionRow = ({ s, withinPkg, packageSize, globalNum, isLegacy }) => {
+        const SessionRow = ({ s, withinPkg, packageSize, globalNum, isLegacy, clientId }) => {
           const isPast  = s.date <= todayStr;
           const isToday = s.date === todayStr;
+          const isFree  = clientId && s.exceptions && s.exceptions.includes(clientId);
           const fmtDate = new Date(s.date + "T12:00:00").toLocaleDateString("en-CA", {weekday:"short", month:"short", day:"numeric"});
           return (
             <div style={{
@@ -2427,8 +2464,8 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                 </div>
               </div>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,
-                color:isToday?"var(--accent)":isPast?"var(--green)":"var(--muted)"}}>
-                {isToday ? "Today" : isPast ? "Done" : "Upcoming"}
+                color:isFree?"#f472b6":isToday?"var(--accent)":isPast?"var(--green)":"var(--muted)"}}>
+                {isFree ? "🎁 Free" : isToday ? "Today" : isPast ? "Done" : "Upcoming"}
               </div>
             </div>
           );
@@ -2478,7 +2515,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                       </div>
 
                       {pkg.map((s, i) => (
-                        <SessionRow key={s.id} s={s} withinPkg={offset+i+1} packageSize={packageSize} globalNum={globalBase+i+1} />
+                        <SessionRow key={s.id} s={s} withinPkg={offset+i+1} packageSize={packageSize} globalNum={globalBase+i+1} clientId={historyClient.id} />
                       ))}
 
                       {/* Empty slots in the most recent package only */}
@@ -2504,7 +2541,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                       <div style={{fontSize:11,color:"var(--muted)"}}>before {new Date(startDate+"T12:00:00").toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})} · {legacySessions.length} sessions</div>
                     </div>
                     {[...legacySessions].reverse().map((s,i) => (
-                      <SessionRow key={s.id} s={s} withinPkg={null} packageSize={null} globalNum={legacySessions.length - i} isLegacy />
+                      <SessionRow key={s.id} s={s} withinPkg={null} packageSize={null} globalNum={legacySessions.length - i} isLegacy clientId={historyClient.id} />
                     ))}
                   </div>
                 )}
@@ -6792,6 +6829,7 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         const HRow = ({ s, withinPkg, pkgSize, isLegacy, globalNum }) => {
           const isPast  = s.date <= todayStr;
           const isToday = s.date === todayStr;
+          const isFree  = s.exceptions && s.exceptions.includes(client.id);
           const fmtDate = new Date(s.date + "T12:00:00").toLocaleDateString("en-CA", {weekday:"short", month:"short", day:"numeric"});
           return (
             <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:"1px solid var(--border)",background:isToday?"#3ec9c910":"transparent"}}>
@@ -6810,8 +6848,8 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
                 <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{s.time}</div>
               </div>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,
-                color:isToday?"var(--accent)":isPast?"var(--green)":"var(--muted)"}}>
-                {isToday?"Today":isPast?"Done":"Upcoming"}
+                color:isFree?"#f472b6":isToday?"var(--accent)":isPast?"var(--green)":"var(--muted)"}}>
+                {isFree?"🎁 Free":isToday?"Today":isPast?"Done":"Upcoming"}
               </div>
             </div>
           );
