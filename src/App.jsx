@@ -4129,6 +4129,7 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
   const [newExName, setNewExName] = useState("");
   const [newExGroup, setNewExGroup] = useState("Chest");
   const [newExSubGroup, setNewExSubGroup] = useState("");
+  const [exSaveStatus, setExSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
   const [weekOffset, setWeekOffset] = useState(0); // which 6-week cycle we're in
   const dragItem = useRef(null);
   const dragOverItem = useRef(null);
@@ -4256,11 +4257,33 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
     groupExs.splice(insertIdx, 0, name);
     const updated = { ...library, [newExGroup]: groupExs };
     setLibrary(updated);
-    // Persist full group including separators so order is fully restored on reload
-    await sbFetch(`exercise_library?group=eq.${encodeURIComponent(newExGroup)}`, "DELETE");
-    const rows = groupExs.map((exercise, i) => ({ group: newExGroup, exercise, position: i }));
-    if (rows.length > 0) await sbFetch("exercise_library", "POST", rows, { Prefer: "return=minimal" });
     setNewExName("");
+    setExSaveStatus("saving");
+
+    const rows = groupExs.map((exercise, i) => ({ group: newExGroup, exercise, position: i }));
+    console.log("[Library] Saving", rows.length, "rows for group", newExGroup);
+
+    // Try upsert first (safe — never deletes)
+    let result = await sbFetch("exercise_library", "POST", rows, {
+      Prefer: "resolution=merge-duplicates,return=minimal",
+      "on_conflict": "group,exercise"
+    });
+
+    if (result === null) {
+      console.warn("[Library] Upsert failed, trying delete+reinsert");
+      await sbFetch(`exercise_library?group=eq.${encodeURIComponent(newExGroup)}`, "DELETE");
+      result = await sbFetch("exercise_library", "POST", rows, { Prefer: "return=minimal" });
+    }
+
+    if (result === null) {
+      console.error("[Library] Save failed completely for", newExGroup);
+      setExSaveStatus("error");
+      setTimeout(() => setExSaveStatus(null), 4000);
+    } else {
+      console.log("[Library] Saved successfully");
+      setExSaveStatus("saved");
+      setTimeout(() => setExSaveStatus(null), 2500);
+    }
   };
 
   const allExercises = Object.entries(library).flatMap(([group, exs]) => exs.filter(e=>!e.startsWith("—")).map(e => ({ exercise: e, group })));
@@ -4366,6 +4389,9 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
                 </select>
               )}
               <button className="btn-primary" style={{width:"auto",padding:"8px 16px",fontSize:13}} onClick={addToLibrary}>+ Add</button>
+              {exSaveStatus === "saving" && <span style={{fontSize:12,color:"var(--muted)"}}>Saving...</span>}
+              {exSaveStatus === "saved" && <span style={{fontSize:12,color:"var(--accent)"}}>✓ Saved</span>}
+              {exSaveStatus === "error" && <span style={{fontSize:12,color:"var(--red)"}}>⚠ Save failed — check console</span>}
             </div>
             {/* Exercise list with add-to-week buttons */}
             {filteredLib.map(({exercise, group}) => {
