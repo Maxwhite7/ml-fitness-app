@@ -5243,6 +5243,7 @@ function WorkoutGenerator({ library, clients, savedWorkouts, setSavedWorkouts })
   const [manualExercises, setManualExercises] = useState([]); // [{exercise, muscleGroup, sets, reps, rest, notes}]
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [exSearch, setExSearch] = useState("");
+  const [supersetPending, setSupersetPending] = useState(null);
 
   const muscleGroups = Object.keys(library || {}).filter(g => !g.startsWith("—"));
   const goals = ["Strength","Hypertrophy","Endurance","Fat Loss","Full Body","Cardio & Core"];
@@ -5324,11 +5325,47 @@ Respond with ONLY this JSON format:
 
   // Manual mode helpers
   const addManualExercise = (exercise, muscleGroup) => {
-    if (manualExercises.find(e=>e.exercise===exercise)) return;
-    setManualExercises(prev => [...prev, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes:"" }]);
+    if (supersetPending) {
+      if (exercise === supersetPending) { setSupersetPending(null); return; }
+      const ssId = `ss_${Date.now()}`;
+      const alreadyIn = manualExercises.find(e => e.exercise === exercise);
+      if (alreadyIn) {
+        setManualExercises(prev => prev.map(e =>
+          e.exercise === supersetPending ? { ...e, supersetId: ssId } :
+          e.exercise === exercise      ? { ...e, supersetId: ssId } : e
+        ));
+      } else {
+        setManualExercises(prev => {
+          const pendingIdx = prev.findIndex(e => e.exercise === supersetPending);
+          const updated = prev.map(e => e.exercise === supersetPending ? { ...e, supersetId: ssId } : e);
+          updated.splice(pendingIdx + 1, 0, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes:"", supersetId: ssId });
+          return updated;
+        });
+      }
+      setSupersetPending(null);
+      return;
+    }
+    if (manualExercises.find(e => e.exercise === exercise)) return;
+    setManualExercises(prev => [...prev, { exercise, muscleGroup, sets:"3", reps:"10-12", rest:"60s", notes:"", supersetId: null }]);
   };
-  const removeManualExercise = (exercise) => setManualExercises(prev => prev.filter(e=>e.exercise!==exercise));
+  const removeManualExercise = (exercise) => {
+    setManualExercises(prev => {
+      const target = prev.find(e => e.exercise === exercise);
+      // if part of a superset, unlink partner if only 2 in group
+      if (target?.supersetId) {
+        const partners = prev.filter(e => e.supersetId === target.supersetId);
+        if (partners.length === 2) {
+          return prev.filter(e => e.exercise !== exercise).map(e =>
+            e.supersetId === target.supersetId ? { ...e, supersetId: null } : e
+          );
+        }
+      }
+      return prev.filter(e => e.exercise !== exercise);
+    });
+    if (supersetPending === exercise) setSupersetPending(null);
+  };
   const updateManualExercise = (exercise, field, value) => setManualExercises(prev => prev.map(e=>e.exercise===exercise?{...e,[field]:value}:e));
+  const unlinkSuperset = (supersetId) => setManualExercises(prev => prev.map(e => e.supersetId === supersetId ? { ...e, supersetId: null } : e));
   const moveExercise = (idx, dir) => {
     const arr = [...manualExercises];
     const swap = idx + dir;
@@ -5571,36 +5608,102 @@ Respond with ONLY this JSON format:
             <div className="section">
               <div className="section-header">
                 <span className="section-title">Selected ({manualExercises.length})</span>
-                {manualExercises.length > 0 && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11}} onClick={()=>setManualExercises([])}>Clear all</button>}
+                {manualExercises.length > 0 && <button className="btn-secondary" style={{padding:"4px 12px",fontSize:11}} onClick={()=>{setManualExercises([]);setSupersetPending(null);}}>Clear all</button>}
               </div>
-              <div className="section-body" style={{padding:"8px",maxHeight:460,overflowY:"auto"}}>
+              {supersetPending && (
+                <div style={{background:"#f59e0b18",border:"1px solid #f59e0b",borderRadius:6,margin:"0 8px 8px",padding:"8px 12px",fontSize:12,color:"#f59e0b",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span>⚡ Pick an exercise from the library to superset with <strong>{supersetPending}</strong></span>
+                  <span onClick={()=>setSupersetPending(null)} style={{cursor:"pointer",fontSize:16,marginLeft:8}}>✕</span>
+                </div>
+              )}
+              <div className="section-body" style={{padding:"8px",maxHeight:500,overflowY:"auto"}}>
                 {manualExercises.length === 0 ? (
                   <div style={{textAlign:"center",padding:"32px 16px",color:"var(--muted)",fontSize:12}}>Click exercises on the left to add them</div>
-                ) : manualExercises.map((ex,idx) => (
-                  <div key={ex.exercise} style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                      <div style={{fontSize:12,fontWeight:700,color:"var(--text)",flex:1}}>{ex.exercise}</div>
-                      <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                        <div onClick={()=>moveExercise(idx,-1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:14,padding:"0 4px",userSelect:"none"}}>↑</div>
-                        <div onClick={()=>moveExercise(idx,1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:14,padding:"0 4px",userSelect:"none"}}>↓</div>
-                        <div onClick={()=>removeManualExercise(ex.exercise)} style={{cursor:"pointer",color:"var(--red)",fontSize:13,padding:"0 4px",userSelect:"none"}}>✕</div>
-                      </div>
-                    </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-                      {[["sets","Sets"],["reps","Reps"],["rest","Rest"]].map(([field,label])=>(
-                        <div key={field}>
-                          <div style={{fontSize:9,color:"var(--muted)",marginBottom:2,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
-                          <input value={ex[field]} onChange={e=>updateManualExercise(ex.exercise,field,e.target.value)}
-                            style={{width:"100%",padding:"5px 7px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:12,outline:"none",boxSizing:"border-box"}} />
+                ) : (() => {
+                  // Group into renderable rows: solo exercises or superset pairs
+                  const rendered = [];
+                  const seen = new Set();
+                  manualExercises.forEach((ex, idx) => {
+                    if (seen.has(ex.exercise)) return;
+                    seen.add(ex.exercise);
+                    if (ex.supersetId) {
+                      const partnerIdx = manualExercises.findIndex((e,i) => e.supersetId === ex.supersetId && e.exercise !== ex.exercise);
+                      const partner = manualExercises[partnerIdx];
+                      if (partner && !seen.has(partner.exercise)) {
+                        seen.add(partner.exercise);
+                        rendered.push({ type:"superset", a:ex, aIdx:idx, b:partner, bIdx:partnerIdx, supersetId:ex.supersetId });
+                        return;
+                      }
+                    }
+                    rendered.push({ type:"solo", ex, idx });
+                  });
+
+                  const ExRow = ({ ex, idx, borderRadius, showMoveUp, showMoveDown }) => (
+                    <div style={{flex:1,padding:"10px 12px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <div style={{fontSize:12,fontWeight:700,color:"var(--text)",flex:1,lineHeight:1.3}}>{ex.exercise}</div>
+                        <div style={{display:"flex",gap:2,alignItems:"center",flexShrink:0}}>
+                          {showMoveUp && <div onClick={()=>moveExercise(idx,-1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:13,padding:"1px 4px",userSelect:"none"}}>↑</div>}
+                          {showMoveDown && <div onClick={()=>moveExercise(idx,1)} style={{cursor:"pointer",color:"var(--muted)",fontSize:13,padding:"1px 4px",userSelect:"none"}}>↓</div>}
+                          <div onClick={()=>removeManualExercise(ex.exercise)} style={{cursor:"pointer",color:"var(--red)",fontSize:12,padding:"1px 5px",userSelect:"none"}}>✕</div>
                         </div>
-                      ))}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:5}}>
+                        {[["sets","Sets"],["reps","Reps"],["rest","Rest"]].map(([field,label])=>(
+                          <div key={field}>
+                            <div style={{fontSize:9,color:"var(--muted)",marginBottom:2,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+                            <input value={ex[field]} onChange={e=>updateManualExercise(ex.exercise,field,e.target.value)}
+                              style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
+                          </div>
+                        ))}
+                      </div>
+                      <input value={ex.notes} onChange={e=>updateManualExercise(ex.exercise,"notes",e.target.value)} placeholder="Coaching note..."
+                        style={{width:"100%",padding:"4px 6px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
                     </div>
-                    <div style={{marginTop:6}}>
-                      <input value={ex.notes} onChange={e=>updateManualExercise(ex.exercise,"notes",e.target.value)} placeholder="Coaching note (optional)"
-                        style={{width:"100%",padding:"5px 7px",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:4,color:"var(--text)",fontSize:11,outline:"none",boxSizing:"border-box"}} />
-                    </div>
-                  </div>
-                ))}
+                  );
+
+                  return rendered.map((row, ri) => {
+                    if (row.type === "solo") {
+                      const isLast = ri === rendered.length - 1;
+                      return (
+                        <div key={row.ex.exercise} style={{background:"var(--charcoal)",border:`1px solid ${supersetPending===row.ex.exercise?"#f59e0b":"var(--border)"}`,borderRadius:8,marginBottom:8,overflow:"hidden"}}>
+                          <ExRow ex={row.ex} idx={row.idx} showMoveUp={ri>0} showMoveDown={!isLast} />
+                          <div style={{borderTop:"1px solid var(--border)",padding:"6px 12px",display:"flex",alignItems:"center",gap:8}}>
+                            <button onClick={()=>setSupersetPending(supersetPending===row.ex.exercise?null:row.ex.exercise)}
+                              style={{background:supersetPending===row.ex.exercise?"#f59e0b":"transparent",border:`1px solid ${supersetPending===row.ex.exercise?"#f59e0b":"var(--border)"}`,color:supersetPending===row.ex.exercise?"var(--black)":"var(--muted)",borderRadius:4,padding:"3px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>
+                              ⚡ Superset
+                            </button>
+                            <span style={{fontSize:10,color:"var(--muted)"}}>pair with another exercise</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    // Superset card — split in 2
+                    const isLast = ri === rendered.length - 1;
+                    return (
+                      <div key={row.supersetId} style={{border:"1px solid #f59e0b",borderRadius:8,marginBottom:8,overflow:"hidden",background:"var(--charcoal)"}}>
+                        <div style={{background:"#f59e0b22",padding:"4px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{fontSize:10,fontWeight:700,color:"#f59e0b",letterSpacing:1.5}}>⚡ SUPERSET</span>
+                          <button onClick={()=>unlinkSuperset(row.supersetId)}
+                            style={{background:"transparent",border:"1px solid #f59e0b44",color:"#f59e0b",borderRadius:4,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>
+                            Unlink
+                          </button>
+                        </div>
+                        <div style={{display:"flex",gap:0}}>
+                          <div style={{flex:1,borderRight:"2px solid #f59e0b44"}}>
+                            <ExRow ex={row.a} idx={row.aIdx} showMoveUp={ri>0} showMoveDown={false} />
+                          </div>
+                          <div style={{width:20,display:"flex",alignItems:"center",justifyContent:"center",background:"#f59e0b11",flexShrink:0}}>
+                            <span style={{fontSize:12,color:"#f59e0b",fontWeight:700}}>⚡</span>
+                          </div>
+                          <div style={{flex:1,borderLeft:"2px solid #f59e0b44"}}>
+                            <ExRow ex={row.b} idx={row.bIdx} showMoveUp={false} showMoveDown={!isLast} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>
