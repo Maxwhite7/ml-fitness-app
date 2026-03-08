@@ -1222,6 +1222,22 @@ export default function App() {
       let s = await store.get("gym_sessions");
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
+      // Re-fetch workouts now that we have a valid JWT
+      sbFetch("settings?key=in.(saved_workouts,assigned_workouts)").then(rows => {
+        if (!rows) return;
+        rows.forEach(r => {
+          try {
+            if (r.key === "saved_workouts") {
+              const p = JSON.parse(r.value) || [];
+              if (p.length > 0) setSavedWorkoutsRaw(prev => p.length >= prev.length ? p : prev);
+            }
+            if (r.key === "assigned_workouts") {
+              const p = JSON.parse(r.value) || {};
+              if (Object.keys(p).length > 0) setAssignedWorkoutsState(p);
+            }
+          } catch {}
+        });
+      });
       setDataReady(true);
     }, 300);
   };
