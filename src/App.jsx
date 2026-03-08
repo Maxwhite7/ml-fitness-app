@@ -1124,15 +1124,6 @@ const seedSessions = () => [
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  // Check if this tab was opened to display a standalone workout
-  const workoutParam = new URLSearchParams(window.location.search).get("workout");
-  if (workoutParam) {
-    try {
-      const w = JSON.parse(localStorage.getItem("ml_workout_view_" + workoutParam) || "null");
-      if (w) return <WorkoutView workout={w} />;
-    } catch {}
-  }
-
   const [user, setUser] = useState(null); // { role:'trainer'|'client', ...data }
   const [clients, setClients] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -5299,7 +5290,6 @@ function ClientPrograms({ workouts }) {
                 </div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end",flexShrink:0}}>
-                <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>openWorkoutTab(w)}>Open ↗</button>
                 <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>setExpandedId(isOpen?null:(w.id||wi))}>
                   {isOpen?"Collapse ▲":"View ▼"}
                 </button>
@@ -5402,7 +5392,7 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
         {tab==="progress" && <ClientProgress client={client} mySessions={mySessions} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
-      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} assignedWorkouts={myWorkouts} />
+      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} assignedWorkouts={myWorkouts} onNavigate={setTab} />
     </div>
   );
 }
@@ -6103,176 +6093,8 @@ function TrainerBluFAQ({ bluFAQ, setBluFAQ }) {
   );
 }
 
-const openWorkoutTab = (w) => {
-  const id = w.id || Date.now();
-  try { localStorage.setItem("ml_workout_view_" + id, JSON.stringify(w)); } catch {}
-  window.open(`${window.location.origin}${window.location.pathname}?workout=${id}`, "_blank");
-};
 
-function WorkoutView({ workout: w }) {
-  return (
-    <div style={{minHeight:"100vh",background:"var(--black)",color:"var(--text)",fontFamily:"var(--font)",padding:"0 0 60px"}}>
-      {/* Header */}
-      <div style={{background:"linear-gradient(135deg,#0d2626,#1a3a3a)",borderBottom:"1px solid var(--accent)",padding:"28px 32px 20px"}}>
-        <div style={{fontSize:11,fontWeight:700,letterSpacing:3,color:"var(--accent)",marginBottom:6,textTransform:"uppercase"}}>⚡ Workout Program</div>
-        <div className="bebas" style={{fontSize:38,color:"var(--text)",letterSpacing:1,lineHeight:1}}>{w.title}</div>
-        <div style={{display:"flex",gap:20,marginTop:10,flexWrap:"wrap"}}>
-          {w.focus && <span style={{fontSize:12,color:"var(--muted)"}}>💪 {w.focus}</span>}
-          {w.goal && <span style={{fontSize:12,color:"var(--muted)"}}>🎯 {w.goal}</span>}
-          {w.difficulty && <span style={{fontSize:12,color:"var(--muted)"}}>📊 {w.difficulty}</span>}
-          {w.duration && <span style={{fontSize:12,color:"var(--muted)"}}>⏱ {w.duration}</span>}
-          {w.sentAt && <span style={{fontSize:12,color:"var(--muted)"}}>📅 Sent {w.sentAt}</span>}
-        </div>
-      </div>
-
-      <div style={{maxWidth:700,margin:"0 auto",padding:"24px 20px"}}>
-        {/* Warmup */}
-        {w.warmup && (
-          <div style={{background:"var(--panel)",border:"1px solid var(--border)",borderRadius:10,padding:"14px 18px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
-            <span style={{fontSize:20}}>🔥</span>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,marginBottom:3}}>WARMUP</div><div style={{fontSize:13,color:"var(--text)"}}>{w.warmup}</div></div>
-          </div>
-        )}
-
-        {/* Exercises */}
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {(w.exercises||[]).map((ex, idx) => {
-            const nextEx = (w.exercises||[])[idx+1];
-            const isSupersetStart = ex.supersetId && nextEx?.supersetId === ex.supersetId;
-            const isSupersetEnd = ex.supersetId && (w.exercises||[])[idx-1]?.supersetId === ex.supersetId;
-            if (isSupersetEnd) return null;
-
-            if (isSupersetStart) {
-              return (
-                <div key={idx} style={{border:"2px solid var(--accent)",borderRadius:12,overflow:"hidden"}}>
-                  <div style={{background:"#3ec9c918",padding:"6px 18px",display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:13,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ SUPERSET</span>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-                    {[ex, nextEx].map((e, si) => (
-                      <div key={si} style={{padding:"16px 18px",borderRight:si===0?"1px solid var(--border)":"none"}}>
-                        <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:8}}>{e.exercise}</div>
-                        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:6}}>
-                          {e.sets && <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:"var(--accent)"}}>{e.sets}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>SETS</div></div>}
-                          {e.reps && <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>{e.reps}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>REPS</div></div>}
-                          {e.rest && <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>{e.rest}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>REST</div></div>}
-                        </div>
-                        {e.notes && <div style={{fontSize:11,color:"var(--muted)",fontStyle:"italic",borderTop:"1px solid var(--border)",paddingTop:6}}>💡 {e.notes}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div key={idx} style={{background:"var(--panel)",border:"1px solid var(--border)",borderRadius:12,padding:"16px 18px",display:"flex",gap:16,alignItems:"flex-start"}}>
-                <div style={{width:36,height:36,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,flexShrink:0}}>{idx+1}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:8}}>{ex.exercise}</div>
-                  <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:ex.notes?8:0}}>
-                    {ex.sets && <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:"var(--accent)"}}>{ex.sets}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1.5}}>SETS</div></div>}
-                    {ex.reps && <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{ex.reps}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1.5}}>REPS</div></div>}
-                    {ex.rest && <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:"var(--text)"}}>{ex.rest}</div><div style={{fontSize:9,color:"var(--muted)",letterSpacing:1.5}}>REST</div></div>}
-                  </div>
-                  {ex.notes && <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",borderTop:"1px solid var(--border)",paddingTop:8}}>💡 {ex.notes}</div>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Cooldown */}
-        {w.cooldown && (
-          <div style={{background:"var(--panel)",border:"1px solid var(--border)",borderRadius:10,padding:"14px 18px",marginTop:16,display:"flex",gap:10,alignItems:"flex-start"}}>
-            <span style={{fontSize:20}}>❄️</span>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,marginBottom:3}}>COOLDOWN</div><div style={{fontSize:13,color:"var(--text)"}}>{w.cooldown}</div></div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ClientWorkoutCard({ w, isLast }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div style={{borderBottom:isLast?"none":"1px solid var(--border)"}}>
-      <div style={{padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div onClick={()=>setOpen(o=>!o)} style={{flex:1,cursor:"pointer",userSelect:"none"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{w.title}</div>
-          <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{w.focus} · {w.goal} · {w.exercises?.length||0} exercises</div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          <button onClick={()=>openWorkoutTab(w)}
-            style={{background:"var(--accent)",border:"none",color:"var(--black)",borderRadius:5,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-            Open ↗
-          </button>
-          <span onClick={()=>setOpen(o=>!o)} style={{fontSize:12,color:"var(--accent)",cursor:"pointer",transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
-        </div>
-      </div>
-
-      {/* Expanded exercise list */}
-      {open && (
-        <div style={{background:"var(--charcoal)",borderTop:"1px solid var(--border)"}}>
-          {w.warmup && (
-            <div style={{padding:"7px 14px",fontSize:11,color:"var(--muted)",borderBottom:"1px solid var(--border)"}}>🔥 <strong>Warmup:</strong> {w.warmup}</div>
-          )}
-          {(w.exercises||[]).map((ex, idx) => {
-            // Check if part of a superset
-            const isSuperset = !!ex.supersetId;
-            const nextEx = w.exercises[idx+1];
-            const isSupersetStart = isSuperset && nextEx?.supersetId === ex.supersetId;
-            const isSupersetEnd = isSuperset && w.exercises[idx-1]?.supersetId === ex.supersetId;
-            if (isSupersetEnd) return null; // rendered as part of previous
-            return (
-              <div key={idx}>
-                {isSupersetStart ? (
-                  // Superset pair — side by side
-                  <div style={{borderBottom:"1px solid var(--border)"}}>
-                    <div style={{padding:"4px 14px",fontSize:9,fontWeight:700,color:"var(--accent)",letterSpacing:1.5,background:"#3ec9c910"}}>⚡ SUPERSET</div>
-                    <div style={{display:"flex"}}>
-                      {[ex, nextEx].map((e, si) => (
-                        <div key={si} style={{flex:1,padding:"8px 10px",borderRight:si===0?"1px solid var(--border)":"none"}}>
-                          <div style={{fontSize:11,fontWeight:700,color:"var(--text)",marginBottom:3}}>{e.exercise}</div>
-                          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                            {e.sets && <span style={{fontSize:10,color:"var(--accent)",fontWeight:600}}>{e.sets} sets</span>}
-                            {e.reps && <span style={{fontSize:10,color:"var(--muted)"}}>× {e.reps}</span>}
-                            {e.rest && <span style={{fontSize:10,color:"var(--muted)"}}>rest {e.rest}</span>}
-                          </div>
-                          {e.notes && <div style={{fontSize:10,color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>💡 {e.notes}</div>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  // Solo exercise
-                  <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"8px 14px",borderBottom:"1px solid var(--border)"}}>
-                    <div style={{width:22,height:22,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0,marginTop:1}}>{idx+1}</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
-                      <div style={{display:"flex",gap:12,marginTop:3,flexWrap:"wrap"}}>
-                        {ex.sets && <span style={{fontSize:11,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
-                        {ex.reps && <span style={{fontSize:11,color:"var(--muted)"}}>× {ex.reps} reps</span>}
-                        {ex.rest && <span style={{fontSize:11,color:"var(--muted)"}}>rest {ex.rest}</span>}
-                      </div>
-                      {ex.notes && <div style={{fontSize:10,color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>💡 {ex.notes}</div>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {w.cooldown && (
-            <div style={{padding:"7px 14px",fontSize:11,color:"var(--muted)"}}>❄️ <strong>Cooldown:</strong> {w.cooldown}</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ, assignedWorkouts }) {
+function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ, assignedWorkouts, onNavigate }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role:"assistant", text:`Hey ${client?.name?.split(" ")[0] || "there"}! 🐾 I'm Blu. Ask me about your schedule, upcoming sessions, or anything about your training!` }
@@ -6370,11 +6192,11 @@ Do NOT discuss other clients or trainer-only data.`;
             <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer"}}>✕</button>
           </div>
           {assignedWorkouts && assignedWorkouts.length > 0 && (
-            <div style={{borderBottom:"1px solid var(--border)",background:"#3ec9c908"}}>
-              <div style={{padding:"8px 14px 6px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ YOUR WORKOUTS ({assignedWorkouts.length})</div>
-              {assignedWorkouts.map((w,i) => (
-                <ClientWorkoutCard key={i} w={w} isLast={i===assignedWorkouts.length-1} />
-              ))}
+            <div style={{borderBottom:"1px solid var(--border)",padding:"10px 14px",background:"#3ec9c908"}}>
+              <button onClick={()=>{ onNavigate("programs"); setOpen(false); }}
+                style={{width:"100%",background:"var(--accent)",border:"none",color:"var(--black)",borderRadius:8,padding:"10px 14px",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                ⚡ My Programs ({assignedWorkouts.length})
+              </button>
             </div>
           )}
           <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
