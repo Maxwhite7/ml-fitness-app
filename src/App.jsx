@@ -6633,44 +6633,44 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         <div className="page-subtitle">Your sessions, {client.name.split(" ")[0]}</div>
       </div>
 
-      {/* ── This Week — shown first, big and obvious ── */}
+      {/* ── This Week — big bold session list ── */}
       {(() => {
         const now = new Date();
         const todayStr = dateKey(now);
-        const dow = now.getDay(); // 0=Sun
+        const dow = now.getDay();
         const monday = new Date(now); monday.setDate(now.getDate() - ((dow+6)%7));
         const weekDays = Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
-        const FULL_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-        const hasAnySessions = weekDays.some(d => sessionsForDate(d).length > 0);
+        const DAY_NAMES = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+        const MONTH_NAMES = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+        const weekSessions = weekDays.flatMap(d =>
+          sessionsForDate(d).map(s => ({ s, d }))
+        );
         return (
           <div className="section" style={{marginBottom:16}}>
             <div className="section-header"><span className="section-title bebas" style={{fontSize:16,letterSpacing:1}}>THIS WEEK</span></div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,borderTop:"1px solid var(--border)"}}>
-              {weekDays.map((d,i) => {
-                const isToday = dateKey(d) === todayStr;
-                const daySessions = sessionsForDate(d);
-                const isPast = dateKey(d) < todayStr;
-                return (
-                  <div key={i} style={{borderRight:i<6?"1px solid var(--border)":"none",borderBottom:"1px solid var(--border)",minHeight:80}}>
-                    <div style={{padding:"6px 0",textAlign:"center",fontSize:10,textTransform:"uppercase",letterSpacing:1,color:isToday?"var(--accent)":"var(--muted)",fontWeight:isToday?700:400,borderBottom:"1px solid var(--border)",background:isToday?"#3ec9c910":"transparent"}}>
-                      {FULL_DAYS[i]}
-                      <div style={{fontSize:13,fontWeight:700,color:isToday?"var(--accent)":"var(--text)",marginTop:1}}>{d.getDate()}</div>
+            {weekSessions.length === 0
+              ? <div style={{padding:"24px 20px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions scheduled this week.</div>
+              : weekSessions.map(({s, d}, i) => {
+                  const isToday = dateKey(d) === todayStr;
+                  const isPast = dateKey(d) < todayStr;
+                  return (
+                    <div key={s.id} style={{
+                      padding:"20px 24px",
+                      borderBottom:"1px solid var(--border)",
+                      background: isToday ? "#3ec9c910" : "transparent",
+                      opacity: isPast ? 0.45 : 1,
+                    }}>
+                      <div className="bebas" style={{fontSize:32,lineHeight:1,color:isToday?"var(--accent)":"var(--text)",letterSpacing:2}}>
+                        {DAY_NAMES[d.getDay()===0?6:d.getDay()-1]} {MONTH_NAMES[d.getMonth()]} {d.getDate()}
+                      </div>
+                      <div className="bebas" style={{fontSize:22,color:isToday?"var(--accent)":"var(--muted)",letterSpacing:2,marginTop:4}}>
+                        {s.time}
+                      </div>
+                      {isToday && <div style={{fontSize:11,color:"var(--accent)",fontWeight:700,letterSpacing:1,marginTop:6,textTransform:"uppercase"}}>Today</div>}
                     </div>
-                    <div style={{padding:"6px 4px",display:"flex",flexDirection:"column",gap:4}}>
-                      {daySessions.length === 0
-                        ? <div style={{height:24}} />
-                        : daySessions.map(s => (
-                          <div key={s.id} style={{background:isToday?"var(--accent)":isPast?"var(--charcoal)":"#3ec9c920",border:`1px solid ${isToday?"var(--accent)":isPast?"var(--border)":"var(--accent)"}`,borderRadius:4,padding:"3px 5px",fontSize:10,fontWeight:600,color:isToday?"var(--black)":isPast?"var(--muted)":"var(--accent)",textAlign:"center",lineHeight:1.3}}>
-                            {s.time}
-                          </div>
-                        ))
-                      }
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {!hasAnySessions && <div style={{padding:"16px",textAlign:"center",color:"var(--muted)",fontSize:13}}>No sessions scheduled this week.</div>}
+                  );
+                })
+            }
           </div>
         );
       })()}
