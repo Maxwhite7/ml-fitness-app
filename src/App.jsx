@@ -4135,46 +4135,52 @@ function TrainerExercises({ weekPlans, setWeekPlans, currentWeekIdx, setCurrentW
 
   useEffect(() => {
     sbFetch("exercise_library?select=*&order=position.asc").then(async rows => {
-      if (rows && rows.length > 0) {
-        // Build library from DB in position order — separators and exercises interleaved correctly
-        const merged = {};
-        rows.forEach(r => {
-          if (!merged[r.group]) merged[r.group] = [];
-          if (!merged[r.group].includes(r.exercise)) merged[r.group].push(r.exercise);
-        });
-        // Add any groups from defaults that have no DB rows yet (edge case)
-        Object.keys(ALL_EXERCISES_DEFAULT).forEach(group => {
-          if (!merged[group]) merged[group] = ALL_EXERCISES_DEFAULT[group];
-        });
-        // Migration: if a group is missing separators, re-seed that group with full order
-        const needsMigration = Object.entries(ALL_EXERCISES_DEFAULT).some(([group, exs]) =>
-          exs.some(e => e.startsWith("—") && !(merged[group]||[]).includes(e))
-        );
-        if (needsMigration) {
-          const customByGroup = {};
-          rows.forEach(r => {
-            if (!customByGroup[r.group]) customByGroup[r.group] = [];
-            if (!r.exercise.startsWith("—")) customByGroup[r.group].push(r.exercise);
-          });
-          const migratedLib = {};
-          for (const [group, defaultExs] of Object.entries(ALL_EXERCISES_DEFAULT)) {
-            const customs = (customByGroup[group]||[]).filter(e => !defaultExs.includes(e));
-            migratedLib[group] = [...defaultExs, ...customs];
-            await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}`, "DELETE");
-            const migrRows = migratedLib[group].map((ex, i) => ({ group, exercise: ex, position: i }));
-            await sbFetch("exercise_library", "POST", migrRows, { Prefer: "return=minimal" });
-          }
-          setLibrary(migratedLib);
-          return;
-        }
-        setLibrary(merged);
-      } else {
-        // Seed defaults into Supabase including separators so full order persists
+      if (!rows || rows.length === 0) {
+        // First ever load — seed full defaults including separators
         const seedRows = Object.entries(ALL_EXERCISES_DEFAULT).flatMap(([group, exs]) =>
           exs.map((exercise, i) => ({ group, exercise, position: i }))
         );
         await sbFetch("exercise_library", "POST", seedRows, { Prefer: "return=minimal" });
+        setLibrary(ALL_EXERCISES_DEFAULT);
+        return;
       }
+
+      // Check if DB has separators already
+      const hasSeparators = rows.some(r => r.exercise.startsWith("—"));
+
+      if (!hasSeparators) {
+        // One-time migration: inject separators into existing data without touching custom exercises
+        const customByGroup = {};
+        rows.forEach(r => {
+          if (!customByGroup[r.group]) customByGroup[r.group] = [];
+          customByGroup[r.group].push(r.exercise);
+        });
+        const migratedLib = {};
+        for (const [group, defaultExs] of Object.entries(ALL_EXERCISES_DEFAULT)) {
+          const existing = customByGroup[group] || [];
+          const customs = existing.filter(e => !defaultExs.includes(e));
+          // Weave customs in at the end, preserving all defaults + their separators
+          migratedLib[group] = [...defaultExs, ...customs];
+          const migrRows = migratedLib[group].map((ex, i) => ({ group, exercise: ex, position: i }));
+          // Only delete/reinsert this group — atomic per group so a failure only affects one group
+          await sbFetch(`exercise_library?group=eq.${encodeURIComponent(group)}`, "DELETE");
+          await sbFetch("exercise_library", "POST", migrRows, { Prefer: "return=minimal" });
+        }
+        setLibrary(migratedLib);
+        return;
+      }
+
+      // Normal load — DB has full data including separators, just rebuild in order
+      const lib = {};
+      rows.forEach(r => {
+        if (!lib[r.group]) lib[r.group] = [];
+        lib[r.group].push(r.exercise);
+      });
+      // Fill any missing groups from defaults (shouldn't happen but safe)
+      Object.entries(ALL_EXERCISES_DEFAULT).forEach(([group, exs]) => {
+        if (!lib[group]) lib[group] = exs;
+      });
+      setLibrary(lib);
     });
     sbFetch("exercise_week_plans?select=*&order=weekIdx.asc,position.asc").then(rows => {
       if (rows && rows.length > 0) {
