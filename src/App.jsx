@@ -621,10 +621,9 @@ const GlobalStyle = () => (
       .user-name { display: none; }
 
       /* Prevent ALL horizontal overflow */
-      body, #root, .app-shell, .main-content {
-        overflow-x: hidden !important;
-        max-width: 100vw !important;
-      }
+      body, #root { overflow-x: clip; max-width: 100vw; }
+      .app-shell { overflow-x: clip; }
+      .main-content { overflow-x: clip; }
       * { box-sizing: border-box; }
 
       /* Bottom navigation bar */
