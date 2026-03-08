@@ -2378,6 +2378,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
           .sort((a, b) => a.date < b.date ? -1 : 1);
 
         const total       = historyClient.sessionsTotal || 0;
+        const offset      = historyClient.sessionsOffset || 0;
         const used        = calcSessionsUsed(historyClient, sessions);
         const left        = Math.max(0, total - used);
         const packageSize = total || 10;
@@ -2477,15 +2478,15 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                       </div>
 
                       {pkg.map((s, i) => (
-                        <SessionRow key={s.id} s={s} withinPkg={i+1} packageSize={packageSize} globalNum={globalBase+i+1} />
+                        <SessionRow key={s.id} s={s} withinPkg={offset+i+1} packageSize={packageSize} globalNum={globalBase+i+1} />
                       ))}
 
                       {/* Empty slots in the most recent package only */}
                       {revIdx === 0 && pkg.length < packageSize && (
-                        Array.from({length: packageSize - pkg.length}).map((_,i) => (
+                        Array.from({length: packageSize - offset - pkg.length}).filter((_,i) => offset+pkg.length+i+1 <= packageSize).map((_,i) => (
                           <div key={"empty"+i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:"1px solid var(--border)",opacity:0.35}}>
                             <div style={{minWidth:48,textAlign:"center",padding:"4px 6px",borderRadius:4,border:"1px dashed var(--border)",flexShrink:0}}>
-                              <div style={{fontSize:14,fontWeight:700,color:"var(--border)",lineHeight:1}}>{pkg.length+i+1}/{packageSize}</div>
+                              <div style={{fontSize:14,fontWeight:700,color:"var(--border)",lineHeight:1}}>{offset+pkg.length+i+1}/{packageSize}</div>
                             </div>
                             <div style={{fontSize:12,color:"var(--border)"}}>Not yet booked</div>
                           </div>
