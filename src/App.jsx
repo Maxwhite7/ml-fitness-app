@@ -5256,12 +5256,118 @@ ${actionResult}` : displayText),
   );
 }
 
+function ClientPrograms({ workouts }) {
+  const [expandedId, setExpandedId] = useState(null);
+
+  if (!workouts || workouts.length === 0) return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">MY PROGRAMS</div>
+        <div className="page-subtitle">Workout programs sent by your trainer</div>
+      </div>
+      <div style={{textAlign:"center",padding:"60px 20px",color:"var(--muted)"}}>
+        <div style={{fontSize:40,marginBottom:12}}>⚡</div>
+        <div style={{fontSize:14}}>No programs yet — your trainer will send them here.</div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <div className="page-header">
+        <div className="bebas page-title">MY PROGRAMS</div>
+        <div className="page-subtitle">{workouts.length} program{workouts.length!==1?"s":""} from your trainer</div>
+      </div>
+
+      {workouts.map((w, wi) => {
+        const isOpen = expandedId === (w.id||wi);
+        return (
+          <div key={w.id||wi} style={{background:"var(--panel)",border:"1px solid var(--accent)",borderRadius:10,overflow:"hidden",marginBottom:16}}>
+            {/* Header */}
+            <div style={{background:"linear-gradient(135deg,#1a3a3a,#0d2626)",padding:"16px 20px",borderBottom:"1px solid var(--accent)",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div className="bebas" style={{fontSize:22,color:"var(--accent)",letterSpacing:1}}>{w.title}</div>
+                <div style={{display:"flex",gap:12,marginTop:4,flexWrap:"wrap"}}>
+                  {w.focus && <span style={{fontSize:11,color:"var(--muted)"}}>💪 {w.focus}</span>}
+                  {w.goal && <span style={{fontSize:11,color:"var(--muted)"}}>🎯 {w.goal}</span>}
+                  {w.difficulty && <span style={{fontSize:11,color:"var(--muted)"}}>📊 {w.difficulty}</span>}
+                  {w.duration && <span style={{fontSize:11,color:"var(--muted)"}}>⏱ {w.duration}</span>}
+                  {w.sentAt && <span style={{fontSize:11,color:"var(--muted)"}}>📅 Sent {w.sentAt}</span>}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end",flexShrink:0}}>
+                <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>openWorkoutTab(w)}>Open ↗</button>
+                <button className="btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={()=>setExpandedId(isOpen?null:(w.id||wi))}>
+                  {isOpen?"Collapse ▲":"View ▼"}
+                </button>
+              </div>
+            </div>
+
+            {/* Warmup */}
+            {isOpen && w.warmup && <div style={{padding:"10px 20px",borderBottom:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>🔥 <strong>Warmup:</strong> {w.warmup}</div>}
+
+            {/* Exercise list — same style as trainer WorkoutCard */}
+            {isOpen && (
+              <div style={{padding:"8px 0"}}>
+                {(w.exercises||[]).map((ex, idx) => {
+                  const nextEx = (w.exercises||[])[idx+1];
+                  const isSupersetStart = ex.supersetId && nextEx?.supersetId === ex.supersetId;
+                  const isSupersetEnd = ex.supersetId && (w.exercises||[])[idx-1]?.supersetId === ex.supersetId;
+                  if (isSupersetEnd) return null;
+
+                  if (isSupersetStart) return (
+                    <div key={idx} style={{margin:"4px 20px 4px",border:"1px solid var(--accent)",borderRadius:8,overflow:"hidden",marginBottom:4}}>
+                      <div style={{background:"#3ec9c918",padding:"4px 14px",fontSize:10,fontWeight:700,color:"var(--accent)",letterSpacing:1.5}}>⚡ SUPERSET</div>
+                      <div style={{display:"flex"}}>
+                        {[ex, nextEx].map((e, si) => (
+                          <div key={si} style={{flex:1,padding:"10px 14px",borderRight:si===0?"1px solid var(--border)":"none"}}>
+                            <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>{e.exercise}</div>
+                            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                              {e.sets && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{e.sets} sets</span>}
+                              {e.reps && <span style={{fontSize:12,color:"var(--muted)"}}>× {e.reps} reps</span>}
+                              {e.rest && <span style={{fontSize:12,color:"var(--muted)"}}>Rest: {e.rest}</span>}
+                            </div>
+                            {e.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontStyle:"italic"}}>💡 {e.notes}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div key={idx} style={{display:"flex",alignItems:"flex-start",gap:14,padding:"12px 20px",borderBottom:idx<(w.exercises.length-1)?"1px solid var(--border)":"none"}}>
+                      <div style={{width:30,height:30,borderRadius:"50%",background:"var(--accent)",color:"var(--black)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>{idx+1}</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{ex.exercise}</div>
+                        <div style={{display:"flex",gap:16,marginTop:4,flexWrap:"wrap"}}>
+                          {ex.sets && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>{ex.sets} sets</span>}
+                          {ex.reps && <span style={{fontSize:12,color:"var(--muted)"}}>× {ex.reps} reps</span>}
+                          {ex.rest && <span style={{fontSize:12,color:"var(--muted)"}}>Rest: {ex.rest}</span>}
+                          {ex.muscleGroup && <span style={{fontSize:11,color:"var(--border)",background:"var(--charcoal)",padding:"1px 8px",borderRadius:10}}>{ex.muscleGroup}</span>}
+                        </div>
+                        {ex.notes && <div style={{fontSize:11,color:"var(--muted)",marginTop:4,fontStyle:"italic"}}>💡 {ex.notes}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {isOpen && w.cooldown && <div style={{padding:"10px 20px",borderTop:"1px solid var(--border)",fontSize:12,color:"var(--muted)"}}>❄️ <strong>Cooldown:</strong> {w.cooldown}</div>}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // ─── Client App ───────────────────────────────────────────────────────────────
 function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, assignedWorkouts }) {
   const [tab, setTab] = useState("schedule");
   const nav = [
     { id:"schedule", icon:"📅", label:"My Schedule" },
     { id:"availability", icon:"✅", label:"My Availability" },
+    { id:"programs", icon:"⚡", label:"My Programs" },
     { id:"progress", icon:"📈", label:"My Progress" },
     { id:"account", icon:"👤", label:"Account" },
   ];
@@ -5272,6 +5378,7 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
     return da < db ? -1 : da > db ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time);
   });
   const sessionsLeft = client ? client.sessionsTotal - client.sessionsUsed : 0;
+  const myWorkouts = (assignedWorkouts?.[user.id] || []);
 
   if (!client) return (
     <div className="login-wrap">
@@ -5288,10 +5395,11 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><ClientAvailability client={client} /></div>
+        <div style={{display:tab==="programs"?"":"none"}}><ClientPrograms workouts={myWorkouts} /></div>
         {tab==="progress" && <ClientProgress client={client} mySessions={mySessions} />}
         <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
       </div>
-      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} assignedWorkouts={assignedWorkouts?.[client.id] || []} />
+      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} assignedWorkouts={myWorkouts} />
     </div>
   );
 }
