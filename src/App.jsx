@@ -1439,7 +1439,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
-        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={(id)=>saveClients(clients.filter(c=>c.id!==id))} onPreviewClient={onPreviewClient} /></div>
+        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); await saveSessions(updatedSessions); saveClients(clients.filter(c=>c.id!==id)); }} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
@@ -1765,7 +1765,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   };
 
   const SessionCard = ({s, onClick}) => {
-    const names = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : id; });
+    const names = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : "Deleted Client"; });
     return (
       <div className="session-card" style={{cursor:"pointer"}} onClick={onClick}>
         <div className="session-time bebas">{s.time}</div>
@@ -1827,7 +1827,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   </div>
                   <div style={{padding:"6px 4px",display:"flex",flexDirection:"column",gap:4}}>
                     {daySessions.map(s => {
-                      const names = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : ""; }).filter(Boolean);
+                      const names = s.clientIds.map(id => { const c = clients.find(x=>x.id===id); return c ? c.name.split(" ")[0] : "Deleted"; }).filter(Boolean);
                       return (
                         <div key={s.id} onClick={()=>openEdit(s)} style={{
                           padding:"6px 8px",borderRadius:2,cursor:"pointer",
@@ -2231,7 +2231,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
     if (!window.confirm(`Remove ${modal.name}? This cannot be undone.`)) return;
     const clientId = modal.id;
     setModal(null);
-    deleteClient(clientId);
+    await deleteClient(clientId);
     await store.remove("gym_clients", clientId);
   };
 
