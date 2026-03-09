@@ -2093,22 +2093,22 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                 </select>
               </div>
               <div className="form-row">
-                <label>Clients ({form.clientIds.length}/{MAX_GROUP_SIZE})</label>
+                <label>Clients ({form.clientIds.filter(id=>clients.find(x=>x.id===id)).length}/{MAX_GROUP_SIZE})</label>
                 {/* Selected clients */}
                 {form.clientIds.length > 0 && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
                     {form.clientIds.map(id => {
                       const c = clients.find(x=>x.id===id);
-                      if (!c) return null;
-                      const avail = isAvailable(id, form.date, form.time);
+                      const avail = c ? isAvailable(id, form.date, form.time) : false;
                       return (
                         <div key={id} style={{
                           display:"flex",alignItems:"center",gap:5,
                           padding:"4px 10px",borderRadius:20,fontSize:12,fontWeight:600,
-                          background:"var(--accent)",color:"var(--black)"
+                          background: c ? "var(--accent)" : "var(--red)",
+                          color: c ? "var(--black)" : "#fff"
                         }}>
                           <span style={{marginRight:2}}>{avail?"●":""}</span>
-                          {c.name.split(" ")[0]}
+                          {c ? c.name.split(" ")[0] : "Deleted Client"}
                           <span style={{cursor:"pointer",fontWeight:700,marginLeft:2}} onClick={()=>toggleClient(id)}>✕</span>
                         </div>
                       );
@@ -2116,7 +2116,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   </div>
                 )}
                 {/* Search input */}
-                {form.clientIds.length < MAX_GROUP_SIZE && (
+                {form.clientIds.filter(id=>clients.find(x=>x.id===id)).length < MAX_GROUP_SIZE && (
                   <ClientSearchInput
                     clients={clients}
                     excludeIds={form.clientIds}
@@ -2140,7 +2140,7 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
                   <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
                     {form.clientIds.map(id => {
                       const c = clients.find(x=>x.id===id);
-                      if (!c) return null;
+                      if (!c) return null; // deleted clients don't appear in free sessions
                       const isFree = (form.exceptions||[]).includes(id);
                       return (
                         <div key={id} onClick={()=>toggleException(id)} style={{
