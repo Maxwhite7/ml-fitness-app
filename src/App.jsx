@@ -1222,28 +1222,31 @@ export default function App() {
 
   const [dataReady, setDataReady] = useState(false);
 
-  // Load on mount (for returning users with existing JWT)
+  // Load on mount only if a JWT already exists (returning user)
   useEffect(() => {
     (async () => {
-      let c = await store.get("gym_clients");
-      let s = await store.get("gym_sessions");
-      if (c && c.length > 0) setClients(c);
-      if (s && s.length > 0) setSessions(s);
+      if (auth.token) {
+        let c = await store.get("gym_clients");
+        let s = await store.get("gym_sessions");
+        if (c && c.length > 0) setClients(c);
+        if (s && s.length > 0) setSessions(s);
+      }
       setLoaded(true);
       setDataReady(true);
     })();
   }, []);
 
-  // Reload after login so JWT is set and RLS returns correct data
+  // Reload after login — token is already set before this is called, so fetch immediately
   const handleLogin = async (userData) => {
     setUser(userData);
     setDataReady(false);
-    setTimeout(async () => {
-      let c = await store.get("gym_clients");
-      let s = await store.get("gym_sessions");
+    try {
+      const [c, s] = await Promise.all([
+        store.get("gym_clients"),
+        store.get("gym_sessions")
+      ]);
       if (c && c.length > 0) setClients(c);
       if (s && s.length > 0) setSessions(s);
-      // Auto-update session counts for today's/past sessions
       try {
         const rows = await sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)");
         console.log("[Login] settings rows:", rows);
@@ -1262,8 +1265,8 @@ export default function App() {
           } catch(e) { console.error("[Login] parse error", e); }
         });
       } catch(e) { console.error("[Login] workout fetch error", e); }
-      setDataReady(true);
-    }, 300);
+    } catch(e) { console.error("[Login] data fetch error", e); }
+    setDataReady(true);
   };
 
 
@@ -1439,7 +1442,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
-        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); await saveSessions(updatedSessions); saveClients(clients.filter(c=>c.id!==id)); }} onPreviewClient={onPreviewClient} /></div>
+        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const affectedSessions = sessions.filter(s=>s.clientIds.includes(id)); const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); for (const s of affectedSessions) { const updated = {...s, clientIds: s.clientIds.filter(cid=>cid!==id)}; await store.upsertOne("gym_sessions", updated); } setSessions(updatedSessions); setClients(clients.filter(c=>c.id!==id)); }} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
