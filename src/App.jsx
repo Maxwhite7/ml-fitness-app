@@ -1260,12 +1260,6 @@ export default function App() {
       ]);
       if (c && c.length > 0) {
         setClients(c);
-        // Warn if new package columns are missing from Supabase
-        const sample = c[0];
-        if (sample && !("sessionsBaseline" in sample)) {
-          console.warn("[DB] Column 'sessionsBaseline' missing from clients table — add it in Supabase to persist session counts.");
-          alert("⚠️ Your Supabase clients table is missing the 'sessionsBaseline' and 'sessionsSnapshotDate' columns. Session counts won't save until you add them.");
-        }
       }
       if (s && s.length > 0) setSessions(s);
       try {
