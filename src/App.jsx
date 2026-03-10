@@ -5292,6 +5292,39 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder, recurrin
         // Return a special workout object that will be rendered as a card
         return { __type: "workout", title: title || "Custom Workout", focus: focus || "", exercises };
       }
+      case "daily_recap": {
+        const { date } = params;
+        if (!date) return "⚠️ Need a date for the recap.";
+        const daySessions = sessions
+          .filter(s => s.date === date && s.clientIds.length > 0)
+          .sort((a, b) => {
+            const toMins = t => {
+              const [time, period] = t.split(" ");
+              let [h, m] = time.split(":").map(Number);
+              if (period === "PM" && h !== 12) h += 12;
+              if (period === "AM" && h === 12) h = 0;
+              return h * 60 + m;
+            };
+            return toMins(a.time) - toMins(b.time);
+          });
+        if (daySessions.length === 0) return `No booked sessions on ${date}.`;
+        const dateObj = new Date(date + "T12:00:00");
+        const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        const header = `${DAY_NAMES[dateObj.getDay()]} ${MONTH_NAMES[dateObj.getMonth()]} ${dateObj.getDate()}`;
+        const lines = daySessions.map(s => {
+          const [time, period] = s.time.split(" ");
+          const hour = time.split(":")[0];
+          const nextHour = String(parseInt(hour) + 1);
+          const timeRange = `${hour}-${nextHour}`;
+          const names = s.clientIds
+            .map(id => { const c = clients.find(x => x.id === id); return c ? c.name.split(" ")[0] : null; })
+            .filter(Boolean)
+            .join("/");
+          return `${timeRange} ${names}`;
+        });
+        return `📅 ${header}\n\n${lines.join("\n")}`;
+      }
       default:
         return null;
     }
@@ -5364,7 +5397,8 @@ When the trainer says "remind me every day at 9am to...", "set a weekly reminder
 When they say "what reminders do I have" or "show my reminders", use list_reminders.
 When they say "delete reminder 2" or "remove the first reminder", use delete_reminder.
 - update_progress — updates sets/reps/weight for a client exercise
-- add_session — adds a new session to the schedule
+- daily_recap — gives a formatted recap of a day's schedule. Format: <action>{"type":"daily_recap","params":{"date":"2026-03-10"}}</action>. When the trainer asks for a recap of today, tomorrow, or any specific day, use this action. Resolve relative dates like "today", "tomorrow", "Monday" to YYYY-MM-DD format using today's date (${todayStr}).
+
 - generate_workout — generates a structured workout plan
 
 When the trainer says something like "remind me to..." or "send me a reminder that..." or "pop up a note saying...", use send_reminder with a clear, concise message.
