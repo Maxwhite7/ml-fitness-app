@@ -780,14 +780,14 @@ const sbFetch = async (path, method="GET", body=null, extraHeaders={}) => {
     if (body !== null) opts.body = JSON.stringify(body);
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
     const text = await res.text();
+    if (!res.ok) {
+      console.error(`Supabase HTTP ${res.status} [${method} ${path}]:`, text);
+      return null;
+    }
     if (!text) return [];
     const data = JSON.parse(text);
     if (data && data.code) {
       console.error(`Supabase error [${method} ${path}]:`, data.code, data.message, data.hint || "");
-      return null;
-    }
-    if (!res.ok) {
-      console.error(`Supabase HTTP ${res.status} [${method} ${path}]:`, text);
       return null;
     }
     return data;
@@ -832,10 +832,15 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return;
-      // Clients: use PATCH by id — avoids duplicate row issues with merge-duplicates
+      // Clients: use PATCH by id — more reliable than merge-duplicates
       if (key === "gym_clients" && row.id) {
-        const result = await sbFetch(`${table}?id=eq.${encodeURIComponent(row.id)}`, "PATCH", row);
-        console.log(`[upsertOne PATCH] ${table} id=${row.id}:`, result === null ? "FAILED ❌" : "OK ✓");
+        const result = await sbFetch(
+          `${table}?id=eq.${encodeURIComponent(row.id)}`,
+          "PATCH",
+          row,
+          { Prefer: "return=minimal" }
+        );
+        console.log(`[upsertOne PATCH] ${table} id=${row.id}:`, result === null ? "FAILED ❌" : "OK ✓", result);
         return result;
       }
       const result = await sbFetch(table, "POST", [row], { 
@@ -1253,7 +1258,15 @@ export default function App() {
         store.get("gym_clients"),
         store.get("gym_sessions")
       ]);
-      if (c && c.length > 0) setClients(c);
+      if (c && c.length > 0) {
+        setClients(c);
+        // Warn if new package columns are missing from Supabase
+        const sample = c[0];
+        if (sample && !("sessionsBaseline" in sample)) {
+          console.warn("[DB] Column 'sessionsBaseline' missing from clients table — add it in Supabase to persist session counts.");
+          alert("⚠️ Your Supabase clients table is missing the 'sessionsBaseline' and 'sessionsSnapshotDate' columns. Session counts won't save until you add them.");
+        }
+      }
       if (s && s.length > 0) setSessions(s);
       try {
         const rows = await sbFetch("app_settings?key=in.(saved_workouts,assigned_workouts)");
