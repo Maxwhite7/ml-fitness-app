@@ -832,6 +832,12 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return;
+      // Clients: use PATCH by id — avoids duplicate row issues with merge-duplicates
+      if (key === "gym_clients" && row.id) {
+        const result = await sbFetch(`${table}?id=eq.${encodeURIComponent(row.id)}`, "PATCH", row);
+        console.log(`[upsertOne PATCH] ${table} id=${row.id}:`, result === null ? "FAILED ❌" : "OK ✓");
+        return result;
+      }
       const result = await sbFetch(table, "POST", [row], { 
         Prefer: "resolution=merge-duplicates,return=minimal" 
       });
