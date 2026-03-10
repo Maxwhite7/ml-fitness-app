@@ -6886,20 +6886,17 @@ function ClientSchedule({ client, mySessions, sessionsDone }) {
                     <div style={{padding:"10px 16px",background:"var(--panel)",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div style={{display:"flex",alignItems:"center",gap:10}}>
                         <div className="bebas" style={{fontSize:15,color:"var(--accent)",letterSpacing:1}}>Package #{pkgNum}</div>
-                        {startDate && pkgNum===packages.length && (
-                          <div style={{fontSize:10,color:"var(--muted)"}}>from {new Date(startDate+"T12:00:00").toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})}</div>
-                        )}
                       </div>
                       <div style={{fontSize:11,color:"var(--muted)"}}>
                         {pkg.filter(s=>s.date<=todayStr).length} done · {pkg.filter(s=>s.date>todayStr).length} upcoming · {Math.max(0,packageSize-pkg.length)} open
                       </div>
                     </div>
-                    {pkg.map((s,i) => <HRow key={s.id} s={s} withinPkg={offset+i+1} pkgSize={packageSize} globalNum={globalBase+i+1} />)}
+                    {pkg.map((s,i) => <HRow key={s.id} s={s} withinPkg={i+1} pkgSize={packageSize} globalNum={globalBase+i+1} />)}
                     {revIdx===0 && pkg.length < packageSize && (
-                      Array.from({length: packageSize - offset - pkg.length}).filter((_,i) => offset+pkg.length+i+1 <= packageSize).map((_,i) => (
+                      Array.from({length: packageSize - pkg.length}).map((_,i) => (
                         <div key={"empty"+i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:"1px solid var(--border)",opacity:0.35}}>
                           <div style={{minWidth:48,textAlign:"center",padding:"4px 6px",borderRadius:4,border:"1px dashed var(--border)",flexShrink:0}}>
-                            <div style={{fontSize:14,fontWeight:700,color:"var(--border)",lineHeight:1}}>{offset+pkg.length+i+1}/{packageSize}</div>
+                            <div style={{fontSize:14,fontWeight:700,color:"var(--border)",lineHeight:1}}>{pkg.length+i+1}/{packageSize}</div>
                           </div>
                           <div style={{fontSize:12,color:"var(--border)"}}>Not yet booked</div>
                         </div>
@@ -6912,7 +6909,7 @@ function ClientSchedule({ client, mySessions, sessionsDone }) {
                 <div>
                   <div style={{padding:"10px 16px",background:"var(--panel)",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div className="bebas" style={{fontSize:15,color:"var(--muted)",letterSpacing:1}}>Previous History</div>
-                    <div style={{fontSize:11,color:"var(--muted)"}}>before {new Date(startDate+"T12:00:00").toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})} · {legacySessions.length} sessions</div>
+                    <div style={{fontSize:11,color:"var(--muted)"}}>{legacySessions.length} sessions</div>
                   </div>
                   {[...legacySessions].reverse().map((s,i) => <HRow key={s.id} s={s} withinPkg={null} pkgSize={null} globalNum={legacySessions.length-i} isLegacy />)}
                 </div>
