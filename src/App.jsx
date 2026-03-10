@@ -1134,19 +1134,21 @@ const seedSessions = () => [
 ];
 
 // ─── Session count helper ─────────────────────────────────────────────────────
-// sessionsUsed = sessionsOffset (carry-over) + sessions on/after packageStartDate
-function calcSessionsUsed(client, sessions) {
+// calcSessionsDone: sessionsBaseline (manually set by trainer) + sessions completed after that snapshot date
+function calcSessionsDone(client, sessions) {
+  const baseline = client.sessionsBaseline || 0;
+  const snapshotDate = client.sessionsSnapshotDate || null;
+  if (!snapshotDate) return baseline;
   const now = new Date();
   const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  const start = client.packageStartDate || null;
-  const tracked = sessions.filter(s =>
-    s.date && s.date <= todayStr &&
+  const completedSince = sessions.filter(s =>
+    s.date && s.date > snapshotDate && s.date <= todayStr &&
     s.clientIds && s.clientIds.includes(client.id) &&
-    (!start || s.date >= start) &&
-    !(s.exceptions && s.exceptions.includes(client.id))  // free session — don't count
+    !(s.exceptions && s.exceptions.includes(client.id))
   ).length;
-  return (client.sessionsOffset || 0) + tracked;
+  return baseline + completedSince;
 }
+function calcSessionsUsed(client, sessions) { return calcSessionsDone(client, sessions); }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -2177,13 +2179,13 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" });
+  const [form, setForm] = useState({ name:"", sessionsTotal:0, sessionsBaseline:0, active:true });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:20, sessionsOffset:0, active:true, packageStartDate:"" }); setNewCredentials(null); setModal("add"); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:0, sessionsBaseline:0, active:true }); setNewCredentials(null); setModal("add"); };
   const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
 
   const hashPassword = async (password) => {
@@ -2333,8 +2335,10 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                     <td style={{color:"var(--muted)"}}>{c.email||"—"}</td>
                     <td style={{textAlign:"center"}}>
                       {c.sessionsTotal > 0
-                        ? <span style={{color: (c.sessionsTotal - calcSessionsUsed(c,sessions)) <= 3 ? "var(--red)" : (c.sessionsTotal - calcSessionsUsed(c,sessions)) <= 5 ? "var(--accent)" : "var(--green)", fontWeight:600}}>
-                            {Math.max(0, c.sessionsTotal - calcSessionsUsed(c,sessions))}
+                        ? <span style={{fontWeight:600}}>
+                            <span style={{color: calcSessionsDone(c,sessions) >= c.sessionsTotal ? "var(--red)" : calcSessionsDone(c,sessions) >= c.sessionsTotal * 0.85 ? "var(--accent)" : "var(--green)"}}>
+                              {calcSessionsDone(c,sessions)}
+                            </span>
                             <span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}> / {c.sessionsTotal}</span>
                           </span>
                         : <span style={{color:"var(--muted)"}}>—</span>}
@@ -2404,15 +2408,13 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
           .sort((a, b) => a.date < b.date ? -1 : 1);
 
         const total       = historyClient.sessionsTotal || 0;
-        const offset      = historyClient.sessionsOffset || 0;
-        const used        = calcSessionsUsed(historyClient, sessions);
+        const used        = calcSessionsDone(historyClient, sessions);
         const left        = Math.max(0, total - used);
         const packageSize = total || 10;
-        const startDate   = historyClient.packageStartDate || null;
 
-        // Split into: sessions before package start (legacy) and current package onwards
-        const legacySessions  = startDate ? allClientSessions.filter(s => s.date < startDate) : [];
-        const currentSessions = startDate ? allClientSessions.filter(s => s.date >= startDate) : allClientSessions;
+        // All sessions in one block
+        const legacySessions  = [];
+        const currentSessions = allClientSessions;
 
         // Current package splits into blocks of packageSize
         const packages = [];
@@ -2609,29 +2611,25 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
               </div>
               <div className="two-col">
                 <div className="form-row">
-                  <label>Package Size (Total Sessions)</label>
-                  <input type="number" min="0" value={form.sessionsTotal} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
+                  <label>Sessions Done Right Now</label>
+                  <input type="number" min="0" value={form.sessionsBaseline||0} onChange={e=>setForm({...form,sessionsBaseline:+e.target.value,sessionsSnapshotDate:(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})()})} />
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>How many sessions this client has completed as of today. Future sessions will be counted automatically.</div>
                 </div>
                 <div className="form-row">
-                  <label>Starting Session #</label>
-                  <input type="number" min="0" value={form.sessionsOffset||0} onChange={e=>setForm({...form,sessionsOffset:+e.target.value})} />
-                  <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Sessions already done before the start date (e.g. enter 7 to start counting from 7).</div>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <label>Package Start Date</label>
-                <input type="date" value={form.packageStartDate||""} onChange={e=>setForm({...form,packageStartDate:e.target.value})} />
-                <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>
-                  Sessions on/after this date are counted. Leave blank to count all sessions.
+                  <label>Package Size (Total Sessions)</label>
+                  <input type="number" min="0" value={form.sessionsTotal||0} onChange={e=>setForm({...form,sessionsTotal:+e.target.value})} />
                 </div>
               </div>
 
               {modal !== "add" && (
-                <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"10px 14px",fontSize:12,display:"flex",gap:16}}>
-                  <div><span style={{color:"var(--muted)"}}>Used: </span><strong style={{color:"var(--accent)"}}>{(form.sessionsOffset||0) + sessions.filter(s => { const now=new Date(); const t=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'); return s.date&&s.date<=t&&s.clientIds.includes(modal.id)&&(!form.packageStartDate||s.date>=form.packageStartDate); }).length}</strong></div>
-                  <div><span style={{color:"var(--muted)"}}>Left: </span><strong style={{color:"var(--green)"}}>{Math.max(0, (form.sessionsTotal||0) - ((form.sessionsOffset||0) + sessions.filter(s => { const now=new Date(); const t=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'); return s.date&&s.date<=t&&s.clientIds.includes(modal.id)&&(!form.packageStartDate||s.date>=form.packageStartDate); }).length))}</strong></div>
-                  <div style={{color:"var(--muted)"}}>{form.sessionsOffset||0} carry-over + {sessions.filter(s => { const now=new Date(); const t=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'); return s.date&&s.date<=t&&s.clientIds.includes(modal.id)&&(!form.packageStartDate||s.date>=form.packageStartDate); }).length} tracked</div>
+                <div style={{background:"var(--charcoal)",border:"1px solid var(--border)",borderRadius:4,padding:"10px 14px",fontSize:13,display:"flex",alignItems:"center",gap:20}}>
+                  <div style={{fontWeight:600}}>
+                    <span style={{color: calcSessionsDone(form,sessions) >= (form.sessionsTotal||0) ? "var(--red)" : calcSessionsDone(form,sessions) >= (form.sessionsTotal||0)*0.85 ? "var(--accent)" : "var(--green)", fontSize:22}}>
+                      {calcSessionsDone(form, sessions)}
+                    </span>
+                    <span style={{color:"var(--muted)",fontSize:13}}> / {form.sessionsTotal||0}</span>
+                  </div>
+                  <div style={{color:"var(--muted)",fontSize:11}}>sessions done{form.sessionsSnapshotDate ? ` · tracking since ${form.sessionsSnapshotDate}` : ""}</div>
                 </div>
               )}
               {modal !== "add" && (
@@ -4979,10 +4977,10 @@ function TrainerAnalytics({ clients, sessions }) {
     .filter(c => c.active)
     .map(c => ({
       name: c.name.split(" ")[0],
-      used: calcSessionsUsed(c, sessions),
+      used: calcSessionsDone(c, sessions),
       total: c.sessionsTotal || 0,
-      left: Math.max(0, (c.sessionsTotal||0) - calcSessionsUsed(c, sessions)),
-      pct: c.sessionsTotal > 0 ? Math.round((calcSessionsUsed(c, sessions)/c.sessionsTotal)*100) : 0
+      left: Math.max(0, (c.sessionsTotal||0) - calcSessionsDone(c, sessions)),
+      pct: c.sessionsTotal > 0 ? Math.round((calcSessionsDone(c, sessions)/c.sessionsTotal)*100) : 0
     }))
     .sort((a,b) => b.pct - a.pct);
 
@@ -5773,7 +5771,7 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
     const da = a.date||"", db = b.date||"";
     return da < db ? -1 : da > db ? 1 : TIMES.indexOf(a.time)-TIMES.indexOf(b.time);
   });
-  const sessionsLeft = client ? Math.max(0, client.sessionsTotal - calcSessionsUsed(client, mySessions)) : 0;
+  const sessionsDone = client ? calcSessionsDone(client, mySessions) : 0;
   const myWorkouts = (assignedWorkouts?.[user.id] || []);
 
   if (!client) return (
@@ -5789,13 +5787,13 @@ function ClientApp({ user, clients, sessions, saveClients, onLogout, bluFAQ, ass
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="CLIENT" />
       <div className="main-content" style={{overflowY:"auto"}}>
-        <div style={{display:tab==="schedule"?"":"none"}}><ClientSchedule client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} /></div>
+        <div style={{display:tab==="schedule"?"":"none"}}><ClientSchedule client={client} mySessions={mySessions} sessionsDone={sessionsDone} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><ClientAvailability client={client} /></div>
         <div style={{display:tab==="programs"?"":"none"}}><ClientPrograms workouts={myWorkouts} /></div>
         {tab==="progress" && <ClientProgress client={client} mySessions={mySessions} />}
-        <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsLeft={sessionsLeft} /></div>
+        <div style={{display:tab==="account"?"":"none"}}><ClientAccount client={client} sessionsDone={sessionsDone} /></div>
       </div>
-      <ClientBlu client={client} mySessions={mySessions} sessionsLeft={sessionsLeft} bluFAQ={bluFAQ || []} assignedWorkouts={myWorkouts} onNavigate={setTab} />
+      <ClientBlu client={client} mySessions={mySessions} sessionsDone={sessionsDone} bluFAQ={bluFAQ || []} assignedWorkouts={myWorkouts} onNavigate={setTab} />
     </div>
   );
 }
@@ -6521,7 +6519,7 @@ function TrainerBluFAQ({ bluFAQ, setBluFAQ }) {
 }
 
 
-function ClientBlu({ client, mySessions, sessionsLeft, bluFAQ, assignedWorkouts, onNavigate }) {
+function ClientBlu({ client, mySessions, sessionsDone, bluFAQ, assignedWorkouts, onNavigate }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role:"assistant", text:`Hey ${client?.name?.split(" ")[0] || "there"}! 🐾 I'm Blu. Ask me about your schedule, upcoming sessions, or anything about your training!` }
@@ -6564,7 +6562,7 @@ You know their personal schedule and can answer questions about it.
 
 Client info:
 - Name: ${client?.name || "Unknown"}
-- Sessions left: ${sessionsLeft}
+- Sessions done: ${sessionsDone} / ${client.sessionsTotal || "?"}
 - Upcoming sessions: ${upcomingStr}
 - Recent past sessions: ${pastStr}
 - Today: ${todayStr}
@@ -6654,7 +6652,7 @@ Do NOT discuss other clients or trainer-only data.`;
   );
 }
 
-function ClientSchedule({ client, mySessions, sessionsLeft }) {
+function ClientSchedule({ client, mySessions, sessionsDone }) {
   if (!client) return null;
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -6683,9 +6681,9 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); };
 
-  const used = calcSessionsUsed(client, mySessions);
+  const used = sessionsDone;
   const pct = client.sessionsTotal > 0 ? Math.round((used/client.sessionsTotal)*100) : 0;
-  const left = Math.max(0, client.sessionsTotal - used);
+  const left = Math.max(0, (client.sessionsTotal||0) - used);
 
   return (
     <>
@@ -6833,16 +6831,14 @@ function ClientSchedule({ client, mySessions, sessionsLeft }) {
         const now = new Date();
         const todayStr = dateKey(now);
         const total       = client.sessionsTotal || 0;
-        const offset      = client.sessionsOffset || 0;
         const packageSize = total || 10;
-        const startDate   = client.packageStartDate || null;
 
         const allClientSessions = mySessions
           .filter(s => s.date)
           .sort((a, b) => a.date < b.date ? -1 : 1);
 
-        const legacySessions  = startDate ? allClientSessions.filter(s => s.date < startDate) : [];
-        const currentSessions = startDate ? allClientSessions.filter(s => s.date >= startDate) : allClientSessions;
+        const legacySessions  = [];
+        const currentSessions = allClientSessions;
 
         const packages = [];
         for (let i = 0; i < currentSessions.length; i += packageSize) {
@@ -7427,7 +7423,7 @@ function ClientProgress({ client, mySessions }) {
 }
 
 
-function ClientAccount({ client, sessionsLeft }) {
+function ClientAccount({ client, sessionsDone }) {
   if (!client) return null;
   return (
     <>
@@ -7454,7 +7450,7 @@ function ClientAccount({ client, sessionsLeft }) {
         <div className="section">
           <div className="section-header"><span className="section-title">Package</span></div>
           <div className="section-body">
-            <StatCard label="Sessions Remaining" value={sessionsLeft} sub={`of ${client.sessionsTotal} total`} accent={sessionsLeft<5?"red":undefined} />
+            <StatCard label="Sessions Done" value={`${sessionsDone} / ${client.sessionsTotal||"?"}`} sub={`${Math.max(0,(client.sessionsTotal||0)-sessionsDone)} remaining`} accent={(client.sessionsTotal||0)>0&&((client.sessionsTotal||0)-sessionsDone)<=3?"red":undefined} />
           </div>
         </div>
       </div>
