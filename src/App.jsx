@@ -834,13 +834,18 @@ const store = {
       if (!table) return;
       // Clients: use PATCH by id — more reliable than merge-duplicates
       if (key === "gym_clients" && row.id) {
+        console.log(`[SAVE CLIENT] Sending PATCH for ${row.id}:`, {
+          sessions_baseline: row.sessions_baseline,
+          sessions_snapshot_date: row.sessions_snapshot_date,
+          sessionsTotal: row.sessionsTotal
+        });
         const result = await sbFetch(
           `${table}?id=eq.${encodeURIComponent(row.id)}`,
           "PATCH",
           row,
-          { Prefer: "return=minimal" }
+          { Prefer: "return=representation" }
         );
-        console.log(`[upsertOne PATCH] ${table} id=${row.id}:`, result === null ? "FAILED ❌" : "OK ✓", result);
+        console.log(`[SAVE CLIENT] Response for ${row.id}:`, result);
         return result;
       }
       const result = await sbFetch(table, "POST", [row], { 
@@ -1145,10 +1150,10 @@ const seedSessions = () => [
 ];
 
 // ─── Session count helper ─────────────────────────────────────────────────────
-// calcSessionsDone: sessionsBaseline (manually set by trainer) + sessions completed after that snapshot date
+// calcSessionsDone: sessions_baseline (manually set by trainer) + sessions completed after that snapshot date
 function calcSessionsDone(client, sessions) {
-  const baseline = client.sessionsBaseline || 0;
-  const snapshotDate = client.sessionsSnapshotDate || null;
+  const baseline = client.sessions_baseline || 0;
+  const snapshotDate = client.sessions_snapshot_date || null;
   if (!snapshotDate) return baseline;
   const now = new Date();
   const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
@@ -1259,6 +1264,12 @@ export default function App() {
         store.get("gym_sessions")
       ]);
       if (c && c.length > 0) {
+        console.log("[LOGIN FETCH] First client from DB:", JSON.stringify({
+          id: c[0].id, name: c[0].name,
+          sessions_baseline: c[0].sessions_baseline,
+          sessions_snapshot_date: c[0].sessions_snapshot_date,
+          sessionsTotal: c[0].sessionsTotal
+        }));
         setClients(c);
       }
       if (s && s.length > 0) setSessions(s);
@@ -2192,13 +2203,13 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
 function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name:"", sessionsTotal:0, sessionsBaseline:0, active:true });
+  const [form, setForm] = useState({ name:"", sessionsTotal:0, sessions_baseline:0, active:true });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:0, sessionsBaseline:0, active:true }); setNewCredentials(null); setModal("add"); };
+  const openAdd = () => { setForm({ name:"", sessionsTotal:0, sessions_baseline:0, active:true }); setNewCredentials(null); setModal("add"); };
   const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
 
   const hashPassword = async (password) => {
@@ -2423,8 +2434,8 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
         const total          = historyClient.sessionsTotal || 0;
         const used           = calcSessionsDone(historyClient, sessions);
         const left           = Math.max(0, total - used);
-        const baseline       = historyClient.sessionsBaseline || 0;
-        const snapshotDate   = historyClient.sessionsSnapshotDate || null;
+        const baseline       = historyClient.sessions_baseline || 0;
+        const snapshotDate   = historyClient.sessions_snapshot_date || null;
 
         // Sessions before snapshot are already baked into the baseline number
         // Sessions on/after snapshot are the ones being auto-counted
@@ -2617,7 +2628,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
               <div className="two-col">
                 <div className="form-row">
                   <label>Sessions Done Right Now</label>
-                  <input type="number" min="0" value={form.sessionsBaseline||0} onChange={e=>setForm({...form,sessionsBaseline:+e.target.value,sessionsSnapshotDate:(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})()})} />
+                  <input type="number" min="0" value={form.sessions_baseline||0} onChange={e=>setForm({...form,sessions_baseline:+e.target.value,sessions_snapshot_date:(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})()})} />
                   <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>How many sessions this client has completed as of today. Future sessions will be counted automatically.</div>
                 </div>
                 <div className="form-row">
@@ -2634,7 +2645,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                     </span>
                     <span style={{color:"var(--muted)",fontSize:13}}> / {form.sessionsTotal||0}</span>
                   </div>
-                  <div style={{color:"var(--muted)",fontSize:11}}>sessions done{form.sessionsSnapshotDate ? ` · tracking since ${form.sessionsSnapshotDate}` : ""}</div>
+                  <div style={{color:"var(--muted)",fontSize:11}}>sessions done{form.sessions_snapshot_date ? ` · tracking since ${form.sessions_snapshot_date}` : ""}</div>
                 </div>
               )}
               {modal !== "add" && (
@@ -6836,8 +6847,8 @@ function ClientSchedule({ client, mySessions, sessionsDone }) {
         const now = new Date();
         const todayStr = dateKey(now);
         const total        = client.sessionsTotal || 0;
-        const baseline     = client.sessionsBaseline || 0;
-        const snapshotDate = client.sessionsSnapshotDate || null;
+        const baseline     = client.sessions_baseline || 0;
+        const snapshotDate = client.sessions_snapshot_date || null;
 
         const allClientSessions = mySessions
           .filter(s => s.date)
