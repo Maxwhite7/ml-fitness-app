@@ -803,17 +803,21 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return null;
-      const rows = await sbFetch(`${table}?select=*&order=id`);
+      const rows = await sbFetch(`${table}?select=*${table === "availability" ? "" : "&order=id"}`);
       console.log(`Supabase ${table}: got ${rows ? rows.length : 0} rows`);
       if (!rows || rows.length === 0) return null;
       if (key === "gym_sessions") {
-        return rows.map(r => ({
+        const parsed = rows.map(r => ({
           ...r,
           clientIds: Array.isArray(r.clientIds) ? r.clientIds : 
             (typeof r.clientIds === "string" ? JSON.parse(r.clientIds) : []),
           exceptions: Array.isArray(r.exceptions) ? r.exceptions :
             (typeof r.exceptions === "string" && r.exceptions ? JSON.parse(r.exceptions) : [])
         }));
+        const withExc = parsed.filter(s => s.exceptions && s.exceptions.length > 0);
+        if (withExc.length > 0) console.log("[FETCH SESSIONS] sessions with exceptions:", withExc.map(s=>({id:s.id, exceptions:s.exceptions})));
+        else console.log("[FETCH SESSIONS] no sessions with exceptions found");
+        return parsed;
       }
       return rows;
     } catch(e) { console.error("store.get error:", e); return null; }
@@ -1642,9 +1646,11 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const save = async () => {
     if (modal === "add") {
       const newSession = { ...form, id:"s"+Date.now() };
+      console.log("[SAVE SESSION] new:", newSession.id, "exceptions:", newSession.exceptions);
       await saveSessions([...sessions, newSession], newSession);
     } else {
       const updatedSession = {...modal,...form};
+      console.log("[SAVE SESSION] update:", updatedSession.id, "exceptions:", updatedSession.exceptions);
       await saveSessions(sessions.map(s=>s.id===modal.id?updatedSession:s), updatedSession);
     }
     setModal(null);
