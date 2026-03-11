@@ -5357,11 +5357,18 @@ function AIAgent({ clients, sessions, setSessions, library, onReminder, recurrin
           const hour = time.split(":")[0];
           const nextHour = String(parseInt(hour) + 1);
           const timeRange = `${hour}-${nextHour}`;
-          const names = s.clientIds
-            .map(id => { const c = clients.find(x => x.id === id); return c ? c.name.split(" ")[0] : null; })
-            .filter(Boolean)
-            .join("/");
-          return `${timeRange} ${names}`;
+          const clientData = s.clientIds
+            .map(id => {
+              const c = clients.find(x => x.id === id);
+              if (!c) return null;
+              const done = calcSessionsDone(c, sessions);
+              const total = c.sessionsTotal || 0;
+              return { name: c.name.split(" ")[0], pkg: total > 0 ? `${done}/${total}` : null };
+            })
+            .filter(Boolean);
+          const names = clientData.map(x => x.name).join("/");
+          const counts = clientData.map(x => x.pkg).filter(Boolean).join(" / ");
+          return `${timeRange} ${names}${counts ? "  " + counts : ""}`;
         });
         return `📅 ${header}\n\n${lines.join("\n")}`;
       }
