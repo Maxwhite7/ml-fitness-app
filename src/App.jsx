@@ -814,10 +814,6 @@ const store = {
           exceptions: Array.isArray(r.exceptions) ? r.exceptions :
             (typeof r.exceptions === "string" && r.exceptions ? JSON.parse(r.exceptions) : [])
         }));
-        console.log("[FETCH SESSIONS] raw first row from DB:", JSON.stringify(rows[0]));
-        const withExc = parsed.filter(s => s.exceptions && s.exceptions.length > 0);
-        if (withExc.length > 0) console.log("[FETCH SESSIONS] sessions with exceptions:", withExc.map(s=>({id:s.id, exceptions:s.exceptions})));
-        else console.log("[FETCH SESSIONS] no sessions with exceptions found");
         return parsed;
       }
       return rows;
@@ -1647,11 +1643,9 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
   const save = async () => {
     if (modal === "add") {
       const newSession = { ...form, id:"s"+Date.now() };
-      console.log("[SAVE SESSION] new:", newSession.id, "exceptions:", newSession.exceptions);
       await saveSessions([...sessions, newSession], newSession);
     } else {
       const updatedSession = {...modal,...form};
-      console.log("[SAVE SESSION] update:", updatedSession.id, "exceptions:", updatedSession.exceptions);
       await saveSessions(sessions.map(s=>s.id===modal.id?updatedSession:s), updatedSession);
     }
     setModal(null);
@@ -2486,9 +2480,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
               }}>
                 {isLegacy
                   ? <div style={{fontSize:11,color:"var(--muted)"}}>#{globalNum}</div>
-                  : <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>
-                      {withinPkg}/{packageSize}
-                    </div>
+                  : withinPkg === null
+                    ? <div style={{fontSize:16,lineHeight:1}}>🎁</div>
+                    : <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>
+                        {withinPkg}/{packageSize}
+                      </div>
                 }
               </div>
               <div style={{flex:1}}>
@@ -2542,10 +2538,19 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                       {afterSnapshot.filter(s=>s.date<=todayStr).length} done · {afterSnapshot.filter(s=>s.date>todayStr).length} upcoming
                     </div>
                   </div>
-                  {[...afterSnapshot].reverse().map((s, i) => {
-                    const num = baseline + (afterSnapshot.length - i);
-                    return <SessionRow key={s.id} s={s} withinPkg={num} packageSize={total||0} globalNum={num} clientId={historyClient.id} />;
-                  })}
+                  {(() => {
+                    // Number only non-free sessions, free ones don't get a package number
+                    const clientId = historyClient.id;
+                    const reversed = [...afterSnapshot].reverse();
+                    // Count non-free sessions from oldest to newest to assign numbers
+                    let nonFreeCount = afterSnapshot.filter(s => !(s.exceptions && s.exceptions.includes(clientId))).length;
+                    let counter = baseline + nonFreeCount;
+                    return reversed.map((s) => {
+                      const isFree = s.exceptions && s.exceptions.includes(clientId);
+                      const num = isFree ? null : counter--;
+                      return <SessionRow key={s.id} s={s} withinPkg={num} packageSize={total||0} globalNum={num} clientId={clientId} />;
+                    });
+                  })()}
                   {/* Empty upcoming slots */}
                   {total > 0 && used < total && (
                     Array.from({length: Math.min(3, total - used)}).map((_,i) => (
@@ -6887,7 +6892,9 @@ function ClientSchedule({ client, mySessions, sessionsDone }) {
                 border:`1px solid ${isLegacy?"var(--border)":isPast?"var(--border)":"var(--accent)"}`}}>
                 {isLegacy
                   ? <div style={{fontSize:11,color:"var(--muted)"}}>#{globalNum}</div>
-                  : <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>{withinPkg}{pkgSize?`/${pkgSize}`:""}</div>
+                  : withinPkg === null
+                    ? <div style={{fontSize:16,lineHeight:1}}>🎁</div>
+                    : <div style={{fontSize:14,fontWeight:700,color:isPast?"var(--muted)":"var(--accent)",lineHeight:1}}>{withinPkg}{pkgSize?`/${pkgSize}`:""}</div>
                 }
               </div>
               <div style={{flex:1}}>
@@ -6917,10 +6924,16 @@ function ClientSchedule({ client, mySessions, sessionsDone }) {
                     {afterSnapshot.filter(s=>s.date<=todayStr).length} done · {afterSnapshot.filter(s=>s.date>todayStr).length} upcoming
                   </div>
                 </div>
-                {[...afterSnapshot].reverse().map((s, i) => {
-                  const num = baseline + (afterSnapshot.length - i);
-                  return <HRow key={s.id} s={s} withinPkg={num} pkgSize={total||0} globalNum={num} />;
-                })}
+                {(() => {
+                  const reversed = [...afterSnapshot].reverse();
+                  let nonFreeCount = afterSnapshot.filter(s => !(s.exceptions && s.exceptions.includes(client.id))).length;
+                  let counter = baseline + nonFreeCount;
+                  return reversed.map((s) => {
+                    const isFree = s.exceptions && s.exceptions.includes(client.id);
+                    const num = isFree ? null : counter--;
+                    return <HRow key={s.id} s={s} withinPkg={num} pkgSize={total||0} globalNum={num} />;
+                  });
+                })()}
                 {total > 0 && sessionsDone < total && (
                   Array.from({length: Math.min(3, total - sessionsDone)}).map((_,i) => (
                     <div key={"empty"+i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:"1px solid var(--border)",opacity:0.35}}>
