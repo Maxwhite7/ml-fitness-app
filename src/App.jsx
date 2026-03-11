@@ -814,6 +814,7 @@ const store = {
           exceptions: Array.isArray(r.exceptions) ? r.exceptions :
             (typeof r.exceptions === "string" && r.exceptions ? JSON.parse(r.exceptions) : [])
         }));
+        console.log("[FETCH SESSIONS] raw first row from DB:", JSON.stringify(rows[0]));
         const withExc = parsed.filter(s => s.exceptions && s.exceptions.length > 0);
         if (withExc.length > 0) console.log("[FETCH SESSIONS] sessions with exceptions:", withExc.map(s=>({id:s.id, exceptions:s.exceptions})));
         else console.log("[FETCH SESSIONS] no sessions with exceptions found");
