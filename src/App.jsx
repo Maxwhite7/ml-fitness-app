@@ -822,8 +822,13 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table || !val || val.length === 0) return;
-      // Upsert all rows — inserts new, updates existing
-      await sbFetch(table, "POST", val, { 
+      // Ensure array fields are serialized for sessions
+      const rows = key === "gym_sessions" ? val.map(r => ({
+        ...r,
+        clientIds: Array.isArray(r.clientIds) ? JSON.stringify(r.clientIds) : r.clientIds,
+        exceptions: Array.isArray(r.exceptions) ? JSON.stringify(r.exceptions) : (r.exceptions ?? "[]"),
+      })) : val;
+      await sbFetch(table, "POST", rows, { 
         Prefer: "resolution=merge-duplicates,return=minimal" 
       });
     } catch(e) { console.error("store.set error:", e); }
@@ -832,6 +837,14 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return;
+      // Sessions: ensure array fields are JSON strings for Supabase text columns
+      if (key === "gym_sessions") {
+        row = {
+          ...row,
+          clientIds: Array.isArray(row.clientIds) ? JSON.stringify(row.clientIds) : row.clientIds,
+          exceptions: Array.isArray(row.exceptions) ? JSON.stringify(row.exceptions) : (row.exceptions ?? "[]"),
+        };
+      }
       // Clients: INSERT new rows, PATCH existing rows
       if (key === "gym_clients" && row.id) {
         // Try PATCH first — if 0 rows updated, it's a new client, use POST
