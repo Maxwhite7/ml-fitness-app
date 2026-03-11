@@ -832,21 +832,25 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table) return;
-      // Clients: use PATCH by id — more reliable than merge-duplicates
+      // Clients: INSERT new rows, PATCH existing rows
       if (key === "gym_clients" && row.id) {
-        console.log(`[SAVE CLIENT] Sending PATCH for ${row.id}:`, {
-          sessions_baseline: row.sessions_baseline,
-          sessions_snapshot_date: row.sessions_snapshot_date,
-          sessionsTotal: row.sessionsTotal
-        });
-        const result = await sbFetch(
+        // Try PATCH first — if 0 rows updated, it's a new client, use POST
+        const patchResult = await sbFetch(
           `${table}?id=eq.${encodeURIComponent(row.id)}`,
           "PATCH",
           row,
           { Prefer: "return=representation" }
         );
-        console.log(`[SAVE CLIENT] Response for ${row.id}:`, result);
-        return result;
+        // PATCH returns [] if no row matched — means new client, insert instead
+        if (Array.isArray(patchResult) && patchResult.length === 0) {
+          console.log(`[upsertOne] No existing row for ${row.id}, inserting...`);
+          const insertResult = await sbFetch(table, "POST", [row], {
+            Prefer: "resolution=merge-duplicates,return=minimal"
+          });
+          console.log(`[upsertOne INSERT] ${table} id=${row.id}:`, insertResult === null ? "FAILED ❌" : "OK ✓");
+          return insertResult;
+        }
+        return patchResult;
       }
       const result = await sbFetch(table, "POST", [row], { 
         Prefer: "resolution=merge-duplicates,return=minimal" 
@@ -1264,12 +1268,6 @@ export default function App() {
         store.get("gym_sessions")
       ]);
       if (c && c.length > 0) {
-        console.log("[LOGIN FETCH] First client from DB:", JSON.stringify({
-          id: c[0].id, name: c[0].name,
-          sessions_baseline: c[0].sessions_baseline,
-          sessions_snapshot_date: c[0].sessions_snapshot_date,
-          sessionsTotal: c[0].sessionsTotal
-        }));
         setClients(c);
       }
       if (s && s.length > 0) setSessions(s);
@@ -1468,7 +1466,7 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
         <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
-        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const affectedSessions = sessions.filter(s=>s.clientIds.includes(id)); const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); for (const s of affectedSessions) { const updated = {...s, clientIds: s.clientIds.filter(cid=>cid!==id)}; await store.upsertOne("gym_sessions", updated); } setSessions(updatedSessions); setClients(clients.filter(c=>c.id!==id)); }} onPreviewClient={onPreviewClient} /></div>
+        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const affectedSessions = sessions.filter(s=>s.clientIds.includes(id)); const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); for (const s of affectedSessions) { const updated = {...s, clientIds: s.clientIds.filter(cid=>cid!==id)}; await store.upsertOne("gym_sessions", updated); } setSessions(updatedSessions); setClients(clients.filter(c=>c.id!==id)); await store.remove("gym_clients", id); }} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
