@@ -1640,11 +1640,23 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
   const prevMonth = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else{setViewMonth(m=>m-1);} setSelectedDate(null); setSelectedSessions([]); };
   const nextMonth = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else{setViewMonth(m=>m+1);} setSelectedDate(null); setSelectedSessions([]); };
 
-  const openAdd = (d) => {
-    setForm({ date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"", exceptions:[] });
-    setModal("add");
+  const [savedForm, setSavedForm] = useState(null);
+  const isScheduleDirty = () => modal && savedForm && JSON.stringify(form) !== JSON.stringify(savedForm);
+  const confirmClose = (closeFn) => {
+    if (isScheduleDirty()) {
+      if (!window.confirm("You have unsaved changes. Discard them?")) return;
+    }
+    closeFn();
   };
-  const openEdit = (s) => { setForm({...s, exceptions: s.exceptions||[]}); setModal(s); };
+
+  const openAdd = (d) => {
+    const f = { date: dateKey(d), time:"7:00 AM", clientIds:[], notes:"", exceptions:[] };
+    setForm(f); setSavedForm(f); setModal("add");
+  };
+  const openEdit = (s) => {
+    const f = {...s, exceptions: s.exceptions||[]};
+    setForm(f); setSavedForm(f); setModal(s);
+  };
 
   const toggleException = (id) => {
     setForm(f => ({
@@ -2161,11 +2173,11 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
 
       {/* Session modal */}
       {modal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&confirmClose(()=>setModal(null))}>
           <div className="modal">
             <div className="modal-header">
               <div className="bebas modal-title">{modal==="add"?"NEW SESSION":"EDIT SESSION"}</div>
-              <button className="modal-close" onClick={()=>setModal(null)}>✕</button>
+              <button className="modal-close" onClick={()=>confirmClose(()=>setModal(null))}>✕</button>
             </div>
             <div className="modal-body">
               <div className="form-row">
@@ -2243,7 +2255,7 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
             </div>
             <div className="modal-footer">
               {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Delete</button>}
-              <button className="btn-secondary" onClick={()=>setModal(null)}>Cancel</button>
+              <button className="btn-secondary" onClick={()=>confirmClose(()=>setModal(null))}>Cancel</button>
               <button className="btn-primary" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={save}>Save</button>
             </div>
           </div>
@@ -2264,8 +2276,17 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setForm({ name:"", sessionsTotal:0, sessions_baseline:0, active:true }); setNewCredentials(null); setModal("add"); };
-  const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); setRenewMode(false); setRenewSize(c.sessionsTotal||0); };
+  const [savedClientForm, setSavedClientForm] = useState(null);
+  const isClientDirty = () => modal && savedClientForm && JSON.stringify(form) !== JSON.stringify(savedClientForm);
+  const confirmClientClose = (closeFn) => {
+    if (isClientDirty()) {
+      if (!window.confirm("You have unsaved changes. Discard them?")) return;
+    }
+    closeFn();
+  };
+
+  const openAdd = () => { const f = { name:"", sessionsTotal:0, sessions_baseline:0, active:true }; setForm(f); setSavedClientForm(f); setNewCredentials(null); setModal("add"); };
+  const openEdit = (c) => { setForm({...c}); setSavedClientForm({...c}); setNewCredentials(null); setModal(c); setRenewMode(false); setRenewSize(c.sessionsTotal||0); };
 
   const hashPassword = async (password) => {
     const msgBuffer = new TextEncoder().encode(password);
@@ -2671,11 +2692,11 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
       )}
 
       {modal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&confirmClientClose(()=>setModal(null))}>
           <div className="modal">
             <div className="modal-header">
               <div className="bebas modal-title">{modal==="add"?"NEW CLIENT":"EDIT CLIENT"}</div>
-              <button className="modal-close" onClick={()=>setModal(null)}>✕</button>
+              <button className="modal-close" onClick={()=>confirmClientClose(()=>setModal(null))}>✕</button>
             </div>
             <div className="modal-body">
               <div className="two-col">
@@ -2764,7 +2785,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
             <div className="modal-footer">
               {modal !== "add" && <button className="btn-secondary" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={del}>Remove</button>}
               {modal !== "add" && <button className="btn-secondary" style={{color:"var(--accent)",borderColor:"var(--accent)"}} onClick={resetPassword}>🔑 Reset Password</button>}
-              <button className="btn-secondary" onClick={()=>setModal(null)}>Cancel</button>
+              <button className="btn-secondary" onClick={()=>confirmClientClose(()=>setModal(null))}>Cancel</button>
               <button className="btn-primary" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={save}>Save</button>
             </div>
           </div>
