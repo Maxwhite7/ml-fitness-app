@@ -2742,12 +2742,18 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
   const [dragOverWaitlist, setDragOverWaitlist] = useState(false);
-  const [waitlist, setWaitlist] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ml_waitlist") || "[]"); } catch { return []; }
-  });
+  const [waitlist, setWaitlist] = useState([]);
   useEffect(() => {
-    try { localStorage.setItem("ml_waitlist", JSON.stringify(waitlist)); } catch {}
-  }, [waitlist]);
+    sbFetch("app_settings?key=eq.waitlist").then(rows => {
+      if (rows && rows.length > 0) {
+        try { setWaitlist(JSON.parse(rows[0].value) || []); } catch {}
+      }
+    });
+  }, []);
+  const saveWaitlist = (updated) => {
+    setWaitlist(updated);
+    sbFetch("app_settings", "POST", [{ key: "waitlist", value: JSON.stringify(updated) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+  };
   const [selectedWaitlistClient, setSelectedWaitlistClient] = useState(null); // clientId being placed from waitlist
   const [showHistory, setShowHistory] = useState(false);
   const [moveHistory, setMoveHistory] = useState(() => {
@@ -3267,7 +3273,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                                 );
                                 saveSessions(updated, updated.find(x=>x.id===s.id));
                                 logMove("→ Waitlist", selectedClient.name.split(" ")[0], `from ${s.date} ${s.time}`);
-                                setWaitlist(prev=>[...prev, {clientId: selectedClient.id, name: selectedClient.name.split(" ")[0]}]);
+                                saveWaitlist([...waitlist, {clientId: selectedClient.id, name: selectedClient.name.split(" ")[0]}]);
                               }}
                               style={{
                                 width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",
@@ -3340,7 +3346,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                             saveSessions(updated, updated.find(x=>x.id===s.id));
                             const wlClient = clients.find(c=>c.id===selectedWaitlistClient);
                             if (wlClient) logMove("Booked", wlClient.name.split(" ")[0], `from waitlist to ${s.date} ${s.time}`);
-                            setWaitlist(prev=>prev.filter(w=>w.clientId!==selectedWaitlistClient));
+                            saveWaitlist(waitlist.filter(w=>w.clientId!==selectedWaitlistClient));
                             setSelectedWaitlistClient(null);
                             return;
                           }
@@ -3368,7 +3374,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                             if (fromSess) logMove("Moved", dragClient.name.split(" ")[0], `${fromSess.date} ${fromSess.time} → ${s.date} ${s.time}`);
                             else logMove("Booked", dragClient.name.split(" ")[0], `to ${s.date} ${s.time}`);
                           }
-                          setWaitlist(prev=>prev.filter(w=>w.clientId!==draggedClient.clientId));
+                          saveWaitlist(waitlist.filter(w=>w.clientId!==draggedClient.clientId));
                           setDraggedClient(null);
                         }}
                         style={{
@@ -3476,7 +3482,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                   }
                   const fromSess2 = sessions.find(x=>x.id===draggedClient.fromSessionId);
                   if (fromSess2) logMove("→ Waitlist", cl.name.split(" ")[0], `from ${fromSess2.date} ${fromSess2.time}`);
-                  setWaitlist(prev=>[...prev, {clientId: draggedClient.clientId, name: cl.name.split(" ")[0]}]);
+                  saveWaitlist([...waitlist, {clientId: draggedClient.clientId, name: cl.name.split(" ")[0]}]);
                   setDraggedClient(null);
                 }}
                 style={{
@@ -3505,13 +3511,13 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                         cursor:"pointer",userSelect:"none",transition:"all 0.15s"}}
                     >
                       ⏳ {w.name}
-                      <span onClick={e=>{e.stopPropagation(); setWaitlist(prev=>prev.filter(x=>x.clientId!==w.clientId)); if(isSelected) setSelectedWaitlistClient(null);}} style={{fontSize:10,cursor:"pointer",opacity:0.6}}>✕</span>
+                      <span onClick={e=>{e.stopPropagation(); saveWaitlist(waitlist.filter(x=>x.clientId!==w.clientId)); if(isSelected) setSelectedWaitlistClient(null);}} style={{fontSize:10,cursor:"pointer",opacity:0.6}}>✕</span>
                     </div>
                   );})}
                   {/* Add selected client to waitlist */}
                   {selectedClient && !waitlist.find(w=>w.clientId===selectedClient.id) && (
                     <div
-                      onClick={()=>setWaitlist(prev=>[...prev, {clientId:selectedClient.id, name:selectedClient.name.split(" ")[0]}])}
+                      onClick={()=>saveWaitlist([...waitlist, {clientId:selectedClient.id, name:selectedClient.name.split(" ")[0]}])}
                       style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,
                         background:"#ffffff08",border:"1px dashed var(--border)",
                         fontSize:11,fontWeight:600,color:"var(--muted)",
