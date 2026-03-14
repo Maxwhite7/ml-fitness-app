@@ -2706,6 +2706,18 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
     try { localStorage.setItem("ml_waitlist", JSON.stringify(waitlist)); } catch {}
   }, [waitlist]);
   const [selectedWaitlistClient, setSelectedWaitlistClient] = useState(null); // clientId being placed from waitlist
+  const [showHistory, setShowHistory] = useState(false);
+  const [moveHistory, setMoveHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_move_history") || "[]"); } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("ml_move_history", JSON.stringify(moveHistory.slice(0, 100))); } catch {}
+  }, [moveHistory]);
+  const logMove = (action, clientName, details) => {
+    const now = new Date();
+    const ts = now.toLocaleTimeString("en-CA", {hour:"2-digit",minute:"2-digit"}) + " " + now.toLocaleDateString("en-CA",{month:"short",day:"numeric"});
+    setMoveHistory(prev => [{ts, action, clientName, details}, ...prev.slice(0, 99)]);
+  };
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2799,6 +2811,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
     }
     const changedSession = updated.find(s=>s.id===session.id);
     await saveSessions(updated, changedSession);
+    logMove(alreadyIn ? "Removed" : "Added", selectedClient.name.split(" ")[0], `${alreadyIn?"from":"to"} ${session.date} ${session.time}`);
     setAssignFeedback(alreadyIn ? "" : session.date + " " + session.time);
     setTimeout(() => setAssignFeedback(""), 2000);
   };
@@ -3165,6 +3178,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                                   sess.id===s.id ? {...sess, clientIds: sess.clientIds.filter(id=>id!==selectedClient.id)} : sess
                                 );
                                 saveSessions(updated, updated.find(x=>x.id===s.id));
+                                logMove("→ Waitlist", selectedClient.name.split(" ")[0], `from ${s.date} ${s.time}`);
                                 setWaitlist(prev=>[...prev, {clientId: selectedClient.id, name: selectedClient.name.split(" ")[0]}]);
                               }}
                               style={{
@@ -3236,6 +3250,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                               sess.id===s.id ? {...sess, clientIds:[...sess.clientIds, selectedWaitlistClient]} : sess
                             );
                             saveSessions(updated, updated.find(x=>x.id===s.id));
+                            const wlClient = clients.find(c=>c.id===selectedWaitlistClient);
+                            if (wlClient) logMove("Booked", wlClient.name.split(" ")[0], `from waitlist to ${s.date} ${s.time}`);
                             setWaitlist(prev=>prev.filter(w=>w.clientId!==selectedWaitlistClient));
                             setSelectedWaitlistClient(null);
                             return;
@@ -3258,6 +3274,12 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                             await saveSessions(updated, updated.find(x=>x.id===draggedClient.fromSessionId));
                           }
                           await saveSessions(updated, updated.find(x=>x.id===s.id));
+                          const dragClient = clients.find(c=>c.id===draggedClient.clientId);
+                          const fromSess = sessions.find(x=>x.id===draggedClient.fromSessionId);
+                          if (dragClient) {
+                            if (fromSess) logMove("Moved", dragClient.name.split(" ")[0], `${fromSess.date} ${fromSess.time} → ${s.date} ${s.time}`);
+                            else logMove("Booked", dragClient.name.split(" ")[0], `to ${s.date} ${s.time}`);
+                          }
                           setWaitlist(prev=>prev.filter(w=>w.clientId!==draggedClient.clientId));
                           setDraggedClient(null);
                         }}
@@ -3364,6 +3386,8 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     );
                     saveSessions(updated, updated.find(x=>x.id===draggedClient.fromSessionId));
                   }
+                  const fromSess2 = sessions.find(x=>x.id===draggedClient.fromSessionId);
+                  if (fromSess2) logMove("→ Waitlist", cl.name.split(" ")[0], `from ${fromSess2.date} ${fromSess2.time}`);
                   setWaitlist(prev=>[...prev, {clientId: draggedClient.clientId, name: cl.name.split(" ")[0]}]);
                   setDraggedClient(null);
                 }}
@@ -3411,6 +3435,53 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                 </div>
               </div>
             </div>
+
+            {/* Move History Panel */}
+            <div style={{margin:"0 20px 20px",borderRadius:6,border:"1px solid var(--border)",overflow:"hidden"}}>
+              <div
+                onClick={()=>setShowHistory(h=>!h)}
+                style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  padding:"10px 14px",background:"var(--panel)",cursor:"pointer",userSelect:"none"}}
+              >
+                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",fontWeight:700}}>
+                  📋 Move History {moveHistory.length > 0 ? `(${moveHistory.length})` : ""}
+                </div>
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  {moveHistory.length > 0 && (
+                    <span
+                      onClick={e=>{e.stopPropagation(); setMoveHistory([]); }}
+                      style={{fontSize:10,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}
+                    >Clear</span>
+                  )}
+                  <span style={{color:"var(--muted)",fontSize:12}}>{showHistory?"▲":"▼"}</span>
+                </div>
+              </div>
+              {showHistory && (
+                <div style={{maxHeight:220,overflowY:"auto"}}>
+                  {moveHistory.length === 0
+                    ? <div style={{padding:"20px",textAlign:"center",color:"var(--muted)",fontSize:12}}>No moves recorded yet.</div>
+                    : moveHistory.map((m, i) => (
+                        <div key={i} style={{
+                          display:"flex",alignItems:"center",gap:10,
+                          padding:"9px 14px",borderBottom:"1px solid var(--border)",
+                          background: i===0?"#3ec9c908":"transparent"
+                        }}>
+                          <div style={{
+                            fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,
+                            color: m.action==="Removed"?"var(--red)":m.action==="→ Waitlist"?"#f59e0b":m.action==="Moved"?"var(--accent)":"var(--green)",
+                            minWidth:60
+                          }}>{m.action}</div>
+                          <div style={{fontSize:12,fontWeight:600,color:"var(--text)",flex:1}}>
+                            {m.clientName} <span style={{color:"var(--muted)",fontWeight:400}}>{m.details}</span>
+                          </div>
+                          <div style={{fontSize:10,color:"var(--muted)",whiteSpace:"nowrap"}}>{m.ts}</div>
+                        </div>
+                      ))
+                  }
+                </div>
+              )}
+            </div>
+
           </div>
         );
       })()}
