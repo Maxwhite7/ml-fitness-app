@@ -1464,6 +1464,8 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
       }
     });
   }, []);
+
+
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
     { id:"clients", icon:"👥", label:"Clients" },
@@ -1479,9 +1481,9 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
-        <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} /></div>
+        <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} waitlist={waitlist} saveWaitlist={saveWaitlist} /></div>
         <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const affectedSessions = sessions.filter(s=>s.clientIds.includes(id)); const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); for (const s of affectedSessions) { const updated = {...s, clientIds: s.clientIds.filter(cid=>cid!==id)}; await store.upsertOne("gym_sessions", updated); } setSessions(updatedSessions); setClients(clients.filter(c=>c.id!==id)); await store.remove("gym_clients", id); }} onPreviewClient={onPreviewClient} /></div>
-        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} /></div>
+        <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} waitlist={waitlist} saveWaitlist={saveWaitlist} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
         <div style={{display:tab==="analytics"?"":"none"}}><TrainerAnalytics clients={clients} sessions={sessions} /></div>
@@ -1567,7 +1569,7 @@ function ClientSearchInput({ clients, excludeIds, onSelect, date, time, isAvaila
 }
 
 
-function TrainerSchedule({ clients, sessions, saveSessions }) {
+function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitlist }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -1961,6 +1963,32 @@ function TrainerSchedule({ clients, sessions, saveSessions }) {
         <div className="page-subtitle">Manage your training sessions</div>
       </div>
 
+      {/* Waitlist */}
+      {waitlist && waitlist.length > 0 && (
+        <div className="section" style={{marginBottom:8}}>
+          <div className="section-header">
+            <span className="section-title">⏳ Waitlist ({waitlist.length})</span>
+          </div>
+          <div className="section-body" style={{paddingTop:8,paddingBottom:12}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {waitlist.map(w => (
+                <div key={w.clientId} style={{
+                  display:"inline-flex",alignItems:"center",gap:6,
+                  padding:"5px 12px",borderRadius:20,
+                  background:"#f59e0b20",border:"1px solid #f59e0b",
+                  fontSize:12,fontWeight:600,color:"#f59e0b"
+                }}>
+                  ⏳ {w.name}
+                  <span
+                    onClick={()=>saveWaitlist(waitlist.filter(x=>x.clientId!==w.clientId))}
+                    style={{fontSize:10,cursor:"pointer",opacity:0.6,marginLeft:2}}
+                  >✕</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* View switcher + nav */}
@@ -2733,7 +2761,7 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
   );
 }
 
-function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hiddenBlocks, setHiddenBlocks }) {
+function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hiddenBlocks, setHiddenBlocks, waitlist, saveWaitlist }) {
   const [avails, setAvails] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [assignFeedback, setAssignFeedback] = useState("");
@@ -2742,18 +2770,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
   const [dragOverWaitlist, setDragOverWaitlist] = useState(false);
-  const [waitlist, setWaitlist] = useState([]);
-  useEffect(() => {
-    sbFetch("app_settings?key=eq.waitlist").then(rows => {
-      if (rows && rows.length > 0) {
-        try { setWaitlist(JSON.parse(rows[0].value) || []); } catch {}
-      }
-    });
-  }, []);
-  const saveWaitlist = (updated) => {
-    setWaitlist(updated);
-    sbFetch("app_settings", "POST", [{ key: "waitlist", value: JSON.stringify(updated) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
-  };
+
   const [selectedWaitlistClient, setSelectedWaitlistClient] = useState(null); // clientId being placed from waitlist
   const [showHistory, setShowHistory] = useState(false);
   const [moveHistory, setMoveHistory] = useState(() => {
