@@ -2836,6 +2836,52 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
         <div className="page-subtitle">Click a client to assign them to sessions</div>
       </div>
 
+      {/* Move History Panel */}
+      <div className="section" style={{marginBottom:12}}>
+        <div
+          onClick={()=>setShowHistory(h=>!h)}
+          style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+            padding:"10px 16px",cursor:"pointer",userSelect:"none"}}
+        >
+          <span className="section-title" style={{fontSize:13}}>
+            📋 Move History {moveHistory.length > 0 ? `(${moveHistory.length})` : ""}
+          </span>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            {moveHistory.length > 0 && (
+              <span
+                onClick={e=>{e.stopPropagation(); setMoveHistory([]); }}
+                style={{fontSize:11,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}
+              >Clear</span>
+            )}
+            <span style={{color:"var(--muted)",fontSize:12}}>{showHistory?"▲":"▼"}</span>
+          </div>
+        </div>
+        {showHistory && (
+          <div style={{maxHeight:220,overflowY:"auto",borderTop:"1px solid var(--border)"}}>
+            {moveHistory.length === 0
+              ? <div style={{padding:"20px",textAlign:"center",color:"var(--muted)",fontSize:12}}>No moves recorded yet.</div>
+              : moveHistory.map((m, i) => (
+                  <div key={i} style={{
+                    display:"flex",alignItems:"center",gap:10,
+                    padding:"9px 16px",borderBottom:"1px solid var(--border)",
+                    background: i===0?"#3ec9c908":"transparent"
+                  }}>
+                    <div style={{
+                      fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,
+                      color: m.action==="Removed"?"var(--red)":m.action==="→ Waitlist"?"#f59e0b":m.action==="Moved"?"var(--accent)":"var(--green)",
+                      minWidth:60
+                    }}>{m.action}</div>
+                    <div style={{fontSize:12,fontWeight:600,color:"var(--text)",flex:1}}>
+                      {m.clientName} <span style={{color:"var(--muted)",fontWeight:400}}>{m.details}</span>
+                    </div>
+                    <div style={{fontSize:10,color:"var(--muted)",whiteSpace:"nowrap"}}>{m.ts}</div>
+                  </div>
+                ))
+            }
+          </div>
+        )}
+      </div>
+
       {/* Week selector */}
       <div className="section">
         <div className="section-header"><span className="section-title">Select Week</span></div>
@@ -3434,52 +3480,6 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Move History Panel */}
-            <div style={{margin:"0 20px 20px",borderRadius:6,border:"1px solid var(--border)",overflow:"hidden"}}>
-              <div
-                onClick={()=>setShowHistory(h=>!h)}
-                style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  padding:"10px 14px",background:"var(--panel)",cursor:"pointer",userSelect:"none"}}
-              >
-                <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:2,color:"var(--muted)",fontWeight:700}}>
-                  📋 Move History {moveHistory.length > 0 ? `(${moveHistory.length})` : ""}
-                </div>
-                <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                  {moveHistory.length > 0 && (
-                    <span
-                      onClick={e=>{e.stopPropagation(); setMoveHistory([]); }}
-                      style={{fontSize:10,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}
-                    >Clear</span>
-                  )}
-                  <span style={{color:"var(--muted)",fontSize:12}}>{showHistory?"▲":"▼"}</span>
-                </div>
-              </div>
-              {showHistory && (
-                <div style={{maxHeight:220,overflowY:"auto"}}>
-                  {moveHistory.length === 0
-                    ? <div style={{padding:"20px",textAlign:"center",color:"var(--muted)",fontSize:12}}>No moves recorded yet.</div>
-                    : moveHistory.map((m, i) => (
-                        <div key={i} style={{
-                          display:"flex",alignItems:"center",gap:10,
-                          padding:"9px 14px",borderBottom:"1px solid var(--border)",
-                          background: i===0?"#3ec9c908":"transparent"
-                        }}>
-                          <div style={{
-                            fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,
-                            color: m.action==="Removed"?"var(--red)":m.action==="→ Waitlist"?"#f59e0b":m.action==="Moved"?"var(--accent)":"var(--green)",
-                            minWidth:60
-                          }}>{m.action}</div>
-                          <div style={{fontSize:12,fontWeight:600,color:"var(--text)",flex:1}}>
-                            {m.clientName} <span style={{color:"var(--muted)",fontWeight:400}}>{m.details}</span>
-                          </div>
-                          <div style={{fontSize:10,color:"var(--muted)",whiteSpace:"nowrap"}}>{m.ts}</div>
-                        </div>
-                      ))
-                  }
-                </div>
-              )}
             </div>
 
           </div>
