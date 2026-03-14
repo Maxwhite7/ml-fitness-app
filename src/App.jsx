@@ -2716,7 +2716,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   const logMove = (action, clientName, details) => {
     const now = new Date();
     const ts = now.toLocaleTimeString("en-CA", {hour:"2-digit",minute:"2-digit"}) + " " + now.toLocaleDateString("en-CA",{month:"short",day:"numeric"});
-    setMoveHistory(prev => [{ts, action, clientName, details}, ...prev.slice(0, 99)]);
+    setMoveHistory(prev => [{ts, action, clientName, details, weekKey: currentWeekKey}, ...prev.slice(0, 99)]);
   };
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -2844,7 +2844,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
             padding:"10px 16px",cursor:"pointer",userSelect:"none"}}
         >
           <span className="section-title" style={{fontSize:13}}>
-            📋 Move History {moveHistory.length > 0 ? `(${moveHistory.length})` : ""}
+            📋 Move History {moveHistory.filter(m=>m.weekKey===currentWeekKey).length > 0 ? `(${moveHistory.filter(m=>m.weekKey===currentWeekKey).length})` : ""}
           </span>
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
             {moveHistory.length > 0 && (
@@ -2858,9 +2858,9 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
         </div>
         {showHistory && (
           <div style={{maxHeight:220,overflowY:"auto",borderTop:"1px solid var(--border)"}}>
-            {moveHistory.length === 0
-              ? <div style={{padding:"20px",textAlign:"center",color:"var(--muted)",fontSize:12}}>No moves recorded yet.</div>
-              : moveHistory.map((m, i) => (
+            {(() => { const weekMoves = moveHistory.filter(m => m.weekKey === currentWeekKey); return weekMoves.length === 0
+              ? <div style={{padding:"20px",textAlign:"center",color:"var(--muted)",fontSize:12}}>No moves recorded for this week.</div>
+              : weekMoves.map((m, i) => (
                   <div key={i} style={{
                     display:"flex",alignItems:"center",gap:10,
                     padding:"9px 16px",borderBottom:"1px solid var(--border)",
@@ -2877,7 +2877,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     <div style={{fontSize:10,color:"var(--muted)",whiteSpace:"nowrap"}}>{m.ts}</div>
                   </div>
                 ))
-            }
+            }); })()}
           </div>
         )}
       </div>
