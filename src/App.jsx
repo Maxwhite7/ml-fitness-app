@@ -1465,6 +1465,19 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     });
   }, []);
 
+  const [waitlist, setWaitlist] = useState([]);
+  useEffect(() => {
+    sbFetch("app_settings?key=eq.waitlist").then(rows => {
+      if (rows && rows.length > 0) {
+        try { setWaitlist(JSON.parse(rows[0].value) || []); } catch {}
+      }
+    });
+  }, []);
+  const saveWaitlist = (updated) => {
+    setWaitlist(updated);
+    sbFetch("app_settings", "POST", [{ key: "waitlist", value: JSON.stringify(updated) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+  };
+
 
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
