@@ -2218,11 +2218,13 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
   const [form, setForm] = useState({ name:"", sessionsTotal:0, sessions_baseline:0, active:true });
   const [newCredentials, setNewCredentials] = useState(null);
   const [historyClient, setHistoryClient] = useState(null);
+  const [renewMode, setRenewMode] = useState(false);
+  const [renewSize, setRenewSize] = useState(0);
 
   const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()));
 
   const openAdd = () => { setForm({ name:"", sessionsTotal:0, sessions_baseline:0, active:true }); setNewCredentials(null); setModal("add"); };
-  const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); };
+  const openEdit = (c) => { setForm({...c}); setNewCredentials(null); setModal(c); setRenewMode(false); setRenewSize(c.sessionsTotal||0); };
 
   const hashPassword = async (password) => {
     const msgBuffer = new TextEncoder().encode(password);
@@ -2671,6 +2673,47 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
                   <div style={{color:"var(--muted)",fontSize:11}}>sessions done{form.sessions_snapshot_date ? ` · tracking since ${form.sessions_snapshot_date}` : ""}</div>
                 </div>
               )}
+              {modal !== "add" && (() => {
+                const done = calcSessionsDone(form, sessions);
+                const total = form.sessionsTotal || 0;
+                const isFinished = total > 0 && done >= total;
+                if (!isFinished && !renewMode) return null;
+                return renewMode ? (
+                  <div style={{background:"#3ec9c915",border:"1px solid var(--accent)",borderRadius:6,padding:"14px 16px",marginTop:8}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"var(--accent)",marginBottom:10,textTransform:"uppercase",letterSpacing:1}}>🔄 Renew Package</div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <label style={{fontSize:12,color:"var(--muted)",whiteSpace:"nowrap"}}>New package size</label>
+                      <input
+                        type="number" min="1"
+                        value={renewSize}
+                        onChange={e=>setRenewSize(+e.target.value)}
+                        style={{width:80}}
+                      />
+                      <button
+                        className="btn-primary"
+                        style={{width:"auto",padding:"6px 16px",fontSize:12}}
+                        onClick={()=>{
+                          const today = new Date();
+                          const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+                          setForm(f=>({...f, sessions_baseline:0, sessions_snapshot_date:todayStr, sessionsTotal:renewSize}));
+                          setRenewMode(false);
+                        }}
+                      >Confirm Renewal</button>
+                      <button className="btn-secondary" style={{padding:"6px 12px",fontSize:12}} onClick={()=>setRenewMode(false)}>Cancel</button>
+                    </div>
+                    <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Session count will reset to 0 as of today. Package size will be set to {renewSize}.</div>
+                  </div>
+                ) : (
+                  <div style={{background:"#ff444415",border:"1px solid var(--red)",borderRadius:6,padding:"10px 14px",marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div style={{fontSize:12,color:"var(--red)",fontWeight:600}}>⚠️ Package complete — {done}/{total} sessions used</div>
+                    <button
+                      className="btn-secondary"
+                      style={{color:"var(--accent)",borderColor:"var(--accent)",padding:"5px 14px",fontSize:12,width:"auto"}}
+                      onClick={()=>{ setRenewSize(form.sessionsTotal||0); setRenewMode(true); }}
+                    >🔄 Renew</button>
+                  </div>
+                );
+              })()}
               {modal !== "add" && (
                 <div style={{fontSize:12,color:"var(--muted)",marginTop:8}}>
                   Email: {form.email}
