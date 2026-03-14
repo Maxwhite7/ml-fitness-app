@@ -2858,9 +2858,9 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
         </div>
         {showHistory && (
           <div style={{maxHeight:220,overflowY:"auto",borderTop:"1px solid var(--border)"}}>
-            {(() => { const weekMoves = moveHistory.filter(m => m.weekKey === currentWeekKey); return weekMoves.length === 0
+            {moveHistory.filter(m => m.weekKey === currentWeekKey).length === 0
               ? <div style={{padding:"20px",textAlign:"center",color:"var(--muted)",fontSize:12}}>No moves recorded for this week.</div>
-              : weekMoves.map((m, i) => (
+              : moveHistory.filter(m => m.weekKey === currentWeekKey).map((m, i) => (
                   <div key={i} style={{
                     display:"flex",alignItems:"center",gap:10,
                     padding:"9px 16px",borderBottom:"1px solid var(--border)",
@@ -2877,7 +2877,7 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
                     <div style={{fontSize:10,color:"var(--muted)",whiteSpace:"nowrap"}}>{m.ts}</div>
                   </div>
                 ))
-            }); })()}
+            }
           </div>
         )}
       </div>
