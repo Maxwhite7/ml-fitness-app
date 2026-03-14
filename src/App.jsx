@@ -2699,7 +2699,12 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   const [draggedClient, setDraggedClient] = useState(null); // {clientId, fromSessionId}
   const [dragOverSession, setDragOverSession] = useState(null);
   const [dragOverWaitlist, setDragOverWaitlist] = useState(false);
-  const [waitlist, setWaitlist] = useState([]);
+  const [waitlist, setWaitlist] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ml_waitlist") || "[]"); } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("ml_waitlist", JSON.stringify(waitlist)); } catch {}
+  }, [waitlist]);
   const [selectedWaitlistClient, setSelectedWaitlistClient] = useState(null); // clientId being placed from waitlist
 
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -5474,7 +5479,18 @@ When the trainer says something like "add a session Monday March 10 at 7am", ext
 - date: in YYYY-MM-DD format
 - time: in "H:MM AM/PM" format (e.g. "7:00 AM", "5:00 PM")
 
-Today is ${todayStr}. Use this to resolve relative dates like "next Monday", "this Friday" etc.
+Today is ${todayStr} (${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(todayStr+"T12:00:00").getDay()]}).
+Current week dates:
+${["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map((day, i) => {
+  const d = new Date(todayStr+"T12:00:00");
+  const dayOfWeek = d.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const mon = new Date(d); mon.setDate(d.getDate() + mondayOffset);
+  const target = new Date(mon); target.setDate(mon.getDate() + i);
+  const ds = target.getFullYear()+'-'+String(target.getMonth()+1).padStart(2,'0')+'-'+String(target.getDate()).padStart(2,'0');
+  return `- ${day}: ${ds}`;
+}).join("\n")}
+Use these exact dates when the trainer refers to a day by name this week. For "next Monday" add 7 days to this week's Monday.
 
 Always confirm what you did after executing an action.
 For anything else, just respond conversationally and helpfully.
