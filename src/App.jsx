@@ -2756,12 +2756,6 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
   useEffect(() => {
     try { localStorage.setItem("ml_move_history", JSON.stringify(moveHistory.slice(0, 100))); } catch {}
   }, [moveHistory]);
-  const logMove = (action, clientName, details) => {
-    const now = new Date();
-    const ts = now.toLocaleTimeString("en-CA", {hour:"2-digit",minute:"2-digit"}) + " " + now.toLocaleDateString("en-CA",{month:"short",day:"numeric"});
-    setMoveHistory(prev => [{ts, action, clientName, details, weekKey: currentWeekKey}, ...prev.slice(0, 99)]);
-  };
-
   const MONTH_ABBREVS_T = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const getWeekMonday = (offset) => {
@@ -2781,6 +2775,11 @@ function TrainerAvailability({ clients, sessions, saveSessions, saveClients, hid
 
   const currentMonday = getWeekMonday(trainerWeekOffset);
   const currentWeekKey = weekDateKey(currentMonday);
+  const logMove = (action, clientName, details) => {
+    const now = new Date();
+    const ts = now.toLocaleTimeString("en-CA", {hour:"2-digit",minute:"2-digit"}) + " " + now.toLocaleDateString("en-CA",{month:"short",day:"numeric"});
+    setMoveHistory(prev => [{ts, action, clientName, details, weekKey: currentWeekKey}, ...prev.slice(0, 99)]);
+  };
 
   useEffect(() => {
     // Fetch directly from Supabase availability table
