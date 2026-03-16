@@ -1169,12 +1169,20 @@ const seedSessions = () => [
 
 // ─── Session count helper ─────────────────────────────────────────────────────
 // calcSessionsDone: sessions_baseline (manually set by trainer) + sessions completed after that snapshot date
+// If no snapshot date, count all past sessions directly
 function calcSessionsDone(client, sessions) {
   const baseline = client.sessions_baseline || 0;
   const snapshotDate = client.sessions_snapshot_date || null;
-  if (!snapshotDate) return baseline;
   const now = new Date();
   const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  if (!snapshotDate) {
+    // No baseline set — count all past sessions
+    return sessions.filter(s =>
+      s.date && s.date <= todayStr &&
+      s.clientIds && s.clientIds.includes(client.id) &&
+      !(s.exceptions && s.exceptions.includes(client.id))
+    ).length;
+  }
   const completedSince = sessions.filter(s =>
     s.date && s.date > snapshotDate && s.date <= todayStr &&
     s.clientIds && s.clientIds.includes(client.id) &&
