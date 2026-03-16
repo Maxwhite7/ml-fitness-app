@@ -823,6 +823,11 @@ const store = {
     try {
       const table = TABLE_MAP[key];
       if (!table || !val || val.length === 0) return;
+      // Safety: never bulk-overwrite sessions — always use upsertOne per row instead
+      if (key === "gym_sessions") {
+        console.warn("[store.set] Bulk session save blocked — use upsertOne instead");
+        return;
+      }
       // Ensure array fields are serialized for sessions
       const rows = key === "gym_sessions" ? val.map(r => ({
         ...r,
@@ -1328,10 +1333,8 @@ export default function App() {
     setSessions(updated);
     if (changedRow) {
       await store.upsertOne("gym_sessions", changedRow);
-    } else {
-      await store.set("gym_sessions", updated);
     }
-    // Re-check counts whenever sessions change (e.g. a session booked for today)
+    // No bulk save for sessions — always pass changedRow to avoid overwriting Supabase with stale state
   };
 
   if (!loaded || !dataReady) return (
@@ -1759,7 +1762,8 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
       setGenFeedback("Next week already has sessions!");
     } else {
       const allSessions = [...sessions, ...newSessions];
-      await saveSessions(allSessions);
+      setSessions(allSessions);
+      for (const s of newSessions) await store.upsertOne("gym_sessions", s);
       // Navigate to next week's month
       setViewMonth(d.getMonth());
       setViewYear(d.getFullYear());
@@ -1805,7 +1809,7 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
         await sbFetch("sessions", "POST", batch, { Prefer: "resolution=merge-duplicates,return=minimal" });
       }
       const allSessions = [...sessions, ...newSessions];
-      await saveSessions(allSessions);
+      setSessions(allSessions);
       setGenFeedback(`✓ Added ${newSessions.length} sessions through Dec 31`);
     }
     setGenerating(false);
