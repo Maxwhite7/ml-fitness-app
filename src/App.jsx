@@ -1486,6 +1486,17 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     sbFetch("app_settings", "POST", [{ key: "waitlist", value: JSON.stringify(updated) }], { Prefer: "resolution=merge-duplicates,return=minimal" });
   };
 
+  const [scheduleNotes, setScheduleNotes] = useState("");
+  useEffect(() => {
+    sbFetch("app_settings?key=eq.schedule_notes").then(rows => {
+      if (rows && rows.length > 0) setScheduleNotes(rows[0].value || "");
+    });
+  }, []);
+  const saveScheduleNotes = (val) => {
+    setScheduleNotes(val);
+    sbFetch("app_settings", "POST", [{ key: "schedule_notes", value: val }], { Prefer: "resolution=merge-duplicates,return=minimal" });
+  };
+
 
   const nav = [
     { id:"schedule", icon:"📅", label:"Schedule" },
@@ -1502,8 +1513,8 @@ function TrainerApp({ user, clients, sessions, setSessions, saveClients, saveSes
     <div className="app-shell">
       <Sidebar user={user} nav={nav} tab={tab} setTab={setTab} onLogout={onLogout} role="TRAINER" />
       <div className="main-content" style={{overflowY:"auto"}}>
-        <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} waitlist={waitlist} saveWaitlist={saveWaitlist} /></div>
-        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} deleteClient={async (id)=>{ const affectedSessions = sessions.filter(s=>s.clientIds.includes(id)); const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); for (const s of affectedSessions) { const updated = {...s, clientIds: s.clientIds.filter(cid=>cid!==id)}; await store.upsertOne("gym_sessions", updated); } setSessions(updatedSessions); setClients(clients.filter(c=>c.id!==id)); await store.remove("gym_clients", id); }} onPreviewClient={onPreviewClient} /></div>
+        <div style={{display:tab==="schedule"?"":"none"}}><TrainerSchedule clients={clients} sessions={sessions} saveSessions={saveSessions} waitlist={waitlist} saveWaitlist={saveWaitlist} scheduleNotes={scheduleNotes} saveScheduleNotes={saveScheduleNotes} /></div>
+        <div style={{display:tab==="clients"?"":"none"}}><TrainerClients clients={clients} sessions={sessions} saveClients={saveClients} scheduleNotes={scheduleNotes} saveScheduleNotes={saveScheduleNotes} deleteClient={async (id)=>{ const affectedSessions = sessions.filter(s=>s.clientIds.includes(id)); const updatedSessions = sessions.map(s=>s.clientIds.includes(id)?{...s,clientIds:s.clientIds.filter(cid=>cid!==id)}:s); for (const s of affectedSessions) { const updated = {...s, clientIds: s.clientIds.filter(cid=>cid!==id)}; await store.upsertOne("gym_sessions", updated); } setSessions(updatedSessions); setClients(clients.filter(c=>c.id!==id)); await store.remove("gym_clients", id); }} onPreviewClient={onPreviewClient} /></div>
         <div style={{display:tab==="availability"?"":"none"}}><TrainerAvailability clients={clients} sessions={sessions} saveSessions={saveSessions} saveClients={saveClients} hiddenBlocks={hiddenBlocks} setHiddenBlocks={setHiddenBlocks} waitlist={waitlist} saveWaitlist={saveWaitlist} /></div>
         <div style={{display:tab==="progress"?"":"none"}}><TrainerProgress clients={clients} sessions={sessions} weekPlans={weekPlans} currentWeekIdx={currentWeekIdx} library={library} /></div>
         <div style={{display:tab==="exercises"?"":"none"}}><TrainerExercises weekPlans={weekPlans} setWeekPlans={setWeekPlans} currentWeekIdx={currentWeekIdx} setCurrentWeekIdx={setCurrentWeekIdx} autoWeekIdx={autoWeekIdx} library={library} setLibrary={setLibrary} /></div>
@@ -1590,7 +1601,7 @@ function ClientSearchInput({ clients, excludeIds, onSelect, date, time, isAvaila
 }
 
 
-function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitlist }) {
+function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitlist, scheduleNotes, saveScheduleNotes }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -1996,33 +2007,19 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
         <div className="page-subtitle">Manage your training sessions</div>
       </div>
 
-      {/* Waitlist */}
-      {waitlist && waitlist.length > 0 && (
-        <div className="section" style={{marginBottom:8}}>
-          <div className="section-header">
-            <span className="section-title">⏳ Waitlist ({waitlist.length})</span>
-          </div>
-          <div className="section-body" style={{paddingTop:8,paddingBottom:12}}>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {waitlist.map(w => (
-                <div key={w.clientId} style={{
-                  display:"inline-flex",alignItems:"center",gap:6,
-                  padding:"5px 12px",borderRadius:20,
-                  background:"#f59e0b20",border:"1px solid #f59e0b",
-                  fontSize:12,fontWeight:600,color:"#f59e0b"
-                }}>
-                  ⏳ {w.name}
-                  <span
-                    onClick={()=>saveWaitlist(waitlist.filter(x=>x.clientId!==w.clientId))}
-                    style={{fontSize:10,cursor:"pointer",opacity:0.6,marginLeft:2}}
-                  >✕</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Trainer Notes */}
+      <div className="section" style={{marginBottom:8}}>
+        <div className="section-header"><span className="section-title">📝 Notes</span></div>
+        <div className="section-body" style={{paddingTop:8,paddingBottom:12}}>
+          <textarea
+            value={scheduleNotes}
+            onChange={e => saveScheduleNotes(e.target.value)}
+            placeholder="Leave yourself notes here..."
+            style={{width:"100%",minHeight:80,background:"var(--charcoal)",border:"1px solid var(--border)",
+              borderRadius:4,color:"var(--text)",fontSize:13,padding:"8px 10px",resize:"vertical",boxSizing:"border-box"}}
+          />
         </div>
-      )}
-
+      </div>
 
       {/* View switcher + nav */}
       <div className="section">
@@ -2273,7 +2270,7 @@ function TrainerSchedule({ clients, sessions, saveSessions, waitlist, saveWaitli
   );
 }
 
-function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient }) {
+function TrainerClients({ clients, sessions, saveClients, deleteClient, onPreviewClient, scheduleNotes, saveScheduleNotes }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ name:"", sessionsTotal:0, sessions_baseline:0, active:true });
@@ -2355,6 +2352,20 @@ function TrainerClients({ clients, sessions, saveClients, deleteClient, onPrevie
       <div className="page-header">
         <div className="bebas page-title">CLIENTS</div>
         <div className="page-subtitle">{clients.filter(c=>c.active&&!c.former).length} active · {clients.filter(c=>!c.active&&!c.former).length} inactive · {clients.filter(c=>c.former).length} former</div>
+      </div>
+
+      {/* Trainer Notes */}
+      <div className="section" style={{marginBottom:8}}>
+        <div className="section-header"><span className="section-title">📝 Notes</span></div>
+        <div className="section-body" style={{paddingTop:8,paddingBottom:12}}>
+          <textarea
+            value={scheduleNotes}
+            onChange={e => saveScheduleNotes(e.target.value)}
+            placeholder="Leave yourself notes here..."
+            style={{width:"100%",minHeight:80,background:"var(--charcoal)",border:"1px solid var(--border)",
+              borderRadius:4,color:"var(--text)",fontSize:13,padding:"8px 10px",resize:"vertical",boxSizing:"border-box"}}
+          />
+        </div>
       </div>
 
       <div className="section">
